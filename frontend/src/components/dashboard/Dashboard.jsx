@@ -11,6 +11,7 @@ import { useToast } from '../../hooks/useToast';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
 import ActivityFeed from './ActivityFeed';
 import MissionIntelWidget from './MissionIntelWidget';
+import MissionBriefing from './MissionBriefing';
 
 const StatCard = ({ label, value, sub, icon, onClick, trend, color = "text-white" }) => {
     const Icon = icon;
@@ -185,6 +186,7 @@ const Dashboard = ({ onNavigate }) => {
     const [isTasksOpen, setIsTasksOpen] = useState(false); // Start collapsed
     const [isWeatherOpen, setIsWeatherOpen] = useState(true);
     const [isActivityOpen, setIsActivityOpen] = useState(true);
+    const [activeBriefing, setActiveBriefing] = useState(null);
 
     useEffect(() => {
         const loadCoreData = async () => {
@@ -373,8 +375,32 @@ const Dashboard = ({ onNavigate }) => {
                 {/* Right Column: Schedule & Tasks (Spans 2 on desktop) */}
                 <div className="lg:col-span-2 space-y-6">
 
-                    {/* The Oracle Protocol: Mission Intel Widget */}
-                    <MissionIntelWidget />
+                    {/* Foreman Protocol: Active Mission Briefing */}
+                    <AnimatePresence mode="wait">
+                        {activeBriefing ? (
+                            <_motion.div
+                                key="briefing"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                            >
+                                <MissionBriefing
+                                    phase={activeBriefing}
+                                    onBack={() => setActiveBriefing(null)}
+                                />
+                            </_motion.div>
+                        ) : (
+                            <_motion.div
+                                key="widgets"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                            >
+                                {/* The Oracle Protocol: Mission Intel Widget */}
+                                {/* Pass handler to trigger briefing from widget */}
+                                <MissionIntelWidget onLaunchBriefing={(phase) => setActiveBriefing(phase)} />
+                            </_motion.div>
+                        )}
+                    </AnimatePresence>
 
                     <div className="bg-slate-800/50 border border-white/5 rounded-2xl shadow-xl overflow-hidden">
                         <div

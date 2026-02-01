@@ -234,6 +234,101 @@ class AltimeterService:
             print(f"[AltimeterService] Active phase fetch failed: {e}")
             return []
 
+    def check_inventory_for_tools(self, tool_list: List[str]) -> List[Dict[str, Any]]:
+        """
+        Checks Altimeter Inventory for availability of required tools.
+        """
+        availability_report = []
+        try:
+            conn = self._get_db_conn()
+
+            # Since we don't know the exact schema, we'll try a flexible query or fallback
+            # Assuming table 'inventory' or 'tools' with 'name' and 'status'/'quantity'
+
+            # Check if table exists first
+            tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND (name='inventory' OR name='tools')").fetchall()
+            table_name = tables[0]['name'] if tables else None
+
+            if not table_name:
+                conn.close()
+                # Mock response if table missing
+                return [{"tool": t, "status": "Unknown (No DB Table)", "available": False} for t in tool_list]
+
+            for tool in tool_list:
+                # Fuzzy search
+                rows = conn.execute(f"SELECT * FROM {table_name} WHERE name LIKE ? LIMIT 1", (f"%{tool}%",)).fetchall()
+                if rows:
+                    item = rows[0]
+                    # Try to deduce status
+                    status = item.get('status', 'Available')
+                    qty = item.get('quantity', 1)
+                    is_avail = (str(status).lower() not in ['out', 'broken', 'repair']) and (int(qty) > 0)
+
+                    availability_report.append({
+                        "tool": tool,
+                        "match": item['name'],
+                        "status": status,
+                        "available": is_avail
+                    })
+                else:
+                    availability_report.append({
+                        "tool": tool,
+                        "status": "Not Found in Stock",
+                        "available": False
+                    })
+
+            conn.close()
+        except Exception as e:
+            print(f"[AltimeterService] Inventory check failed: {e}")
+            # Return failure stubs
+            availability_report = [{"tool": t, "status": "Check Failed", "available": False} for t in tool_list]
+
+        return availability_report
+
+    async def generate_mission_briefing(self, phase_id: str, sop_content: str) -> Dict[str, Any]:
+        """
+        Foreman Protocol: Decomposes SOP into a checklist and checks tools.
+        """
+        from services.ai_service import ai_service
+        import json
+
+        # 1. Decompose SOP via AI
+        prompt = f"""
+        You are The Foreman. Convert the following Standard Operating Procedure (SOP) into a granular, actionable daily checklist for a construction crew.
+
+        SOP CONTENT:
+        {sop_content[:3000]}
+
+        OUTPUT FORMAT (JSON ONLY):
+        {{
+            "checklist": [
+                {{"step": "Step description", "is_safety_critical": boolean}},
+                ...
+            ],
+            "required_tools": ["Tool 1", "Tool 2"]
+        }}
+        """
+
+        try:
+            raw_json = await ai_service.generate_content(prompt)
+            # Cleanup JSON markdown if present
+            raw_json = raw_json.replace("```json", "").replace("```", "").strip()
+            data = json.loads(raw_json)
+        except Exception as e:
+            print(f"[AltimeterService] AI Decomposition failed: {e}")
+            # Fallback
+            data = {"checklist": [{"step": "Read SOP manually (AI Error)", "is_safety_critical": True}], "required_tools": []}
+
+        # 2. Check Inventory
+        tools_status = self.check_inventory_for_tools(data.get("required_tools", []))
+
+        return {
+            "phase_id": phase_id,
+            "checklist": data.get("checklist", []),
+            "tools_status": tools_status,
+            "generated_at": datetime.now().isoformat()
+        }
+
     def _get_recent_activity_context(self, project_id: str) -> str:
         """Fetch recent logs and emails for the project."""
         lines = []

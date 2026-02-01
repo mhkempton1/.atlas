@@ -279,6 +279,22 @@ export const SYSTEM_API = {
     getOracleFeed: async () => {
         const response = await api.get('/dashboard/oracle');
         return response.data;
+    },
+
+    // Foreman Protocol
+    generateMissionBriefing: async (phaseId, sopContent) => {
+        const response = await api.post('/foreman/briefing', { phase_id: phaseId, sop_content: sopContent });
+        return response.data;
+    },
+
+    draftDailyLog: async (data) => {
+        const response = await api.post('/reporting/daily-log/draft', data);
+        return response.data;
+    },
+
+    updateTaskStatus: async (taskId, status, safetyAck = false) => {
+        const response = await api.put(`/tasks/${taskId}`, { status, safety_ack: safetyAck });
+        return response.data;
     }
 };
 

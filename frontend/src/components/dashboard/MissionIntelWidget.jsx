@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, FileText, CloudRain, ChevronDown, ChevronUp, AlertTriangle, BookOpen } from 'lucide-react';
 import { SYSTEM_API } from '../../services/api';
 
-const MissionIntelWidget = () => {
+const MissionIntelWidget = ({ onLaunchBriefing }) => {
     const [intel, setIntel] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedItem, setExpandedItem] = useState(null);
@@ -78,7 +78,13 @@ const MissionIntelWidget = () => {
                                 <div className="px-3 pb-3 pt-0">
                                     <div className="bg-slate-950/50 rounded-lg p-3 text-xs text-gray-400 font-mono leading-relaxed border border-white/5">
                                         {item.snippet}
-                                        <div className="mt-2 pt-2 border-t border-white/5 flex justify-end">
+                                        <div className="mt-2 pt-2 border-t border-white/5 flex justify-between items-center">
+                                            <button
+                                                className="text-[10px] bg-purple-500/10 border border-purple-500/20 text-purple-400 px-2 py-1 rounded hover:bg-purple-500/20 uppercase font-bold tracking-wider"
+                                                onClick={() => onLaunchBriefing && onLaunchBriefing({ phase_name: item.phase_match, project_name: "Active Project" })}
+                                            >
+                                                Launch Briefing
+                                            </button>
                                             <button className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1 uppercase font-bold tracking-wider">
                                                 <FileText className="w-3 h-3" />
                                                 Open Full Document

@@ -86,6 +86,12 @@ router.include_router(search_router, prefix="/search", tags=["Search"])
 from api.weather_routes import router as weather_router
 router.include_router(weather_router, prefix="/weather", tags=["Weather"])
 
+from api.reporting_routes import router as reporting_router
+router.include_router(reporting_router, prefix="/reporting", tags=["Reporting"])
+
+from api.foreman_routes import router as foreman_router
+router.include_router(foreman_router, prefix="/foreman", tags=["Foreman Protocol"])
+
 @router.post("/chat")
 async def chat_assistant(request: dict):
     """Semantic intelligence chat bot"""
