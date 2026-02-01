@@ -8,8 +8,6 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_PREFIX: str = "/api/v1"
     CORS_ORIGINS: List[str] = [
-        "http://localhost:4202", 
-        "http://localhost:4204",
         "http://127.0.0.1:4202",
         "http://127.0.0.1:4204"
     ]

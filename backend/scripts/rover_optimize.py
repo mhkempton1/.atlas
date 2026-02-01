@@ -7,7 +7,7 @@ import statistics
 from datetime import datetime
 
 # Configuration
-API_BASE = "http://localhost:4201/api/v1"
+API_BASE = "http://127.0.0.1:4201/api/v1"
 DB_PATH = r"C:\Users\mhkem\OneDrive\Documents\databasedev\atlas.db"
 
 def benchmark_endpoint(name, path, method="GET", json=None):

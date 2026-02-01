@@ -8,7 +8,7 @@ const SchedulerView = () => {
 
     useEffect(() => {
         // Use consistent API base
-        const scheduleUrl = 'http://localhost:4201/api/v1/dashboard/schedule';
+        const scheduleUrl = 'http://127.0.0.1:4201/api/v1/dashboard/schedule';
 
         fetch(scheduleUrl)
             .then(res => {
