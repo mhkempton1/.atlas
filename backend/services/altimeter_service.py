@@ -1,11 +1,12 @@
 import re
 import sqlite3
 import os
+from datetime import datetime
 from typing import Dict, List, Optional, Any
 from core.config import settings
 
 class AltimeterService:
-    def __init__(self, api_base_url: str = "http://localhost:4203"):
+    def __init__(self, api_base_url: str = "http://127.0.0.1:4203"):
         self.api_base_url = api_base_url
         # Robust path resolution
         alt_path = settings.ALTIMETER_PATH
@@ -241,4 +242,46 @@ class AltimeterService:
             
         return "\n".join(lines) if lines else "No recent activity found."
 
+class IntelligenceBridge:
+    """
+    Standardized interface for Altimeter to request AI context from Atlas.
+    """
+    def fetch_context_from_atlas(self, query: str, context_type: str = "general") -> Dict[str, Any]:
+        """
+        Retrieves relevant context from Atlas's Knowledge Base (Vector DB)
+        to assist Altimeter's decision making.
+        """
+        try:
+            from services.search_service import search_service
+
+            # 1. Search Knowledge Base
+            results = search_service.search(query, collection_name="knowledge", n_results=3)
+
+            # 2. Format for Altimeter
+            context_data = []
+            if results:
+                for res in results:
+                    context_data.append({
+                        "source": res.get("metadata", {}).get("title", "Unknown Source"),
+                        "content": res.get("content_snippet", ""),
+                        "relevance": res.get("score", 0)
+                    })
+
+            return {
+                "query": query,
+                "context_type": context_type,
+                "insights": context_data,
+                "status": "success",
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            print(f"[IntelligenceBridge] Context fetch failed: {e}")
+            return {
+                "query": query,
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+
 altimeter_service = AltimeterService()
+intelligence_bridge = IntelligenceBridge()

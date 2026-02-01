@@ -243,9 +243,26 @@ const Dashboard = ({ onNavigate }) => {
                 title="Personal Assistant"
                 subtitle="Mission Protocol Unified Dashboard"
             >
-                <div className={`flex items-center gap-2 text-[10px] font-mono ${healthDetails?.status === 'online' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20'} px-3 py-1 rounded-full border`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${healthDetails?.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-                    {healthDetails?.status === 'online' ? 'SYSTEM OPERATIONAL' : 'DEGRADED'}
+                <div className="flex items-center gap-4">
+                    <div className={`flex items-center gap-2 text-[10px] font-mono ${healthDetails?.status === 'online' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20'} px-3 py-1 rounded-full border`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${healthDetails?.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                        {healthDetails?.status === 'online' ? 'SYSTEM OPERATIONAL' : 'DEGRADED'}
+                    </div>
+
+                    <div className="relative group">
+                        <button className="p-1.5 bg-slate-800 border border-white/10 rounded-lg hover:bg-slate-700 transition-colors">
+                            <Settings className="w-4 h-4 text-gray-400" />
+                        </button>
+                        <div className="absolute right-0 top-full mt-2 w-48 bg-slate-900 border border-white/10 rounded-xl shadow-xl p-2 hidden group-hover:block z-50">
+                            <div className="text-[10px] uppercase font-bold text-gray-500 px-2 py-1 mb-1">Admin Tools</div>
+                            <button onClick={() => onNavigate('docs')} className="w-full text-left px-2 py-2 text-xs text-gray-300 hover:bg-white/5 rounded-lg flex items-center gap-2">
+                                <FileText className="w-3 h-3 text-amber-400" /> Document Control
+                            </button>
+                            <button onClick={() => onNavigate('config')} className="w-full text-left px-2 py-2 text-xs text-gray-300 hover:bg-white/5 rounded-lg flex items-center gap-2">
+                                <Settings className="w-3 h-3 text-purple-400" /> System Config
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </PageHeader>
 
@@ -423,26 +440,6 @@ const Dashboard = ({ onNavigate }) => {
                         )}
                     </div>
 
-                    {/* Reordered Modules Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {[
-                            { title: 'The Library', icon: BookOpen, key: 'procedures', color: 'text-blue-400' },
-                            { title: 'Document Control', icon: FileText, key: 'docs', color: 'text-amber-400' },
-                            { title: 'System Logs', icon: HistoryIcon, key: 'history', color: 'text-gray-400' },
-                            { title: 'Integrations', icon: Settings, key: 'config', color: 'text-purple-400' },
-                        ].map((m) => (
-                            <div
-                                key={m.key}
-                                onClick={() => onNavigate(m.key)}
-                                className="bg-slate-900 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center gap-3 hover:border-purple-500/50 hover:bg-slate-800 transition-all cursor-pointer group"
-                            >
-                                <div className={`p-2 rounded-lg bg-slate-800 group-hover:bg-purple-500/10 transition-all ${m.color}`}>
-                                    <m.icon className="w-5 h-5" />
-                                </div>
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 group-hover:text-white">{m.title}</span>
-                            </div>
-                        ))}
-                    </div>
                 </div>
             </div>
 
