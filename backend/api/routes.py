@@ -140,3 +140,26 @@ async def get_dashboard_stats():
 async def get_my_schedule(employee_id: Optional[str] = "EMP005"): # Default to Admin for demo
     """Fetch Schedule from Altimeter"""
     return scheduler_service.get_my_schedule(employee_id)
+
+@router.get("/dashboard/oracle")
+async def get_oracle_feed():
+    """
+    The Oracle Protocol: Returns predictive Mission Intel.
+    Combines Active Phases + Weather Context + Knowledge Base.
+    """
+    from services.altimeter_service import altimeter_service, intelligence_bridge
+    from services.weather_service import weather_service
+
+    # 1. Get Context
+    active_phases = altimeter_service.get_active_phases()
+    weather_data = None
+    try:
+        # Get weather for default location
+        weather_data = await weather_service.get_weather()
+    except:
+        pass # Fail gracefully if weather service is down
+
+    # 2. Predict Intelligence
+    mission_intel = intelligence_bridge.predict_mission_intel(active_phases, weather_data)
+
+    return mission_intel

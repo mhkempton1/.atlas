@@ -199,6 +199,40 @@ class AltimeterService:
             print(f"[AltimeterService] Milestone fetch failed: {e}")
             return []
 
+    def get_active_phases(self) -> List[Dict[str, Any]]:
+        """
+        Fetch currently active phases (Start <= TODAY <= Complete).
+        Used by the Oracle Protocol to predict needed SOPs.
+        """
+        try:
+            conn = self._get_db_conn()
+            query = """
+                SELECT ph.*, p.altimeter_project_id, p.name as project_name
+                FROM project_phases ph
+                JOIN projects p ON ph.project_id = p.id
+                WHERE ph.start_date <= date('now')
+                AND ph.completion_date >= date('now')
+                AND ph.status != 'Completed'
+                ORDER BY ph.completion_date ASC
+            """
+            rows = conn.execute(query).fetchall()
+            conn.close()
+
+            res = []
+            for r in rows:
+                res.append({
+                    "id": f"phase-{r['id']}",
+                    "phase_name": r['phase'],
+                    "project_id": r['altimeter_project_id'],
+                    "project_name": r['project_name'],
+                    "start_date": r['start_date'],
+                    "completion_date": r['completion_date']
+                })
+            return res
+        except Exception as e:
+            print(f"[AltimeterService] Active phase fetch failed: {e}")
+            return []
+
     def _get_recent_activity_context(self, project_id: str) -> str:
         """Fetch recent logs and emails for the project."""
         lines = []
@@ -282,6 +316,55 @@ class IntelligenceBridge:
                 "error": str(e),
                 "timestamp": datetime.now().isoformat()
             }
+
+    def predict_mission_intel(self, active_phases: List[Dict], weather: Optional[Dict] = None) -> List[Dict[str, Any]]:
+        """
+        The Oracle Protocol: Predicts relevant SOPs based on active work and weather.
+        """
+        from services.search_service import search_service
+
+        intel_results = []
+        seen_titles = set()
+
+        # 1. Weather Context Injection
+        weather_alert = False
+        weather_keywords = []
+        if weather:
+            condition = weather.get("current", {}).get("condition", "").lower()
+            if any(x in condition for x in ["rain", "storm", "snow", "wind", "thunder"]):
+                weather_alert = True
+                weather_keywords = ["weather", "rain", "storm", "safety", "protection"]
+
+        for phase in active_phases:
+            phase_name = phase.get("phase_name", "")
+            keywords = [phase_name]
+
+            is_outdoor = any(x in phase_name.lower() for x in ["exterior", "foundation", "site", "roof", "ground"])
+            if is_outdoor and weather_alert:
+                keywords.extend(weather_keywords)
+                keywords.insert(0, "Inclement Weather Protocol")
+
+            for term in keywords:
+                results = search_service.search(term, collection_name="knowledge", n_results=2)
+                for res in results:
+                    title = res.get("metadata", {}).get("title", "Unknown")
+                    if title not in seen_titles:
+                        seen_titles.add(title)
+                        relevance = 1.0
+                        if "weather" in term.lower() and weather_alert:
+                            relevance = 1.5
+
+                        intel_results.append({
+                            "title": title,
+                            "type": "SOP",
+                            "phase_match": phase_name,
+                            "snippet": res.get("content_snippet", ""),
+                            "relevance": res.get("score", 0) * relevance,
+                            "trigger": "Weather Alert" if (weather_alert and is_outdoor and "weather" in term.lower()) else "Active Phase"
+                        })
+
+        intel_results.sort(key=lambda x: (x['trigger'] == "Weather Alert", x['relevance']), reverse=True)
+        return intel_results[:5]
 
 altimeter_service = AltimeterService()
 intelligence_bridge = IntelligenceBridge()
