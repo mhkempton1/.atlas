@@ -274,6 +274,11 @@ export const SYSTEM_API = {
     sendMessage: async (message) => {
         const response = await api.post('/chat', { message });
         return response.data;
+    },
+
+    getOracleFeed: async () => {
+        const response = await api.get('/dashboard/oracle');
+        return response.data;
     }
 };
 
