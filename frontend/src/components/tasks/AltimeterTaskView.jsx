@@ -57,7 +57,7 @@ const AltimeterTaskView = () => {
                     message={`Ensure the Altimeter service is running on Port 4203.\n\nDiagnostic: ${error}`}
                     action={
                         <div className="mt-4 p-4 bg-slate-950 rounded-lg border border-white/5 font-mono text-[10px] text-gray-500 text-left w-full max-w-sm">
-                            <p>Target: http://localhost:4203/api/projects</p>
+                            <p>Target: http://127.0.0.1:4203/api/projects</p>
                             <p>Protocol: HTTP/1.1</p>
                             <p>Bridge: v0.4.1-alpha</p>
                         </div>

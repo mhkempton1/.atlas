@@ -197,7 +197,7 @@ class SchedulerService:
         
         # 1. Altimeter Check (via API)
         try:
-            res = requests.get("http://localhost:4203/api/system/health", timeout=1)
+            res = requests.get("http://127.0.0.1:4203/api/system/health", timeout=1)
             altimeter_status = "Online" if res.status_code == 200 else "Degraded"
         except:
             altimeter_status = "Offline"

@@ -98,7 +98,7 @@ const SystemHealthView = () => {
                     icon={ExternalLink}
                     label="Altimeter UI"
                     value="Port-In"
-                    onClick={() => window.open('http://localhost:4204', '_blank')}
+                    onClick={() => window.open('http://127.0.0.1:4204', '_blank')}
                     sub="Open Browser Site"
                     status={'neutral'}
                 />
@@ -109,11 +109,11 @@ const SystemHealthView = () => {
                 <div className="space-y-3">
                     <div className="flex justify-between border-b border-border/10 pb-2">
                         <span className="text-text-muted text-xs">Altimeter Endpoint</span>
-                        <span className="font-mono text-text-bright text-xs">http://localhost:4203</span>
+                        <span className="font-mono text-text-bright text-xs">http://127.0.0.1:4203</span>
                     </div>
                     <div className="flex justify-between border-b border-border/10 pb-2">
                         <span className="text-text-muted text-xs">Atlas Endpoint</span>
-                        <span className="font-mono text-text-bright text-xs">http://localhost:4201</span>
+                        <span className="font-mono text-text-bright text-xs">http://127.0.0.1:4201</span>
                     </div>
                 </div>
             </div>

@@ -13,7 +13,7 @@ const PortcullisView = () => {
     React.useEffect(() => {
         // Fetch real status from backend
         // Assuming api.js is imported or fetch is used
-        fetch('http://localhost:4201/api/v1/system/geo/status')
+        fetch('http://127.0.0.1:4201/api/v1/system/geo/status')
             .then(res => res.json())
             .then(data => {
                 if (data.status !== 'online') {
@@ -99,7 +99,7 @@ const PortcullisView = () => {
                     <div className="pt-4 border-t border-border flex gap-3">
                         <button
                             className="btn btn-primary flex-1"
-                            onClick={() => window.open('http://localhost:4204', '_blank')}
+                            onClick={() => window.open('http://127.0.0.1:4204', '_blank')}
                         >
                             Access Altimeter Portal
                         </button>

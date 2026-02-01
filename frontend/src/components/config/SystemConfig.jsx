@@ -47,11 +47,11 @@ const SystemConfig = () => {
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm text-text-bright">Atlas Endpoint (Port)</label>
-                            <input className="input-field font-mono text-xs" readOnly defaultValue="http://localhost:4201" />
+                            <input className="input-field font-mono text-xs" readOnly defaultValue="http://127.0.0.1:4201" />
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm text-text-bright">Altimeter Endpoint (Port)</label>
-                            <input className="input-field font-mono text-xs" readOnly defaultValue="http://localhost:4203" />
+                            <input className="input-field font-mono text-xs" readOnly defaultValue="http://127.0.0.1:4203" />
                         </div>
                     </div>
                 </section>
@@ -127,7 +127,7 @@ const SystemConfig = () => {
                             <div className="flex justify-between items-center">
                                 <div>
                                     <label className="text-sm text-text-bright block mb-1">Portcullis Endpoint</label>
-                                    <input className="input-field font-mono text-xs w-full" readOnly defaultValue="http://localhost:4203/portcullis" />
+                                    <input className="input-field font-mono text-xs w-full" readOnly defaultValue="http://127.0.0.1:4203/portcullis" />
                                 </div>
                             </div>
                         </div>
@@ -136,7 +136,7 @@ const SystemConfig = () => {
                                 <Server className="w-4 h-4 mr-2" />
                                 Test Connection
                             </button>
-                            <button className="btn btn-ghost text-sm" onClick={() => window.open('http://localhost:4203', '_blank')}>
+                            <button className="btn btn-ghost text-sm" onClick={() => window.open('http://127.0.0.1:4203', '_blank')}>
                                 View Portcullis Dashboard
                             </button>
                         </div>

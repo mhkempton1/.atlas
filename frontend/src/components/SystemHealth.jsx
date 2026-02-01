@@ -28,7 +28,7 @@ const SystemHealth = () => {
 
     return (
         <div
-            onClick={() => window.open('http://localhost:4204', '_blank')}
+            onClick={() => window.open('http://127.0.0.1:4204', '_blank')}
             className={`p-2 rounded-md border flex items-center gap-2 cursor-pointer transition-all hover:scale-105 active:scale-95 ${isConnected ? 'bg-green-50/50 border-green-500/30' : 'bg-red-50/50 border-red-500/30'}`}
             title="Click to Port-In to Altimeter"
         >
