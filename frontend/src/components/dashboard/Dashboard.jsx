@@ -12,7 +12,7 @@ import { useToast } from '../../hooks/useToast';
 import { motion as _motion, AnimatePresence } from 'framer-motion';
 import ActivityFeed from './ActivityFeed';
 
-const TelemetryBar = ({ healthDetails, weather, coordinates }) => {
+const TelemetryBar = React.memo(({ healthDetails, weather, coordinates }) => {
     const lat = coordinates?.lat ?? 37.04;
     const lon = coordinates?.lon ?? -93.29;
 
@@ -46,9 +46,9 @@ const TelemetryBar = ({ healthDetails, weather, coordinates }) => {
             </div>
         </div>
     );
-};
+}); // End TelemetryBar
 
-const StatCard = ({ label, value, sub, icon, onClick, trend, color = "text-white" }) => {
+const StatCard = React.memo(({ label, value, sub, icon, onClick, trend, color = "text-white" }) => {
     const Icon = icon;
     const isCyan = color.includes('cyan') || color.includes('emerald') || color.includes('blue');
     const isAmber = color.includes('amber') || color.includes('yellow');
@@ -223,12 +223,12 @@ const ChatBot = React.memo(({ onNavigate }) => {
 
 const Dashboard = ({ onNavigate }) => {
     const { toastElement } = useToast();
-    const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({});
-    const [healthDetails, setHealthDetails] = useState(null);
-    const [weather, setWeather] = useState({ location: 'Analyzing...', forecast: [], source: 'Pending...', updated_at: '--:--' });
-    const [weatherLoading, setWeatherLoading] = useState(true);
-    const [schedule, setSchedule] = useState([]);
+    const [loading, setLoading] = useState(!localStorage.getItem('dashboard_stats'));
+    const [stats, setStats] = useState(() => JSON.parse(localStorage.getItem('dashboard_stats')) || {});
+    const [healthDetails, setHealthDetails] = useState(() => JSON.parse(localStorage.getItem('system_health')) || { status: 'online' });
+    const [weather, setWeather] = useState(() => JSON.parse(localStorage.getItem('weather_telemetry')) || { location: 'Analyzing...', forecast: [], source: 'Pending...', updated_at: '--:--' });
+    const [weatherLoading, setWeatherLoading] = useState(!localStorage.getItem('weather_telemetry'));
+    const [schedule, setSchedule] = useState(() => JSON.parse(localStorage.getItem('unified_schedule')) || []);
     const [isNodesOpen, setIsNodesOpen] = useState(false);
     const [isMissionFlowOpen, setIsMissionFlowOpen] = useState(true);
     const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(true);
@@ -245,6 +245,11 @@ const Dashboard = ({ onNavigate }) => {
                 setStats(dashStats);
                 setHealthDetails(health);
                 setSchedule(scheduleData);
+
+                // Cache the fresh data
+                localStorage.setItem('dashboard_stats', JSON.stringify(dashStats));
+                localStorage.setItem('system_health', JSON.stringify(health));
+                localStorage.setItem('unified_schedule', JSON.stringify(scheduleData));
             } catch (err) {
                 console.error("Dashboard error", err);
             } finally {
@@ -258,6 +263,7 @@ const Dashboard = ({ onNavigate }) => {
                 const weatherData = await SYSTEM_API.getWeather(lat, lon);
                 if (weatherData && Array.isArray(weatherData.forecast)) {
                     setWeather(weatherData);
+                    localStorage.setItem('weather_telemetry', JSON.stringify(weatherData));
                 }
             } catch (err) {
                 console.error("Failed to fetch weather telemetry:", err);
