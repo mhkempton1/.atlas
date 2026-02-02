@@ -86,6 +86,12 @@ router.include_router(search_router, prefix="/search", tags=["Search"])
 from api.weather_routes import router as weather_router
 router.include_router(weather_router, prefix="/weather", tags=["Weather"])
 
+from api.reporting_routes import router as reporting_router
+router.include_router(reporting_router, prefix="/reporting", tags=["Reporting"])
+
+from api.foreman_routes import router as foreman_router
+router.include_router(foreman_router, prefix="/foreman", tags=["Foreman Protocol"])
+
 @router.post("/chat")
 async def chat_assistant(request: dict):
     """Semantic intelligence chat bot"""
@@ -140,3 +146,26 @@ async def get_dashboard_stats():
 async def get_my_schedule(employee_id: Optional[str] = "EMP005"): # Default to Admin for demo
     """Fetch Schedule from Altimeter"""
     return scheduler_service.get_my_schedule(employee_id)
+
+@router.get("/dashboard/oracle")
+async def get_oracle_feed():
+    """
+    The Oracle Protocol: Returns predictive Mission Intel.
+    Combines Active Phases + Weather Context + Knowledge Base.
+    """
+    from services.altimeter_service import altimeter_service, intelligence_bridge
+    from services.weather_service import weather_service
+
+    # 1. Get Context
+    active_phases = altimeter_service.get_active_phases()
+    weather_data = None
+    try:
+        # Get weather for default location
+        weather_data = await weather_service.get_weather()
+    except:
+        pass # Fail gracefully if weather service is down
+
+    # 2. Predict Intelligence
+    mission_intel = intelligence_bridge.predict_mission_intel(active_phases, weather_data)
+
+    return mission_intel

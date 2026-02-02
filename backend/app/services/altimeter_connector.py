@@ -7,7 +7,7 @@ class AltimeterConnector:
     Bridge between Atlas (Personal Assistant) and Altimeter (Business Logic).
     Allows Atlas to "see" active projects and context.
     """
-    def __init__(self, altimeter_api_url: str = "http://localhost:8000"):
+    def __init__(self, altimeter_api_url: str = "http://127.0.0.1:8000"):
         self.base_url = altimeter_api_url
     
     def get_active_projects(self) -> List[dict]:

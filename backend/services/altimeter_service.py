@@ -1,11 +1,12 @@
 import re
 import sqlite3
 import os
+from datetime import datetime
 from typing import Dict, List, Optional, Any
 from core.config import settings
 
 class AltimeterService:
-    def __init__(self, api_base_url: str = "http://localhost:4203"):
+    def __init__(self, api_base_url: str = "http://127.0.0.1:4203"):
         self.api_base_url = api_base_url
         # Robust path resolution
         alt_path = settings.ALTIMETER_PATH
@@ -198,6 +199,136 @@ class AltimeterService:
             print(f"[AltimeterService] Milestone fetch failed: {e}")
             return []
 
+    def get_active_phases(self) -> List[Dict[str, Any]]:
+        """
+        Fetch currently active phases (Start <= TODAY <= Complete).
+        Used by the Oracle Protocol to predict needed SOPs.
+        """
+        try:
+            conn = self._get_db_conn()
+            # Assuming project_phases has start_date and completion_date
+            query = """
+                SELECT ph.*, p.altimeter_project_id, p.name as project_name
+                FROM project_phases ph
+                JOIN projects p ON ph.project_id = p.id
+                WHERE ph.start_date <= date('now')
+                AND ph.completion_date >= date('now')
+                AND ph.status != 'Completed'
+                ORDER BY ph.completion_date ASC
+            """
+            rows = conn.execute(query).fetchall()
+            conn.close()
+
+            res = []
+            for r in rows:
+                res.append({
+                    "id": f"phase-{r['id']}",
+                    "phase_name": r['phase'],
+                    "project_id": r['altimeter_project_id'],
+                    "project_name": r['project_name'],
+                    "start_date": r['start_date'],
+                    "completion_date": r['completion_date']
+                })
+            return res
+        except Exception as e:
+            print(f"[AltimeterService] Active phase fetch failed: {e}")
+            return []
+
+    def check_inventory_for_tools(self, tool_list: List[str]) -> List[Dict[str, Any]]:
+        """
+        Checks Altimeter Inventory for availability of required tools.
+        """
+        availability_report = []
+        try:
+            conn = self._get_db_conn()
+
+            # Since we don't know the exact schema, we'll try a flexible query or fallback
+            # Assuming table 'inventory' or 'tools' with 'name' and 'status'/'quantity'
+
+            # Check if table exists first
+            tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND (name='inventory' OR name='tools')").fetchall()
+            table_name = tables[0]['name'] if tables else None
+
+            if not table_name:
+                conn.close()
+                # Mock response if table missing
+                return [{"tool": t, "status": "Unknown (No DB Table)", "available": False} for t in tool_list]
+
+            for tool in tool_list:
+                # Fuzzy search
+                rows = conn.execute(f"SELECT * FROM {table_name} WHERE name LIKE ? LIMIT 1", (f"%{tool}%",)).fetchall()
+                if rows:
+                    item = rows[0]
+                    # Try to deduce status
+                    status = item.get('status', 'Available')
+                    qty = item.get('quantity', 1)
+                    is_avail = (str(status).lower() not in ['out', 'broken', 'repair']) and (int(qty) > 0)
+
+                    availability_report.append({
+                        "tool": tool,
+                        "match": item['name'],
+                        "status": status,
+                        "available": is_avail
+                    })
+                else:
+                    availability_report.append({
+                        "tool": tool,
+                        "status": "Not Found in Stock",
+                        "available": False
+                    })
+
+            conn.close()
+        except Exception as e:
+            print(f"[AltimeterService] Inventory check failed: {e}")
+            # Return failure stubs
+            availability_report = [{"tool": t, "status": "Check Failed", "available": False} for t in tool_list]
+
+        return availability_report
+
+    async def generate_mission_briefing(self, phase_id: str, sop_content: str) -> Dict[str, Any]:
+        """
+        Foreman Protocol: Decomposes SOP into a checklist and checks tools.
+        """
+        from services.ai_service import ai_service
+        import json
+
+        # 1. Decompose SOP via AI
+        prompt = f"""
+        You are The Foreman. Convert the following Standard Operating Procedure (SOP) into a granular, actionable daily checklist for a construction crew.
+
+        SOP CONTENT:
+        {sop_content[:3000]}
+
+        OUTPUT FORMAT (JSON ONLY):
+        {{
+            "checklist": [
+                {{"step": "Step description", "is_safety_critical": boolean}},
+                ...
+            ],
+            "required_tools": ["Tool 1", "Tool 2"]
+        }}
+        """
+
+        try:
+            raw_json = await ai_service.generate_content(prompt)
+            # Cleanup JSON markdown if present
+            raw_json = raw_json.replace("```json", "").replace("```", "").strip()
+            data = json.loads(raw_json)
+        except Exception as e:
+            print(f"[AltimeterService] AI Decomposition failed: {e}")
+            # Fallback
+            data = {"checklist": [{"step": "Read SOP manually (AI Error)", "is_safety_critical": True}], "required_tools": []}
+
+        # 2. Check Inventory
+        tools_status = self.check_inventory_for_tools(data.get("required_tools", []))
+
+        return {
+            "phase_id": phase_id,
+            "checklist": data.get("checklist", []),
+            "tools_status": tools_status,
+            "generated_at": datetime.now().isoformat()
+        }
+
     def _get_recent_activity_context(self, project_id: str) -> str:
         """Fetch recent logs and emails for the project."""
         lines = []
@@ -241,4 +372,111 @@ class AltimeterService:
             
         return "\n".join(lines) if lines else "No recent activity found."
 
+class IntelligenceBridge:
+    """
+    Standardized interface for Altimeter to request AI context from Atlas.
+    """
+    def fetch_context_from_atlas(self, query: str, context_type: str = "general") -> Dict[str, Any]:
+        """
+        Retrieves relevant context from Atlas's Knowledge Base (Vector DB)
+        to assist Altimeter's decision making.
+        """
+        try:
+            from services.search_service import search_service
+
+            # 1. Search Knowledge Base
+            results = search_service.search(query, collection_name="knowledge", n_results=3)
+
+            # 2. Format for Altimeter
+            context_data = []
+            if results:
+                for res in results:
+                    context_data.append({
+                        "source": res.get("metadata", {}).get("title", "Unknown Source"),
+                        "content": res.get("content_snippet", ""),
+                        "relevance": res.get("score", 0)
+                    })
+
+            return {
+                "query": query,
+                "context_type": context_type,
+                "insights": context_data,
+                "status": "success",
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            print(f"[IntelligenceBridge] Context fetch failed: {e}")
+            return {
+                "query": query,
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+
+    def predict_mission_intel(self, active_phases: List[Dict], weather: Optional[Dict] = None) -> List[Dict[str, Any]]:
+        """
+        The Oracle Protocol: Predicts relevant SOPs based on active work and weather.
+        """
+        from services.search_service import search_service
+
+        intel_results = []
+        seen_titles = set()
+
+        # 1. Weather Context Injection
+        weather_alert = False
+        weather_keywords = []
+        if weather:
+            # Simple heuristic for bad weather
+            condition = weather.get("current", {}).get("condition", "").lower()
+            if any(x in condition for x in ["rain", "storm", "snow", "wind", "thunder"]):
+                weather_alert = True
+                weather_keywords = ["weather", "rain", "storm", "safety", "protection"]
+
+        for phase in active_phases:
+            phase_name = phase.get("phase_name", "")
+
+            # 2. Keyword Extraction
+            keywords = [phase_name]
+
+            # 3. Contextual Boosting
+            # If outdoor phase + bad weather -> prioritization
+            is_outdoor = any(x in phase_name.lower() for x in ["exterior", "foundation", "site", "roof", "ground"])
+            if is_outdoor and weather_alert:
+                keywords.extend(weather_keywords)
+                keywords.insert(0, "Inclement Weather Protocol") # High priority search
+
+            # 4. Search & Rank
+            for term in keywords:
+                results = search_service.search(term, collection_name="knowledge", n_results=2)
+                for res in results:
+                    title = res.get("metadata", {}).get("title", "Unknown")
+                    if title not in seen_titles:
+                        seen_titles.add(title)
+
+                        # Apply Weighting
+                        relevance = 1.0
+                        if "weather" in term.lower() and weather_alert:
+                            relevance = 1.5 # Boost weather docs
+
+                        intel_results.append({
+                            "title": title,
+                            "type": "SOP",
+                            "phase_match": phase_name,
+                            "snippet": res.get("content_snippet", ""),
+                            "relevance": res.get("score", 0) * relevance,
+                            "trigger": "Weather Alert" if (weather_alert and is_outdoor and "weather" in term.lower()) else "Active Phase"
+                        })
+
+        # Sort by relevance (higher relevance score means better match, but Chroma returns distance where lower is better)
+        # However, our manual relevance multiplier implies higher is better.
+        # Let's assume search_service returns distance (lower=better).
+        # We need to invert distance to get a "score" or just rely on the heuristic sort.
+        # For this prototype, we'll sort by our custom 'relevance' multiplier first, then by score (ascending).
+
+        # Simplification: Sort by Trigger (Weather first), then generic.
+        intel_results.sort(key=lambda x: (x['trigger'] == "Weather Alert", x['relevance']), reverse=True)
+
+        return intel_results[:5] # Top 5
+
 altimeter_service = AltimeterService()
+intelligence_bridge = IntelligenceBridge()

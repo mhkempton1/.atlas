@@ -8,7 +8,27 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    timeout: 3000, // 3000ms Strict Timeout
 });
+
+// Silent Fallback Interceptor
+api.interceptors.response.use(
+    response => response,
+    error => {
+        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+            console.warn("API Request Timed Out (Silent Fallback Active)");
+            // We resolve with a specific structure so usePersistentState can ignore it,
+            // but standard consumers must check for .error or data integrity.
+            // Returning a rejection here would be safer for standard consumers,
+            // but for "Smooth as Ice" we want to suppress the error *if handled*.
+            // The safest middle ground: Reject with a specific flag so try/catch still works,
+            // but usePersistentState can catch it.
+            const safeError = { ...error, isSilentTimeout: true };
+            return Promise.reject(safeError);
+        }
+        return Promise.reject(error);
+    }
+);
 
 export const SYSTEM_API = {
     checkHealth: async () => {
@@ -273,6 +293,27 @@ export const SYSTEM_API = {
 
     sendMessage: async (message) => {
         const response = await api.post('/chat', { message });
+        return response.data;
+    },
+
+    getOracleFeed: async () => {
+        const response = await api.get('/dashboard/oracle');
+        return response.data;
+    },
+
+    // Foreman Protocol
+    generateMissionBriefing: async (phaseId, sopContent) => {
+        const response = await api.post('/foreman/briefing', { phase_id: phaseId, sop_content: sopContent });
+        return response.data;
+    },
+
+    draftDailyLog: async (data) => {
+        const response = await api.post('/reporting/daily-log/draft', data);
+        return response.data;
+    },
+
+    updateTaskStatus: async (taskId, status, safetyAck = false) => {
+        const response = await api.put(`/tasks/${taskId}`, { status, safety_ack: safetyAck });
         return response.data;
     }
 };
