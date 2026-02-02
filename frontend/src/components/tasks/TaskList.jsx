@@ -17,8 +17,25 @@ const TaskList = () => {
         description: '',
         priority: 'medium',
         category: 'work',
+        project_id: '',
         due_date: null
     });
+
+    // Altimeter Projects
+    const [projects, setProjects] = useState([]);
+
+    useEffect(() => {
+        // Fetch Altimeter Projects for the dropdown
+        const fetchProjects = async () => {
+            try {
+                const data = await SYSTEM_API.getAltimeterProjects();
+                setProjects(data);
+            } catch (err) {
+                console.error("Failed to load projects", err);
+            }
+        };
+        fetchProjects();
+    }, []);
 
     const loadTasks = useCallback(async () => {
         setIsLoading(true);
@@ -51,7 +68,7 @@ const TaskList = () => {
             };
             await SYSTEM_API.createTask(taskToCreate);
             addToast("Task created successfully", "success");
-            setNewTask({ title: '', description: '', priority: 'medium', category: 'work', due_date: null });
+            setNewTask({ title: '', description: '', priority: 'medium', category: 'work', project_id: '', due_date: null });
             setShowCreateForm(false);
             loadTasks();
         } catch (error) {
@@ -184,6 +201,21 @@ const TaskList = () => {
                                 <option value="work">Work</option>
                                 <option value="personal">Personal</option>
                                 <option value="home">Home</option>
+                            </select>
+                        </div>
+                        {/* Project Selector */}
+                        <div className="mt-2">
+                            <select
+                                className="w-full bg-slate-950 border border-white/10 rounded-lg px-4 py-2 text-gray-300 focus:outline-none focus:border-emerald-500/50"
+                                value={newTask.project_id || ""}
+                                onChange={(e) => setNewTask({ ...newTask, project_id: e.target.value })}
+                            >
+                                <option value="">Select Altimeter Project (Optional)</option>
+                                {projects.map(p => (
+                                    <option key={p.id} value={p.altimeter_project_id}>
+                                        {p.altimeter_project_id} - {p.name}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     </div>

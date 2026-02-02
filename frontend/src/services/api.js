@@ -168,6 +168,11 @@ export const SYSTEM_API = {
         return response.data;
     },
 
+    saveSystemConfig: async (config) => {
+        const response = await api.post('/system/config/save', config);
+        return response.data;
+    },
+
     getAltimeterProjects: async () => {
         const response = await api.get('/system/altimeter/projects');
         return response.data;
