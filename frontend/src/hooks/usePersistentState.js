@@ -37,18 +37,6 @@ const usePersistentState = (key, fetcherFn, initialValue = null) => {
             } finally {
                 if (isMounted) setIsRevalidating(false);
             }
-                    setState(newData);
-                    try {
-                        window.localStorage.setItem(key, JSON.stringify(newData));
-                    } catch (e) {
-                        console.error("LocalStorage Write Failed", e);
-                    }
-                }
-            } catch (err) {
-                console.warn(`Revalidation failed for "${key}", keeping stale data.`);
-            } finally {
-                if (isMounted) setIsRevalidating(false);
-            }
         };
 
         revalidate();
