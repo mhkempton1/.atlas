@@ -196,7 +196,9 @@ function App() {
               <span className="user-role">{currentUser.role} (Strata {currentUser.strata})</span>
             </div>
           </div>
-          <div className="hamburger" onClick={toggleSidebar}>☰</div>
+          <div className="hamburger" onClick={toggleSidebar}>
+            <Menu className="w-6 h-6" />
+          </div>
         </div>
       </nav>
 

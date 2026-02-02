@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
     Mail, FileText, Settings, Clock, Activity, LayoutDashboard,
-    ListTodo, Calendar, Zap, BookOpen, Sun, Cloud, CloudRain,
-    ChevronDown, ChevronUp, MessageSquare, Send, X, ExternalLink, ArrowDown,
-    CheckSquare
+    Server, ListTodo, Calendar, Zap, AlertTriangle, CheckCircle,
+    BookOpen, Sun, Cloud, CloudRain, Wind, ChevronDown, ChevronUp,
+    MessageSquare, Send, X, ExternalLink, ArrowDown, History as HistoryIcon,
+    CheckSquare, Menu
 } from 'lucide-react';
 import { SYSTEM_API } from '../../services/api';
 import { PageHeader, Section, Spinner, EmptyState } from '../shared/UIComponents';
@@ -13,54 +14,109 @@ import ActivityFeed from './ActivityFeed';
 import MissionIntelWidget from './MissionIntelWidget';
 import MissionBriefing from './MissionBriefing';
 
-const StatCard = ({ label, value, sub, icon, onClick, trend, color = "text-white" }) => {
-    const Icon = icon;
+const TelemetryBar = ({ healthDetails, weather, coordinates }) => {
+    const lat = coordinates?.lat ?? 37.04;
+    const lon = coordinates?.lon ?? -93.29;
+
     return (
-        <div
-            onClick={onClick}
-            className="bg-slate-800/50 border border-white/5 rounded-xl p-5 cursor-pointer hover:bg-slate-800 transition-all hover:border-purple-500/30 group"
-        >
-            <div className="flex justify-between items-start mb-2">
-                <div className={`p-2 rounded-lg bg-slate-900 group-hover:bg-purple-500/20 transition-colors ${color}`}>
-                    <Icon className="w-5 h-5" />
+        <div className="w-full flex items-center justify-between px-8 py-2 border-b border-white/5 bg-white/[0.01] backdrop-blur-md text-[10px] font-mono tracking-[0.25em] text-white/40 mb-1">
+            <div className="flex items-center gap-16">
+                <div className="flex items-center gap-4">
+                    <div className={`w-2 h-2 rounded-full ${healthDetails?.status === 'online' ? 'bg-cyan-500 animate-pulse' : 'bg-amber-500'}`} />
+                    <span className="text-white/70 uppercase">System Status ::</span>
+                    <span className={`${healthDetails?.status === 'online' ? 'text-cyan-400' : 'text-amber-400'} font-black`}>{healthDetails?.status === 'online' ? 'NOMINAL (100%)' : 'DEGRADED (85%)'}</span>
                 </div>
-                {trend && (
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${trend === 'up' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                        }`}>
-                        {trend === 'up' ? 'Online' : 'Issue'}
-                    </span>
-                )}
+                <div className="flex items-center gap-2">
+                    <span className="opacity-40 uppercase">Sector Location ::</span>
+                    <span className="text-white/60">{Math.abs(lat).toFixed(2)}° {lat >= 0 ? 'N' : 'S'} / {Math.abs(lon).toFixed(2)}° {lon >= 0 ? 'E' : 'W'}</span>
+                </div>
             </div>
-            <div className="mt-2">
-                <h3 className="text-2xl font-bold text-white mb-1">{value}</h3>
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold">{label}</p>
-                {sub && <p className="text-xs text-gray-500 mt-2">{sub}</p>}
+
+            <div className="flex items-center gap-16">
+                <div className="flex items-center gap-2">
+                    <span className="opacity-40 uppercase">Subsystem Flux ::</span>
+                    <span className="text-cyan-400/80">98.4% STABLE</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="opacity-40 uppercase">Local Temporal Sync ::</span>
+                    <span className="text-white/60">{weather?.updated_at || '--:--:--'}</span>
+                </div>
+                <div className="flex items-center gap-2 ml-4">
+                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-500/50 animate-ping" />
+                    <span className="text-cyan-500/60 uppercase">Live Feed</span>
+                </div>
             </div>
         </div>
     );
 };
 
-// Memoized Weather Component for Performance
-const WeatherForecast = React.memo(({ forecast }) => {
-    if (!forecast) return null;
+const StatCard = ({ label, value, sub, icon, onClick, trend, color = "text-white" }) => {
+    const Icon = icon;
+    const isCyan = color.includes('cyan') || color.includes('emerald') || color.includes('blue');
+    const isAmber = color.includes('amber') || color.includes('yellow');
+    const borderClass = isCyan ? 'border-cyan-500/20' : isAmber ? 'border-amber-500/20' : 'border-white/10';
+
     return (
-        <div className="grid grid-cols-5 gap-3">
-            {forecast.map((day, i) => (
-                <div key={i} className="bg-slate-900/40 border border-white/5 rounded-lg p-3 text-center">
-                    <p className="text-[10px] uppercase font-bold text-gray-500 mb-2">{day.display_date}</p>
-                    <div className="flex justify-center mb-1">
-                        {(day.condition.includes('Sunny') || day.condition.includes('Clear')) && <Sun className="w-6 h-6 text-yellow-500" />}
-                        {day.condition.includes('Cloudy') && !day.condition.includes('Partly') && <Cloud className="w-6 h-6 text-gray-400" />}
-                        {day.condition.includes('Partly') && <div className="relative"><Sun className="w-4 h-4 text-yellow-500 absolute -top-1 -right-1" /><Cloud className="w-6 h-6 text-gray-400" /></div>}
-                        {day.condition.includes('Snow') && <CloudRain className="w-6 h-6 text-blue-300 animate-pulse" />}
+        <div
+            onClick={onClick}
+            className={`relative p-8 cursor-pointer hover:bg-white/5 transition-all group border-l-2 ${borderClass} bg-white/[0.01] backdrop-blur-xl`}
+        >
+            <div className="flex justify-between items-start mb-4">
+                <div className={`p-3 rounded-xl bg-white/[0.05] border border-white/10 group-hover:border-primary/50 transition-colors ${color}`}>
+                    <Icon className="w-8 h-8" />
+                </div>
+                {trend && (
+                    <span className={`text-[12px] font-mono px-3 py-1 uppercase tracking-tighter ${trend === 'up' ? 'text-cyan-400' : 'text-amber-400'
+                        }`}>
+                        {trend === 'up' ? '>> OPTIMAL' : '>> ALERT'}
+                    </span>
+                )}
+            </div>
+            <div className="mt-4">
+                <h3 className="text-4xl font-mono font-medium text-white mb-3 tracking-tight">{value}</h3>
+                <p className="text-[12px] text-white/50 uppercase tracking-[0.3em] font-medium">{label}</p>
+                {sub && <p className="text-[11px] text-white/30 mt-4 font-mono italic">NODE_STREAM :: {sub}</p>}
+            </div>
+            <div className="absolute right-0 top-[15%] bottom-[15%] w-[1px] bg-white/5 hidden lg:block" />
+        </div>
+    );
+};
+
+// Memoized Weather Component
+const WeatherForecast = React.memo(({ forecast, loading }) => {
+    if (loading) {
+        return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 opacity-50">
+                {[...Array(7)].map((_, i) => (
+                    <div key={i} className="bg-white/[0.02] border border-white/5 rounded-xl p-4 text-center animate-pulse">
+                        <div className="h-3 w-12 bg-white/10 rounded mx-auto mb-3" />
+                        <div className="h-8 w-8 bg-white/10 rounded-full mx-auto mb-3" />
+                        <div className="h-6 w-16 bg-white/10 rounded mx-auto" />
                     </div>
-                    <div className="text-sm font-bold text-white">{day.high}°<span className="text-gray-500 font-normal ml-1">{day.low}°</span></div>
-                    {day.rain_chance > 0 && (
-                        <div className="text-[10px] text-blue-400 font-mono mt-1">{day.rain_chance}% precip</div>
-                    )}
-                    <div className="flex items-center justify-center gap-1 mt-2 text-[10px] text-gray-400">
-                        <ArrowDown className="w-3 h-3 animate-bounce" style={{ transform: 'rotate(0deg)' }} />
-                        <span>{day.wind_speed}mph</span>
+                ))}
+            </div>
+        );
+    }
+
+    if (!forecast || forecast.length === 0) {
+        return <div className="p-8 text-white/30 font-mono italic text-center w-full">Awaiting environmental telemetry uplink...</div>;
+    }
+
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            {forecast.map((day, i) => (
+                <div key={i} className="bg-white/[0.02] border border-white/5 rounded-xl p-4 text-center hover:bg-white/[0.05] transition-colors group">
+                    <p className="text-[11px] uppercase font-bold text-white/30 mb-3 group-hover:text-cyan-400 transition-colors">{day.display_date}</p>
+                    <div className="flex justify-center mb-3 h-10 items-center">
+                        {(day.condition.includes('Sunny') || day.condition.includes('Clear')) && <Sun className="w-8 h-8 text-yellow-500/80 animate-pulse" />}
+                        {(day.condition.includes('Cloudy') || day.condition.includes('Fog')) && <Cloud className="w-8 h-8 text-white/40" />}
+                        {(day.condition.includes('Rain') || day.condition.includes('Storm') || day.condition.includes('Shower')) && <CloudRain className="w-8 h-8 text-cyan-400/60" />}
+                        {(!day.condition.includes('Sunny') && !day.condition.includes('Clear') && !day.condition.includes('Cloudy') && !day.condition.includes('Fog') && !day.condition.includes('Rain') && !day.condition.includes('Storm') && !day.condition.includes('Shower')) && <Activity className="w-6 h-6 text-white/20" />}
+                    </div>
+                    <div className="text-xl font-mono font-medium text-white mb-1">{day.high}°</div>
+                    <div className="text-[10px] text-white/30 font-mono">{day.low}°</div>
+                    <div className="mt-3 pt-3 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-[9px] text-cyan-400/60 uppercase font-mono">{day.condition}</p>
                     </div>
                 </div>
             ))}
@@ -68,29 +124,34 @@ const WeatherForecast = React.memo(({ forecast }) => {
     );
 });
 
-const TaskItem = ({ task }) => (
-    <div className="flex items-start gap-4 p-3 bg-slate-800/30 border border-white/5 rounded-lg mb-2">
-        <div className={`mt-1 w-2 h-2 rounded-full ${task.status === 'Prioritized' ? 'bg-red-500' : 'bg-blue-500 animate-pulse'}`} />
-        <div className="flex-1 min-w-0">
-            <div className="flex justify-between items-start">
-                <p className="text-sm font-semibold text-gray-200 truncate">{task.name}</p>
-                <span className={`text-[10px] font-mono ${task.deviation > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                    {task.deviation > 0 ? `+${task.deviation}d SLIP` : 'ON TRACK'}
+// Unified Task/Calendar Item
+const MissionItem = ({ item, onNavigate }) => {
+    const isTask = item.type === 'task';
+    return (
+        <div
+            onClick={() => onNavigate(isTask ? 'tasks' : 'calendar_google')}
+            className={`p-6 bg-white/[0.02] border border-white/10 rounded-2xl hover:bg-white/[0.05] hover:border-cyan-500/30 transition-all cursor-pointer group ${!isTask ? 'border-l-4 border-l-cyan-500/40' : ''}`}
+        >
+            <div className="flex justify-between items-start mb-5">
+                <div className={`p-3 rounded-lg ${isTask ? 'bg-cyan-500/10 text-cyan-400' : 'bg-purple-500/10 text-purple-400'}`}>
+                    {isTask ? <CheckSquare className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+                </div>
+                <span className={`text-[10px] font-mono px-2.5 py-1 rounded border ${isTask ? (item.deviation > 0 ? 'border-amber-500/40 text-amber-500' : 'border-cyan-500/20 text-cyan-500') : 'border-purple-500/20 text-purple-500'}`}>
+                    {isTask ? (item.deviation > 0 ? `SLIPPAGE :: +${item.deviation}D` : 'STATUS :: OPTIMAL') : 'TEMPORAL_EVENT'}
                 </span>
             </div>
-            <div className="flex gap-4 mt-1 text-[9px] text-gray-500 font-mono">
-                <span>CREATED: {task.created_at}</span>
-                <span>ORIGINAL DUE: {task.original_due_date}</span>
-                <span className="text-gray-400 uppercase">PROJECT: {task.project_id}</span>
+            <h4 className="text-xl font-medium text-white mb-3 group-hover:text-cyan-400 transition-colors leading-tight">{item.name}</h4>
+            <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/5 opacity-50">
+                <p className="text-[10px] font-mono uppercase">{isTask ? `Sector :: ${item.project_id || 'Core'}` : `Start :: ${item.current_start}`}</p>
+                <p className="text-[10px] font-mono">{isTask ? item.original_due_date : 'Calendar Sync'}</p>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
-// Memoized ChatBot Component for Performance
 const ChatBot = React.memo(({ onNavigate }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState([{ role: 'bot', text: 'Identity confirmed. I am **Atlas Intelligence**, linked to our internal procedure library and communication archive. Ask me about policies, safety, or system status.' }]);
+    const [messages, setMessages] = useState([{ role: 'bot', text: 'Ethereal Console Intelligence active. Direct linking to Sector Protocols established.' }]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -100,67 +161,53 @@ const ChatBot = React.memo(({ onNavigate }) => {
         setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
         setInput('');
         setLoading(true);
-
         try {
             const res = await SYSTEM_API.sendMessage(userMsg);
             setMessages(prev => [...prev, { role: 'bot', text: res.reply, links: res.links }]);
         } catch {
-            setMessages(prev => [...prev, { role: 'bot', text: "I'm having trouble connecting to my knowledge core." }]);
+            setMessages(prev => [...prev, { role: 'bot', text: "Signal latency exceeded. Connection dropped." }]);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="fixed bottom-6 right-6 z-[100]">
+        <div className="fixed bottom-8 right-8 z-[100]">
             <AnimatePresence>
                 {isOpen && (
                     <_motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        initial={{ opacity: 0, scale: 0.9, y: 30 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="bg-slate-900 border border-purple-500/30 w-80 h-[450px] rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-4"
+                        exit={{ opacity: 0, scale: 0.9, y: 30 }}
+                        className="bg-slate-950/80 backdrop-blur-2xl border border-white/10 w-96 h-[550px] rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden mb-6"
                     >
-                        <div className="bg-purple-600 p-4 flex justify-between items-center bg-gradient-to-r from-purple-600 to-indigo-600">
-                            <div className="flex items-center gap-2">
-                                <Zap className="w-5 h-5 text-yellow-300" />
-                                <span className="font-bold text-white tracking-widest text-sm">ATLAS CORE</span>
+                        <div className="p-6 flex justify-between items-center border-b border-white/10 bg-white/5">
+                            <div className="flex items-center gap-3">
+                                <Zap className="w-6 h-6 text-cyan-400" />
+                                <span className="font-bold text-white tracking-[0.3em] text-sm uppercase">Atlas::Core</span>
                             </div>
-                            <button onClick={() => setIsOpen(false)}><X className="w-5 h-5 text-white/70 hover:text-white" /></button>
+                            <button onClick={() => setIsOpen(false)}><X className="w-6 h-6 text-white/40 hover:text-white" /></button>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
                             {messages.map((m, i) => (
                                 <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[85%] p-3 rounded-xl text-xs ${m.role === 'user' ? 'bg-purple-600 text-white' : 'bg-slate-800 text-gray-200'}`}>
+                                    <div className={`max-w-[85%] p-4 rounded-2xl text-sm ${m.role === 'user' ? 'bg-cyan-600 text-white' : 'bg-white/5 text-gray-300'}`}>
                                         <div dangerouslySetInnerHTML={{ __html: m.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
-                                        {m.links && m.links.map((link, j) => (
-                                            <button
-                                                key={j}
-                                                className="mt-2 flex items-center gap-1.5 p-2 bg-slate-950/50 rounded-lg text-[10px] text-purple-400 hover:text-purple-300 transition-colors block w-full text-left"
-                                                onClick={() => {
-                                                    onNavigate(link.moduleId, link.path ? { path: link.path } : {});
-                                                    setIsOpen(false);
-                                                }}
-                                            >
-                                                <ExternalLink className="w-3 h-3" />
-                                                {link.label}
-                                            </button>
-                                        ))}
                                     </div>
                                 </div>
                             ))}
-                            {loading && <div className="text-[10px] text-gray-500 animate-pulse">Atlas is thinking...</div>}
+                            {loading && <div className="text-[10px] text-cyan-400/50 animate-pulse font-mono font-bold tracking-widest">AWAITING_RESPONSE...</div>}
                         </div>
-                        <div className="p-4 border-t border-white/5 bg-slate-950/50">
-                            <div className="flex gap-2">
+                        <div className="p-6 bg-black/40 border-t border-white/5">
+                            <div className="flex gap-3">
                                 <input
-                                    className="flex-1 bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500/50"
-                                    placeholder="Ask for system details..."
+                                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-all font-mono"
+                                    placeholder="Execute query..."
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                                 />
-                                <button onClick={handleSend} className="p-2 bg-purple-600 rounded-lg text-white"><Send className="w-4 h-4" /></button>
+                                <button onClick={handleSend} className="p-3 bg-cyan-600 rounded-xl text-white hover:bg-cyan-500 transition-colors"><Send className="w-5 h-5" /></button>
                             </div>
                         </div>
                     </_motion.div>
@@ -168,9 +215,9 @@ const ChatBot = React.memo(({ onNavigate }) => {
             </AnimatePresence>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-14 h-14 bg-purple-600 rounded-full shadow-lg shadow-purple-500/20 flex items-center justify-center hover:bg-purple-500 transition-all hover:scale-110 active:scale-95 border-2 border-white/20"
+                className="w-16 h-16 bg-white/[0.03] backdrop-blur-xl rounded-full shadow-2xl flex items-center justify-center hover:bg-white/10 transition-all hover:scale-105 active:scale-95 border border-white/10"
             >
-                {isOpen ? <X className="w-6 h-6 text-white" /> : <MessageSquare className="w-6 h-6 text-white" />}
+                {isOpen ? <X className="w-7 h-7 text-white" /> : <MessageSquare className="w-7 h-7 text-white" />}
             </button>
         </div>
     );
@@ -181,11 +228,13 @@ const Dashboard = ({ onNavigate }) => {
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({});
     const [healthDetails, setHealthDetails] = useState(null);
-    const [weather, setWeather] = useState({ location: 'Analyzing...', forecast: [], source: 'Pending...', updated_at: '--:--:--' });
+    const [weather, setWeather] = useState({ location: 'Analyzing...', forecast: [], source: 'Pending...', updated_at: '--:--' });
+    const [weatherLoading, setWeatherLoading] = useState(true);
     const [schedule, setSchedule] = useState([]);
-    const [isTasksOpen, setIsTasksOpen] = useState(false); // Start collapsed
-    const [isWeatherOpen, setIsWeatherOpen] = useState(true);
-    const [isActivityOpen, setIsActivityOpen] = useState(true);
+    const [isNodesOpen, setIsNodesOpen] = useState(false);
+    const [isMissionFlowOpen, setIsMissionFlowOpen] = useState(true);
+    const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(true);
+    const [coordinates, setCoordinates] = useState({ lat: 37.04, lon: -93.29 }); // Default Nixa, MO
     const [activeBriefing, setActiveBriefing] = useState(null);
 
     useEffect(() => {
@@ -196,286 +245,315 @@ const Dashboard = ({ onNavigate }) => {
                     SYSTEM_API.checkHealth().catch(() => ({ status: 'offline' })),
                     SYSTEM_API.getUnifiedSchedule().catch(() => [])
                 ]);
-
                 setStats(dashStats);
                 setHealthDetails(health);
                 setSchedule(scheduleData);
             } catch (err) {
-                console.error("Dashboard core load error", err);
+                console.error("Dashboard error", err);
             } finally {
                 setLoading(false);
             }
         };
 
-        const loadWeather = async () => {
-            let weatherData = null;
+        const fetchWeather = async (lat = 37.04, lon = -93.29) => {
+            setWeatherLoading(true);
             try {
-                if (navigator.geolocation) {
-                    const position = await new Promise((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, {
-                            timeout: 3500,
-                            maximumAge: 600000
-                        });
-                    }).catch(() => null);
-
-                    if (position) {
-                        weatherData = await SYSTEM_API.getWeather(position.coords.latitude, position.coords.longitude).catch(() => null);
-                    } else {
-                        weatherData = await SYSTEM_API.getWeather().catch(() => null);
-                    }
-                } else {
-                    weatherData = await SYSTEM_API.getWeather().catch(() => null);
+                const weatherData = await SYSTEM_API.getWeather(lat, lon);
+                if (weatherData && Array.isArray(weatherData.forecast)) {
+                    setWeather(weatherData);
                 }
-                if (weatherData) setWeather(weatherData);
-            } catch {
-                // Weather is non-critical
+            } catch (err) {
+                console.error("Failed to fetch weather telemetry:", err);
+            } finally {
+                setWeatherLoading(false);
             }
         };
 
         loadCoreData();
-        loadWeather();
+
+        // Fetch weather immediately with default coordinates
+        fetchWeather(37.04, -93.29);
+
+        // Then try geolocating to update it
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                const newLat = pos.coords.latitude;
+                const newLon = pos.coords.longitude;
+                setCoordinates({ lat: newLat, lon: newLon });
+                fetchWeather(newLat, newLon);
+            }, (err) => {
+                console.log("Geolocation unavailable, using default Nixa sector.");
+            }, { timeout: 3000 });
+        }
     }, []);
 
-    if (loading) return <Spinner label="Initializing Management Interface..." />;
+    if (loading) return <Spinner label="Waking up Ethereal Systems..." />;
 
     return (
-        <div className="h-full flex flex-col space-y-6 animate-slide-in">
-            <PageHeader
-                icon={LayoutDashboard}
-                title="Personal Assistant"
-                subtitle="Mission Protocol Unified Dashboard"
-            >
-                <div className="flex items-center gap-4">
-                    <div className={`flex items-center gap-2 text-[10px] font-mono ${healthDetails?.status === 'online' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20'} px-3 py-1 rounded-full border`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${healthDetails?.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-                        {healthDetails?.status === 'online' ? 'SYSTEM OPERATIONAL' : 'DEGRADED'}
-                    </div>
+        <div className="min-h-screen flex flex-col animate-slide-in relative overflow-hidden bg-transparent">
+            <TelemetryBar healthDetails={healthDetails} weather={weather} coordinates={coordinates} />
 
-                    <div className="relative group">
-                        <button className="p-1.5 bg-slate-800 border border-white/10 rounded-lg hover:bg-slate-700 transition-colors">
-                            <Settings className="w-4 h-4 text-gray-400" />
-                        </button>
-                        <div className="absolute right-0 top-full mt-2 w-48 bg-slate-900 border border-white/10 rounded-xl shadow-xl p-2 hidden group-hover:block z-50">
-                            <div className="text-[10px] uppercase font-bold text-gray-500 px-2 py-1 mb-1">Admin Tools</div>
-                            <button onClick={() => onNavigate('docs')} className="w-full text-left px-2 py-2 text-xs text-gray-300 hover:bg-white/5 rounded-lg flex items-center gap-2">
-                                <FileText className="w-3 h-3 text-amber-400" /> Document Control
-                            </button>
-                            <button onClick={() => onNavigate('config')} className="w-full text-left px-2 py-2 text-xs text-gray-300 hover:bg-white/5 rounded-lg flex items-center gap-2">
-                                <Settings className="w-3 h-3 text-purple-400" /> System Config
+            <div className="flex-1 px-8 py-4 flex flex-col space-y-6">
+                {/* Header Strip */}
+                <div className="flex justify-between items-center border-b border-white/5 pb-4">
+                    <div>
+                        <h1 className="text-3xl font-mono font-medium tracking-[0.2em] text-white">Assistant Console</h1>
+                        <p className="text-[11px] font-mono text-white/30 tracking-[0.4em] uppercase mt-2">Unified Control :: Sector Unified Command</p>
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="text-right">
+                            <p className="text-[10px] font-mono text-cyan-400/60 uppercase">System Uptime</p>
+                            <p className="text-lg font-mono text-white/80">99.98%</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <button className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all">
+                                <Settings className="w-6 h-6 text-white/40" />
                             </button>
                         </div>
                     </div>
                 </div>
-            </PageHeader>
 
-            {/* Primary Metrics Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                    label="Active Missions"
-                    value={schedule.filter(s => s.type === 'task').length}
-                    sub="Current high-priority tasks"
-                    icon={ListTodo}
-                    color="text-emerald-400"
-                    trend="up"
-                    onClick={() => onNavigate('tasks')}
-                />
-                <StatCard
-                    label="Unread Intel"
-                    value={stats.inbox_unread || 0}
-                    sub="Communications pending review"
-                    icon={Mail}
-                    color="text-blue-400"
-                    trend={stats.inbox_unread > 50 ? 'down' : 'up'}
-                    onClick={() => onNavigate('email')}
-                />
-                <StatCard
-                    label="Policy Library"
-                    value={stats.knowledge_docs || 0}
-                    sub="Total SOPs & Guidelines"
-                    icon={BookOpen}
-                    color="text-purple-400"
-                    onClick={() => onNavigate('procedures')}
-                />
-                <StatCard
-                    label="System Health"
-                    value={healthDetails?.status === 'online' ? '100%' : '85%'}
-                    sub="Integrated node status"
-                    icon={Activity}
-                    color={healthDetails?.status === 'online' ? 'text-emerald-400' : 'text-red-400'}
-                    trend={healthDetails?.status === 'online' ? 'up' : 'down'}
-                    onClick={() => onNavigate('history')}
-                />
-            </div>
-
-            {/* STACKED FLOW (MOBILE ORIENTED) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                {/* Left Column: Forecast & Inbox */}
-                <div className="space-y-6">
-                    {/* Weather Forecast */}
-                    <div className="bg-slate-800/50 border border-white/5 rounded-2xl shadow-xl overflow-hidden">
-                        <div
-                            className="bg-slate-900/50 p-4 flex justify-between items-center cursor-pointer hover:bg-slate-900 transition-colors"
-                            onClick={() => setIsWeatherOpen(!isWeatherOpen)}
-                        >
-                            <div className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase tracking-widest">
-                                <Cloud className="w-4 h-4" />
-                                5-Day Outlook
-                            </div>
-                            {isWeatherOpen ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
-                        </div>
-                        {isWeatherOpen && (
-                            <div className="p-5 overflow-hidden">
-                                <WeatherForecast forecast={weather.forecast} />
-                                <div className="flex justify-between items-center mt-4 px-2">
-                                    <p className="text-[9px] text-gray-600 uppercase tracking-tighter">Loc: {weather.location}</p>
-                                    <p className="text-[9px] text-blue-500/60 font-mono italic">Source: {weather.source || 'Live Feed'}</p>
-                                    <p className="text-[9px] text-gray-600 uppercase tracking-tighter">Sync: {weather.updated_at}</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Unified Inbox Access (Primary Call to Action) */}
+                {/* Primary Health Hub - Slimmed Scale */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-1 border border-white/10 bg-white/5 rounded-3xl overflow-hidden shadow-2xl">
                     <div
-                        onClick={() => onNavigate('email')}
-                        className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-6 shadow-xl cursor-pointer hover:scale-[1.02] transition-transform active:scale-[0.98] relative overflow-hidden group"
+                        className="lg:col-span-12 p-6 space-glow-bg flex flex-col md:flex-row justify-between items-center group cursor-pointer border-b border-white/10"
+                        onClick={() => onNavigate('history')}
                     >
-                        <Mail className="w-20 h-20 text-white/10 absolute -right-4 -bottom-4 group-hover:scale-110 transition-transform" />
-                        <div className="relative z-10 flex justify-between items-center">
-                            <div>
-                                <h2 className="text-3xl font-black text-white">{stats.inbox_unread || 0}</h2>
-                                <p className="text-xs text-white/70 font-bold uppercase tracking-widest mt-1">Unread Intelligence</p>
-                                <p className="text-[10px] text-white/50 mt-4">{stats.inbox_total || 0} TOTAL MESSAGES IN ARCHIVE</p>
-                            </div>
-                            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-md">
-                                <Mail className="w-6 h-6 text-white" />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Activity Feed */}
-                    <div className="bg-slate-800/50 border border-white/5 rounded-2xl shadow-xl overflow-hidden">
-                        <div
-                            className="bg-slate-900/50 p-4 flex justify-between items-center cursor-pointer hover:bg-slate-900 transition-colors"
-                            onClick={() => setIsActivityOpen(!isActivityOpen)}
-                        >
-                            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-widest">
-                                <Activity className="w-4 h-4 animate-pulse" />
-                                Live Activity
-                            </div>
-                            {isActivityOpen ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
-                        </div>
-                        {isActivityOpen && (
-                            <ActivityFeed showHeader={false} />
-                        )}
-                    </div>
-                </div>
-
-                {/* Right Column: Schedule & Tasks (Spans 2 on desktop) */}
-                <div className="lg:col-span-2 space-y-6">
-
-                    {/* Foreman Protocol: Active Mission Briefing */}
-                    <AnimatePresence mode="wait">
-                        {activeBriefing ? (
-                            <_motion.div
-                                key="briefing"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                            >
-                                <MissionBriefing
-                                    phase={activeBriefing}
-                                    onBack={() => setActiveBriefing(null)}
-                                />
-                            </_motion.div>
-                        ) : (
-                            <_motion.div
-                                key="widgets"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                            >
-                                {/* The Oracle Protocol: Mission Intel Widget */}
-                                {/* Pass handler to trigger briefing from widget */}
-                                <MissionIntelWidget onLaunchBriefing={(phase) => setActiveBriefing(phase)} />
-                            </_motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    <div className="bg-slate-800/50 border border-white/5 rounded-2xl shadow-xl overflow-hidden">
-                        <div
-                            className="bg-slate-900/50 p-4 flex justify-between items-center cursor-pointer hover:bg-slate-900 transition-colors"
-                            onClick={() => setIsTasksOpen(!isTasksOpen)}
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="w-4 h-4 text-emerald-400" />
-                                    <span className="font-bold text-xs uppercase tracking-widest">Mission Tasks & Schedule</span>
-                                    <span className="ml-2 px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[9px] font-mono">
-                                        {schedule.filter(s => s.type === 'task').length} ACTIVE
-                                    </span>
+                        <div className="flex flex-col gap-2">
+                            <div className="flex items-baseline gap-4">
+                                <h2 className="text-7xl font-mono font-medium text-white text-high-contrast leading-none">{healthDetails?.status === 'online' ? '100%' : '85%'}</h2>
+                                <div className="space-y-0.5">
+                                    <p className="text-xl text-white/50 font-mono tracking-[0.2em] uppercase">Viability</p>
+                                    <p className="text-[10px] text-white/30 font-mono italic">:: CORE_INDEX_HASH :: {Math.random().toString(16).substring(2, 10).toUpperCase()}</p>
                                 </div>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onNavigate('tasks'); }}
-                                    className="p-1 hover:bg-emerald-500/20 rounded transition-colors"
-                                    title="Add Mission Task"
-                                >
-                                    <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                                </button>
-                                <div className="h-4 w-px bg-white/10" />
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onNavigate('calendar_google'); }}
-                                    className="p-1 hover:bg-emerald-500/20 rounded transition-colors"
-                                    title="Full Calendar"
-                                >
-                                    <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onNavigate('tasks'); }}
-                                    className="p-1 hover:bg-emerald-500/20 rounded transition-colors"
-                                    title="Task Management"
-                                >
-                                    <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
-                                </button>
                             </div>
-                            {isTasksOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </div>
-                        {isTasksOpen && (
-                            <div className="p-4 max-h-[350px] overflow-y-auto custom-scrollbar">
-                                {schedule.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-10 opacity-30">
-                                        <Zap className="w-8 h-8 mb-2" />
-                                        <p className="text-[10px] font-bold uppercase tracking-widest">No Active Missions</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {schedule.map(item => (
-                                            <div key={item.id}>
-                                                {item.type === 'task' ? <TaskItem task={item} /> : (
-                                                    <div className="flex gap-4 p-3 border-l-2 border-emerald-500 bg-emerald-500/5 mb-2 rounded-r-lg">
-                                                        <Clock className="w-4 h-4 text-emerald-400 shrink-0" />
-                                                        <div>
-                                                            <p className="text-sm font-semibold text-gray-200">{item.name}</p>
-                                                            <p className="text-[10px] text-emerald-400/70 font-mono mt-1 uppercase tracking-tighter">
-                                                                EVENT @ {item.current_start}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
+                        <div className="flex flex-col items-end gap-2 text-right">
+                            <div className={`p-4 rounded-2xl ${healthDetails?.status === 'online' ? 'bg-cyan-500/10' : 'bg-amber-500/10'} border border-white/10 backdrop-blur-2xl`}>
+                                <Activity className={`w-12 h-12 ${healthDetails?.status === 'online' ? 'text-cyan-400 animate-pulse' : 'text-amber-400'}`} />
+                            </div>
+                            <p className="text-[10px] text-white/40 font-mono tracking-widest uppercase group-hover:text-cyan-400 transition-colors">
+                                STATUS :: {healthDetails?.status === 'online' ? 'LINK_SYNCHRONIZED' : 'DEGRADED'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Monitored Assets - Collapsible */}
+                    <div className={`${isNodesOpen ? 'lg:col-span-4 border-r border-white/5' : 'lg:col-span-12 border-b border-white/5'} bg-black/20 transition-all duration-300`}>
+                        <div
+                            className="flex justify-between items-center p-4 cursor-pointer hover:bg-white/5"
+                            onClick={() => setIsNodesOpen(!isNodesOpen)}
+                        >
+                            <div className="flex items-center gap-3">
+                                <Server className="w-4 h-4 text-white/30" />
+                                <h3 className="text-xs font-mono tracking-[0.4em] text-white/30 uppercase">Node Diagnostics</h3>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                {isNodesOpen && (
+                                    <div className="flex gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                                        <span className="text-[9px] font-mono text-cyan-500/70">ACTIVE_MONITORING</span>
                                     </div>
                                 )}
+                                {isNodesOpen ? <ChevronUp className="w-4 h-4 text-white/20" /> : <ChevronDown className="w-4 h-4 text-white/20" />}
+                            </div>
+                        </div>
+
+                        {isNodesOpen && (
+                            <div className="p-6 space-y-3 border-t border-white/5">
+                                {[
+                                    { name: 'Atlas Primary Server', status: 'ACTIVE', load: '12%', color: 'text-cyan-400' },
+                                    { name: 'Altimeter Data Node', status: 'SYNCED', load: '04%', color: 'text-cyan-400' },
+                                    { name: 'Matrix Logic Core', status: 'ONLINE', load: '42%', color: 'text-white/60' },
+                                    { name: 'Encryption Bridge', status: 'ACTIVE', load: '01%', color: 'text-cyan-400' }
+                                ].map((node, i) => (
+                                    <div key={i} className="flex justify-between items-center p-3 bg-white/[0.03] rounded-xl border border-white/5 hover:bg-white/10 transition-all">
+                                        <div className="flex items-center gap-4">
+                                            <Server className="w-4 h-4 text-white/20" />
+                                            <p className="text-sm text-white/80 font-medium">{node.name}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className={`text-[10px] font-mono font-bold ${node.color}`}>{node.status}</p>
+                                            <p className="text-[9px] text-white/20 font-mono">{node.load} UTIL</p>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
 
+                    {/* Intelligence Pipeline - Collapsible */}
+                    <div className={`${(isNodesOpen && isIntelligenceOpen) ? 'lg:col-span-8' : 'lg:col-span-12'} bg-black/10 transition-all duration-300`}>
+                        <div
+                            className="flex justify-between items-center p-4 cursor-pointer hover:bg-white/5 border-b border-white/5"
+                            onClick={() => setIsIntelligenceOpen(!isIntelligenceOpen)}
+                        >
+                            <div className="flex items-center gap-3">
+                                <Zap className="w-4 h-4 text-cyan-400" />
+                                <h3 className="text-xs font-mono tracking-[0.4em] text-white/30 uppercase">Intelligence Pipeline</h3>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                {isIntelligenceOpen && (
+                                    <div className="flex gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                                        <span className="text-[9px] font-mono text-amber-500/70">DECRYPTING_STREAM</span>
+                                    </div>
+                                )}
+                                {isIntelligenceOpen ? <ChevronUp className="w-4 h-4 text-white/20" /> : <ChevronDown className="w-4 h-4 text-white/20" />}
+                            </div>
+                        </div>
+
+                        {isIntelligenceOpen && (
+                            <div className="p-6 flex flex-col justify-center">
+                                <div className="flex items-center gap-12 w-full px-8">
+                                    <div className="text-center group cursor-pointer" onClick={() => onNavigate('email')}>
+                                        <p className="hud-tech-label mb-2">Unread Packets</p>
+                                        <h2 className="text-6xl font-mono font-medium text-white group-hover:text-cyan-400 transition-all">{stats.inbox_unread || 0}</h2>
+                                        <div className="mt-4 p-3 bg-white/5 rounded-xl border border-white/10 inline-block">
+                                            <Mail className="w-6 h-6 text-white/60" />
+                                        </div>
+                                    </div>
+                                    <div className="h-32 w-[1px] bg-white/10" />
+                                    <div className="flex-1 space-y-4">
+                                        <div>
+                                            <p className="text-2xl text-white font-medium tracking-[0.2em] uppercase">Intelligence Stream</p>
+                                            <p className="text-xs text-white/30 font-mono mt-2 tracking-widest">Available Packets :: {stats.inbox_total || 0}</p>
+                                        </div>
+                                        <div className="pt-4 border-t border-white/5">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-2 h-2 bg-amber-500 rounded-full animate-ping" />
+                                                <p className="text-[10px] text-amber-500/80 font-mono uppercase tracking-[0.2em]">ALERT :: New intelligence detected in Sector 4</p>
+                                            </div>
+                                            <button onClick={() => onNavigate('email')} className="mt-4 text-[10px] text-white/40 hover:text-cyan-400 font-mono flex items-center gap-2 underline underline-offset-8 transition-colors">DECRYPT_STREAM_PROTOCOL &gt;</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Unified Mission Stream - Linearized Grid */}
+                <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+                    <div className="bg-black/40 p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-4 cursor-pointer group" onClick={() => setIsMissionFlowOpen(!isMissionFlowOpen)}>
+                                <div className={`p-2 rounded-lg ${isMissionFlowOpen ? 'bg-cyan-500/20 text-cyan-400' : 'bg-white/5 text-white/30'} transition-all`}>
+                                    <Calendar className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-medium text-white tracking-[0.2em] uppercase">Mission Flow</h3>
+                                    <p className="text-[10px] font-mono text-white/20 tracking-[0.4em] uppercase">Unified Operational Interface</p>
+                                </div>
+                                {isMissionFlowOpen ? <ChevronUp className="w-5 h-5 text-white/20 ml-2" /> : <ChevronDown className="w-5 h-5 text-white/20 ml-2" />}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-6">
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => onNavigate('tasks')}
+                                    className="px-6 py-2 bg-white/5 border border-white/5 rounded-xl text-xs font-mono text-white/40 hover:bg-white/10 hover:text-cyan-400 transition-all flex items-center gap-2"
+                                >
+                                    <ListTodo className="w-4 h-4" /> TASKS
+                                </button>
+                                <button
+                                    onClick={() => onNavigate('calendar_google')}
+                                    className="px-6 py-2 bg-white/5 border border-white/5 rounded-xl text-xs font-mono text-white/40 hover:bg-white/10 hover:text-cyan-400 transition-all flex items-center gap-2"
+                                >
+                                    <Calendar className="w-4 h-4" /> CALENDAR
+                                </button>
+                            </div>
+                            <div className="h-8 w-[1px] bg-white/10 mx-2" />
+                            <div className="px-5 py-2 bg-white/5 rounded-xl border border-white/5 flex items-center gap-4">
+                                <span className="text-xs font-mono text-white/30 uppercase">Active Modules ::</span>
+                                <span className="text-lg font-mono text-cyan-400">{schedule.length}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {isMissionFlowOpen && (
+                        <div className="p-10 bg-black/40">
+                            {/* Foreman Protocol: Active Mission Briefing */}
+                            <AnimatePresence mode="wait">
+                                {activeBriefing ? (
+                                    <_motion.div
+                                        key="briefing"
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -20 }}
+                                        className="mb-8"
+                                    >
+                                        <MissionBriefing
+                                            phase={activeBriefing}
+                                            onBack={() => setActiveBriefing(null)}
+                                        />
+                                    </_motion.div>
+                                ) : (
+                                    <_motion.div
+                                        key="widgets"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        className="mb-8"
+                                    >
+                                        {/* The Oracle Protocol: Mission Intel Widget */}
+                                        <MissionIntelWidget onLaunchBriefing={(phase) => setActiveBriefing(phase)} />
+                                    </_motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-h-[500px] overflow-y-auto custom-scrollbar">
+                                {schedule.length === 0 ? (
+                                    <div className="col-span-full py-16 text-center opacity-30">
+                                        <p className="text-2xl font-mono tracking-widest uppercase mb-4">No Active Signals</p>
+                                        <p className="text-sm font-mono tracking-widest">AWAITING SECTOR PROTOCOL ASSIGNMENT</p>
+                                    </div>
+                                ) : (
+                                    schedule.map(item => (
+                                        <MissionItem key={item.id} item={item} onNavigate={onNavigate} />
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Environmental Intelligence Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-8">
+                    <div className="lg:col-span-9 bg-white/5 border border-white/10 rounded-3xl p-10 flex items-center gap-16 backdrop-blur-xl">
+                        <div className="flex flex-col gap-3 min-w-[200px]">
+                            <h3 className="hud-tech-label">Environmental Logic</h3>
+                            <p className="text-4xl font-medium text-white tracking-[0.2em] uppercase leading-tight">Sector<br />Analysis</p>
+                        </div>
+                        <div className="flex-1 bg-black/40 rounded-2xl p-6 border border-white/5">
+                            <WeatherForecast forecast={weather.forecast} loading={weatherLoading} />
+                        </div>
+                    </div>
+                    <div className="lg:col-span-3 bg-white/5 border border-white/10 rounded-3xl p-10 relative overflow-hidden group">
+                        <div className="matrix-overlay absolute inset-0 pointer-events-none opacity-20" />
+                        <h3 className="hud-tech-label mb-6">Internal Diagnostics</h3>
+                        <div className="space-y-3 relative z-10">
+                            {[
+                                { label: 'Secure Link', val: 'ESTABLISHED' },
+                                { label: 'Data Stream', val: '4.2 GB/S' },
+                                { label: 'Signal Ping', val: '12 MS' },
+                                { label: 'Encryption', val: 'ENHANCED' }
+                            ].map((d, i) => (
+                                <div key={i} className="flex justify-between items-center text-xs font-mono">
+                                    <span className="text-white/30 uppercase">{d.label}</span>
+                                    <span className="text-cyan-400/80">{d.val}</span>
+                                </div>
+                            ))}
+                            <div className="pt-6 mt-6 border-t border-white/5 flex items-center gap-3">
+                                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
+                                <span className="text-[10px] font-mono text-cyan-400/60 uppercase tracking-widest">Atlas Protocol V5.2</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Chat Bot Layer */}
             <ChatBot onNavigate={onNavigate} />
-
             {toastElement}
         </div>
     );

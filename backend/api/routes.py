@@ -161,7 +161,7 @@ async def get_oracle_feed():
     weather_data = None
     try:
         # Get weather for default location
-        weather_data = weather_service.get_weather()
+        weather_data = await weather_service.get_weather()
     except:
         pass # Fail gracefully if weather service is down
 
