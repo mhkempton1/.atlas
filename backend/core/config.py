@@ -1,5 +1,6 @@
 import os
 import json
+import secrets
 from pydantic_settings import BaseSettings
 from typing import List, Dict, Any
 
@@ -29,7 +30,7 @@ class Settings(BaseSettings):
     # Secrets (Loaded from secrets.json or env vars)
     OPENAI_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "insecure-fallback-development-only")
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "")
     
     class Config:
         env_file = ".env"
@@ -46,24 +47,27 @@ class Settings(BaseSettings):
             if os.path.exists(p):
                 try:
                     with open(p, "r") as f:
-                        secrets = json.load(f)
+                        secret_data = json.load(f)
                         # Map keys to settings attributes
-                        if "GOOGLE_API_KEY" in secrets and not self.GEMINI_API_KEY:
-                            self.GEMINI_API_KEY = secrets["GOOGLE_API_KEY"]
-                        if "JWT_SECRET_KEY" in secrets:
-                            self.JWT_SECRET_KEY = secrets["JWT_SECRET_KEY"]
+                        if "GOOGLE_API_KEY" in secret_data and not self.GEMINI_API_KEY:
+                            self.GEMINI_API_KEY = secret_data["GOOGLE_API_KEY"]
+                        if "JWT_SECRET_KEY" in secret_data:
+                            self.JWT_SECRET_KEY = secret_data["JWT_SECRET_KEY"]
                         # Load any other keys that match settings attributes
-                        for key, value in secrets.items():
+                        for key, value in secret_data.items():
                             if hasattr(self, key):
                                 setattr(self, key, value)
                 except Exception as e:
                     print(f"Error loading secrets from {p}: {e}")
 
+        # Security: If no secret key found after checking env and secrets, generate a secure random one
+        if not self.JWT_SECRET_KEY or self.JWT_SECRET_KEY in ["your-secret-key-here", "insecure-fallback-development-only"]:
+             print("\n" + "!" * 50)
+             print("SECURITY WARNING: No secure JWT_SECRET_KEY found.")
+             print("Generating a random key for this session (persistence will be lost on restart).")
+             print("To fix: Set JWT_SECRET_KEY in .vault/secrets.json")
+             print("!" * 50 + "\n")
+             self.JWT_SECRET_KEY = secrets.token_urlsafe(32)
+
 settings = Settings()
 settings.load_secrets()
-
-if settings.JWT_SECRET_KEY in ["your-secret-key-here", "insecure-fallback-development-only"]:
-    print("\n" + "!" * 50)
-    print("SECURITY WARNING: Using default or insecure JWT_SECRET_KEY.")
-    print("Please set a secure JWT_SECRET_KEY in .vault/secrets.json")
-    print("!" * 50 + "\n")
