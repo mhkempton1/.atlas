@@ -43,9 +43,43 @@ def sync_calendar_job():
     except Exception as e:
         print(f"Calendar sync failed: {e}")
 
+def watchtower_job():
+    """
+    The Watchtower: Proactive Risk Scanning.
+    Checks Weather + Active Phases for risks.
+    """
+    from services.altimeter_service import altimeter_service, intelligence_bridge
+    from services.weather_service import weather_service
+    from services.activity_service import activity_service
+
+    try:
+        # 1. Get Forecast
+        weather = weather_service.get_weather() # Sync call? Or need async wrapper?
+        # get_weather is sync in weather_service (using requests).
+
+        # 2. Get Active Phases
+        phases = altimeter_service.get_active_phases()
+
+        # 3. Predict Risks
+        intel = intelligence_bridge.predict_mission_intel(phases, weather)
+
+        # 4. Check for 'Weather Alert' triggers
+        alerts = [i for i in intel if i.get('trigger') == 'Weather Alert']
+
+        if alerts:
+            for alert in alerts:
+                msg = f"WATCHTOWER ALERT: {alert['title']} recommended for {alert['phase_match']} due to weather."
+                print(f"[Watchtower] {msg}")
+                # Log to Activity Feed (User Notification Stub)
+                activity_service.log_activity("system", "Risk Detected", msg)
+
+    except Exception as e:
+        print(f"Watchtower scan failed: {e}")
+
 # Schedule jobs
 scheduler.add_job(sync_emails_job, 'interval', minutes=5, id='email_sync', replace_existing=True)
 scheduler.add_job(sync_calendar_job, 'interval', minutes=15, id='calendar_sync', replace_existing=True)
+scheduler.add_job(watchtower_job, 'interval', minutes=60, id='watchtower', replace_existing=True)
 
 class SchedulerService:
     def __init__(self):

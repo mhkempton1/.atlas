@@ -51,6 +51,16 @@ class LearningService:
         except Exception as e:
             print(f"Error saving lesson: {e}")
 
+    def save_correction(self, source_prompt: str, corrected_output: str, user_comment: str = ""):
+        """
+        Active Learning: Save a specific correction (Diff) from the user.
+        """
+        lesson_text = f"Correction on '{source_prompt[:50]}...': User preferred '{corrected_output[:50]}...'"
+        if user_comment:
+            lesson_text += f" (Note: {user_comment})"
+
+        self.save_lesson(lesson_text, context="User-Feedback")
+
     async def run_self_audit(self):
         """
         The Shadow Tester: Compares predictions vs reality.

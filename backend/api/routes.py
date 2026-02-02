@@ -144,6 +144,8 @@ async def chat_assistant(request: dict):
     INSTRUCTIONS:
     - If the user asks about data in the database (e.g. "How many active projects?", "Status of task X"), you can WRITE A SQL QUERY.
     - If you write a SQL query, format it exactly like this: SQL: SELECT * FROM ...
+    - If the user asks to SEE a tool or view (e.g. "Show me the schedule", "Open tasks"), return a UI ACTION.
+    - UI ACTION FORMAT: UI: render_task_list (or render_schedule)
     - If the answer is in the RAG context, summarize it.
     - If you don't know, say so.
     """
@@ -151,9 +153,11 @@ async def chat_assistant(request: dict):
     # 4. First Pass: AI Reasoning
     response_text = await ai_service.generate_content(system_prompt, include_context=True, user_strata=user_strata)
 
-    # 5. Tool Execution Loop (SQL)
-    if response_text and response_text.strip().startswith("SQL:"):
-        sql_query = response_text.strip().replace("SQL:", "").strip()
+    # 5. Tool Execution Loop (SQL or UI)
+    stripped_resp = response_text.strip()
+
+    if stripped_resp.startswith("SQL:"):
+        sql_query = stripped_resp.replace("SQL:", "").strip()
         print(f"Executing AI SQL: {sql_query}")
 
         try:
@@ -162,12 +166,9 @@ async def chat_assistant(request: dict):
             # 6. Second Pass: Synthesize Data
             final_prompt = f"""
             The user asked: {query}
-
             You decided to run this SQL: {sql_query}
-
             Here are the results from the database:
             {db_results}
-
             Please formulate a natural language answer based on these results.
             """
             final_response = await ai_service.generate_content(final_prompt)
@@ -175,6 +176,13 @@ async def chat_assistant(request: dict):
 
         except Exception as e:
             return {"reply": f"I tried to query the database but encountered an error: {str(e)}", "links": []}
+
+    if stripped_resp.startswith("UI:"):
+        component = stripped_resp.replace("UI:", "").strip()
+        return {
+            "reply": f"Opening {component} view...",
+            "ui_action": {"component": component, "props": {}}
+        }
 
     # 6. Standard Response
     return {"reply": response_text, "links": [{"label": "Explore Library", "moduleId": "procedures"}]}

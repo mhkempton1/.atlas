@@ -45,3 +45,22 @@ async def draft_daily_log(request: DailyLogDraftRequest):
         "preview": log_body,
         "requires_audit": True
     }
+
+class FeedbackRequest(BaseModel):
+    source_context: str
+    corrected_content: str
+    user_comment: Optional[str] = ""
+
+@router.post("/learning/feedback")
+async def submit_feedback(request: FeedbackRequest):
+    """
+    Active Learning: Capture user corrections to improve future AI outputs.
+    """
+    from services.learning_service import learning_service
+
+    learning_service.save_correction(
+        request.source_context,
+        request.corrected_content,
+        request.user_comment
+    )
+    return {"status": "success", "message": "Feedback recorded in Learning Core."}

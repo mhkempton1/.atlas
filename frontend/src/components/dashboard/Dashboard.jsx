@@ -163,7 +163,14 @@ const ChatBot = React.memo(({ onNavigate }) => {
         setLoading(true);
         try {
             const res = await SYSTEM_API.sendMessage(userMsg);
-            setMessages(prev => [...prev, { role: 'bot', text: res.reply, links: res.links }]);
+            const botMsg = { role: 'bot', text: res.reply, links: res.links };
+            if (res.ui_action) {
+                // This would be handled by a specialized renderer in a real Generative UI,
+                // For now, we instruct the user or navigate.
+                // In Phase 2 "Canvas", we'd render it inline.
+                botMsg.ui_component = res.ui_action.component;
+            }
+            setMessages(prev => [...prev, botMsg]);
         } catch {
             setMessages(prev => [...prev, { role: 'bot', text: "Signal latency exceeded. Connection dropped." }]);
         } finally {
