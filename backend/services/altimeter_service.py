@@ -168,6 +168,69 @@ class AltimeterService:
             print(f"[AltimeterService] Project listing failed: {e}")
             return []
 
+    def get_db_schema(self, strata_level: int = 1) -> str:
+        """
+        Returns a read-only schema representation filtered by Strata Level.
+        Allows the LLM to write SQL queries safely.
+        """
+        try:
+            conn = self._get_db_conn()
+            cursor = conn.cursor()
+
+            # Fetch all tables
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = [row[0] for row in cursor.fetchall()]
+
+            schema_str = "Database Schema:\n"
+
+            # Permission Logic (Simple)
+            # Strata 1-2: Ops only (Tasks, Projects, Inventory)
+            # Strata 3-4: + Financials (if exists)
+            # Strata 5: All (including system tables)
+
+            allowed_tables = tables
+            if strata_level < 5:
+                allowed_tables = [t for t in tables if t not in ['users', 'secrets', 'audit_logs']]
+            if strata_level < 3:
+                # Filter 'financ' (financials), 'money', 'budget', 'salary'
+                restricted = ['financ', 'money', 'budget', 'salary']
+                allowed_tables = [t for t in allowed_tables if not any(r in t for r in restricted)]
+
+            for table in allowed_tables:
+                cursor.execute(f"PRAGMA table_info({table})")
+                columns = [f"{row[1]} ({row[2]})" for row in cursor.fetchall()]
+                schema_str += f"- Table '{table}': {', '.join(columns)}\n"
+
+            conn.close()
+            return schema_str
+        except Exception as e:
+            return f"Error fetching schema: {e}"
+
+    def execute_read_only_query(self, query: str) -> List[Dict[str, Any]]:
+        """
+        Executes a SQL query strictly for READ access.
+        Safeguarded against modification keywords.
+        """
+        # 1. Safety Check
+        forbidden = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "TRUNCATE", "GRANT", "REVOKE"]
+        if any(word in query.upper() for word in forbidden):
+            raise ValueError("Security Alert: Modification queries are strictly forbidden.")
+
+        try:
+            conn = self._get_db_conn()
+            cursor = conn.cursor()
+            cursor.execute(query)
+
+            # Fetch column names
+            columns = [description[0] for description in cursor.description]
+            rows = cursor.fetchall()
+
+            result = [dict(zip(columns, row)) for row in rows]
+            conn.close()
+            return result
+        except Exception as e:
+            return [{"error": str(e)}]
+
     def get_upcoming_milestones(self, days: int = 14) -> List[Dict[str, Any]]:
         """Fetch upcoming milestones from Altimeter projects."""
         try:

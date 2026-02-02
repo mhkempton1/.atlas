@@ -31,6 +31,15 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "insecure-fallback-development-only")
     
+    # Strata Permissions Definition
+    STRATA_PERMISSIONS: Dict[int, List[str]] = {
+        1: ["public", "safety", "sops"], # Field
+        2: ["public", "safety", "sops", "schedules", "rosters"], # Supervision
+        3: ["public", "safety", "sops", "schedules", "rosters", "budgets_limited"], # Management
+        4: ["public", "safety", "sops", "schedules", "rosters", "budgets_limited", "hr", "strategy"], # Executive
+        5: ["*"] # Developer / Eyes Only
+    }
+
     class Config:
         env_file = ".env"
 
