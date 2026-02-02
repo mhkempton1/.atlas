@@ -305,7 +305,7 @@ const DocumentControl = () => {
                     </div>
                 </div>
                 <div className="flex gap-3">
-                    <button onClick={handleCreateNew} className="btn btn-primary px-6 py-2.5 text-xs flex items-center gap-2 shadow-emerald-500/10">
+                    <button onClick={() => onNavigate('procedures')} className="btn btn-primary px-6 py-2.5 text-xs flex items-center gap-2 shadow-emerald-500/10">
                         <Plus className="w-4 h-4" /> New Standard/SOP
                     </button>
                     <button onClick={loadDocs} className="btn btn-secondary px-4 py-2.5 text-xs bg-slate-800/50 hover:bg-slate-800">

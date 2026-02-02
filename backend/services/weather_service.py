@@ -11,7 +11,7 @@ class WeatherService:
     def map_weather_code(self, code: int) -> str:
         """Map Open-Meteo weather codes to readable conditions"""
         if code == 0:
-            return "Clear"
+            return "Sunny/Clear"
         elif code in [1, 2]:
             return "Partly Cloudy"
         elif code == 3:
@@ -43,30 +43,39 @@ class WeatherService:
                     "temperature_unit": "fahrenheit",
                     "wind_speed_unit": "mph",
                     "timezone": "America/Chicago",
-                    "forecast_days": 5
+                    "forecast_days": 7
                 }
                 
                 response = await client.get(url, params=params, timeout=10.0)
                 response.raise_for_status()
                 data = response.json()
                 
-                forecast = []
                 daily = data.get("daily", {})
                 dates = daily.get("time", [])
+                max_temps = daily.get("temperature_2m_max", [])
+                min_temps = daily.get("temperature_2m_min", [])
+                codes = daily.get("weather_code", [])
+                winds = daily.get("wind_speed_10m_max", [])
+                rains = daily.get("precipitation_probability_max", [])
                 
-                for i in range(min(5, len(dates))):
-                    date = datetime.fromisoformat(dates[i])
-                    forecast.append({
-                        "date": dates[i],
-                        "display_date": "Today" if i == 0 else date.strftime("%a"),
-                        "high": int(daily["temperature_2m_max"][i]),
-                        "low": int(daily["temperature_2m_min"][i]),
-                        "condition": self.map_weather_code(daily["weather_code"][i]),
-                        "wind_speed": int(daily["wind_speed_10m_max"][i]),
-                        "wind_direction": "N",
-                        "rain_chance": int(daily["precipitation_probability_max"][i]) if daily["precipitation_probability_max"][i] else 0
-                    })
+                forecast = []
+                for i in range(min(7, len(dates))):
+                    try:
+                        date = datetime.fromisoformat(dates[i])
+                        forecast.append({
+                            "date": dates[i],
+                            "display_date": "Today" if i == 0 else date.strftime("%a"),
+                            "high": int(max_temps[i]) if i < len(max_temps) else 32,
+                            "low": int(min_temps[i]) if i < len(min_temps) else 18,
+                            "condition": self.map_weather_code(codes[i]) if i < len(codes) else "Cloudy",
+                            "wind_speed": int(winds[i]) if i < len(winds) else 0,
+                            "wind_direction": "N",
+                            "rain_chance": int(rains[i]) if (i < len(rains) and rains[i] is not None) else 0
+                        })
+                    except (IndexError, ValueError) as e:
+                        print(f"[WeatherService] Item error at index {i}: {e}")
                 
+                print(f"[WeatherService] Successfully generated {len(forecast)} day forecast")
                 return {
                     "location": location,
                     "current": {
@@ -74,7 +83,7 @@ class WeatherService:
                         "temp": forecast[0]["high"] if forecast else 32
                     },
                     "forecast": forecast,
-                    "updated_at": datetime.now().strftime("%H:%M:%S"),
+                    "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "source": "Open-Meteo (Live)"
                 }
                 
