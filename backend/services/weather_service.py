@@ -1,12 +1,15 @@
 import httpx
 from datetime import datetime
 from typing import Optional, Dict, Any
+import time
 
 class WeatherService:
     def __init__(self):
         self.DEFAULT_LAT = 37.0364
         self.DEFAULT_LON = -93.2974
         self.DEFAULT_LOCATION = "Nixa, MO"
+        self._cache = {}
+        self.CACHE_TTL = 900  # 15 minutes
 
     def map_weather_code(self, code: int) -> str:
         """Map Open-Meteo weather codes to readable conditions"""
@@ -33,6 +36,14 @@ class WeatherService:
         longitude = lon if lon is not None else self.DEFAULT_LON
         location = self.DEFAULT_LOCATION if (lat is None or lon is None) else f"Current Location"
         
+        # Check cache
+        cache_key = (latitude, longitude)
+        if cache_key in self._cache:
+            cached_data, timestamp = self._cache[cache_key]
+            if time.time() - timestamp < self.CACHE_TTL:
+                print(f"[WeatherService] Returning cached weather data for {location}")
+                return cached_data
+
         try:
             async with httpx.AsyncClient() as client:
                 url = "https://api.open-meteo.com/v1/forecast"
@@ -76,7 +87,8 @@ class WeatherService:
                         print(f"[WeatherService] Item error at index {i}: {e}")
                 
                 print(f"[WeatherService] Successfully generated {len(forecast)} day forecast")
-                return {
+
+                result = {
                     "location": location,
                     "current": {
                         "condition": forecast[0]["condition"] if forecast else "Cloudy",
@@ -86,6 +98,10 @@ class WeatherService:
                     "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "source": "Open-Meteo (Live)"
                 }
+
+                # Update cache
+                self._cache[cache_key] = (result, time.time())
+                return result
                 
         except Exception as e:
             print(f"[WeatherService] Error fetching weather: {e}")
