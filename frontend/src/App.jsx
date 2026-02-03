@@ -75,20 +75,28 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Preload critical data on mount
+  // Global State for Ubiquity
+  const [globalHealth, setGlobalHealth] = useState(() => JSON.parse(localStorage.getItem('system_health')) || { status: 'online' });
+
+  // Preload and Sync Data
   useEffect(() => {
-    const preloadData = async () => {
+    const syncData = async () => {
       try {
-        // Preload dashboard stats and health in background
-        await Promise.all([
-          SYSTEM_API.getDashboardStats().catch(() => null),
-          SYSTEM_API.checkHealth().catch(() => null),
-        ]);
+        const health = await SYSTEM_API.checkHealth().catch(() => ({ status: 'offline' }));
+        setGlobalHealth(health);
+        localStorage.setItem('system_health', JSON.stringify(health));
+
+        // Warm up stats/weather in background
+        SYSTEM_API.getDashboardStats().catch(() => null);
       } catch {
-        console.log('Preload completed with some errors');
+        // Silent fail
       }
     };
-    preloadData();
+    syncData();
+
+    // Polling every 60s for health
+    const interval = setInterval(syncData, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -140,7 +148,7 @@ function App() {
   const renderContent = () => {
     switch (currentModule) {
       case 'dashboard':
-        return <Dashboard onNavigate={navigateTo} />;
+        return <Dashboard onNavigate={navigateTo} globalHealth={globalHealth} />;
       case 'email':
         return (
           <div className="max-w-7xl mx-auto h-full">

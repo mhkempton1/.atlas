@@ -78,7 +78,7 @@ const StatCard = React.memo(({ label, value, sub, icon, onClick, trend, color = 
             <div className="absolute right-0 top-[15%] bottom-[15%] w-[1px] bg-white/5 hidden lg:block" />
         </div>
     );
-};
+});
 
 // Memoized Weather Component
 const WeatherForecast = React.memo(({ forecast, loading }) => {
@@ -221,34 +221,31 @@ const ChatBot = React.memo(({ onNavigate }) => {
     );
 });
 
-const Dashboard = ({ onNavigate }) => {
+const Dashboard = ({ onNavigate, globalHealth }) => {
     const { toastElement } = useToast();
     const [loading, setLoading] = useState(!localStorage.getItem('dashboard_stats'));
     const [stats, setStats] = useState(() => JSON.parse(localStorage.getItem('dashboard_stats')) || {});
-    const [healthDetails, setHealthDetails] = useState(() => JSON.parse(localStorage.getItem('system_health')) || { status: 'online' });
+    // Health is now managed globally by App.jsx
     const [weather, setWeather] = useState(() => JSON.parse(localStorage.getItem('weather_telemetry')) || { location: 'Analyzing...', forecast: [], source: 'Pending...', updated_at: '--:--' });
     const [weatherLoading, setWeatherLoading] = useState(!localStorage.getItem('weather_telemetry'));
     const [schedule, setSchedule] = useState(() => JSON.parse(localStorage.getItem('unified_schedule')) || []);
-    const [isNodesOpen, setIsNodesOpen] = useState(false);
-    const [isMissionFlowOpen, setIsMissionFlowOpen] = useState(true);
-    const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(true);
+    const [isNodesOpen, setIsNodesOpen] = useState(() => JSON.parse(localStorage.getItem('dash_nodes_open')) ?? false);
+    const [isMissionFlowOpen, setIsMissionFlowOpen] = useState(() => JSON.parse(localStorage.getItem('dash_mission_open')) ?? true);
+    const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(() => JSON.parse(localStorage.getItem('dash_intel_open')) ?? true);
     const [coordinates, setCoordinates] = useState({ lat: 37.04, lon: -93.29 }); // Default Nixa, MO
 
     useEffect(() => {
         const loadCoreData = async () => {
             try {
-                const [dashStats, health, scheduleData] = await Promise.all([
+                const [dashStats, scheduleData] = await Promise.all([
                     SYSTEM_API.getDashboardStats().catch(() => ({})),
-                    SYSTEM_API.checkHealth().catch(() => ({ status: 'offline' })),
                     SYSTEM_API.getUnifiedSchedule().catch(() => [])
                 ]);
                 setStats(dashStats);
-                setHealthDetails(health);
                 setSchedule(scheduleData);
 
                 // Cache the fresh data
                 localStorage.setItem('dashboard_stats', JSON.stringify(dashStats));
-                localStorage.setItem('system_health', JSON.stringify(health));
                 localStorage.setItem('unified_schedule', JSON.stringify(scheduleData));
             } catch (err) {
                 console.error("Dashboard error", err);
@@ -294,7 +291,7 @@ const Dashboard = ({ onNavigate }) => {
 
     return (
         <div className="min-h-screen flex flex-col animate-slide-in relative overflow-hidden bg-transparent">
-            <TelemetryBar healthDetails={healthDetails} weather={weather} coordinates={coordinates} />
+            <TelemetryBar healthDetails={globalHealth} weather={weather} coordinates={coordinates} />
 
             <div className="flex-1 px-8 py-4 flex flex-col space-y-6">
                 {/* Header Strip */}
