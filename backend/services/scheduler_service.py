@@ -1,6 +1,7 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
 import requests
+import httpx
 from typing import List, Dict, Any, Optional
 
 scheduler = BackgroundScheduler()
@@ -197,9 +198,10 @@ class SchedulerService:
         
         # 1. Altimeter Check (via API)
         try:
-            res = requests.get("http://127.0.0.1:4203/api/system/health", timeout=1)
-            altimeter_status = "Online" if res.status_code == 200 else "Degraded"
-        except:
+            async with httpx.AsyncClient() as client:
+                res = await client.get("http://127.0.0.1:4203/api/system/health", timeout=1.0)
+                altimeter_status = "Online" if res.status_code == 200 else "Degraded"
+        except Exception:
             altimeter_status = "Offline"
 
         # 2. Vector DB Check (via SearchService Internal State)
