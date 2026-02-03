@@ -1,10 +1,20 @@
 import os
 import subprocess
-from fastapi import APIRouter
+from fastapi import APIRouter, Request, HTTPException, Depends
 import requests
 from typing import Dict, List, Any
 from services.activity_service import activity_service
 
+async def verify_local_request(request: Request):
+    """
+    Security check to ensure the request is coming from localhost.
+    Prevents external network access to sensitive system controls.
+    """
+    allowed_ips = ["127.0.0.1", "::1"]
+    if request.client.host not in allowed_ips:
+        raise HTTPException(status_code=403, detail="Access denied: Local connections only.")
+
+# Remove global dependency so /health is accessible
 router = APIRouter()
 
 @router.get("/health", response_model=Dict)
@@ -15,7 +25,7 @@ async def system_health():
     from services.status_service import get_health_status
     return await get_health_status()
 
-@router.post("/control/{action}")
+@router.post("/control/{action}", dependencies=[Depends(verify_local_request)])
 async def system_control(action: str):
     """
     Trigger system startup/shutdown scripts.
@@ -44,14 +54,14 @@ async def system_control(action: str):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@router.get("/activity", response_model=List[Dict[str, Any]])
+@router.get("/activity", response_model=List[Dict[str, Any]], dependencies=[Depends(verify_local_request)])
 async def get_activity_logs():
     """
     Fetch system activity logs.
     """
     return activity_service.get_recent_activity()
 
-@router.get("/altimeter/projects")
+@router.get("/altimeter/projects", dependencies=[Depends(verify_local_request)])
 async def get_altimeter_projects():
     """Proxy for Altimeter project list via direct DB access"""
     from services.altimeter_service import altimeter_service
