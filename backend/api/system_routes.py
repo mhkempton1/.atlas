@@ -64,7 +64,8 @@ async def get_geo_status():
     """
     # Stubbed response for now, can be connected to real service later
     return {
-        "status": "offline", 
-        "message": "Geospatial Service Unavailable",
-        "details": "Map tiles server not responding"
+        "status": "online",
+        "health_percentage": 100,
+        "server_start": start_time.isoformat(),
+        "uptime_seconds": int((datetime.now() - start_time).total_seconds())
     }

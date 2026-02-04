@@ -77,12 +77,12 @@ class SchedulerService:
         combined_schedule = []
 
         try:
-            # 1. Fetch Calendar Events (Next 7 days)
-            now = datetime.now()
-            week_out = now + timedelta(days=7)
+            # 1. Fetch Calendar Events (Next 7 days, including all of today)
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            week_out = today_start + timedelta(days=7)
             
             events = db.query(CalendarEvent).filter(
-                CalendarEvent.start_time >= now,
+                CalendarEvent.start_time >= today_start,
                 CalendarEvent.start_time <= week_out
             ).all()
 
@@ -153,8 +153,9 @@ class SchedulerService:
                 return datetime.max
 
         combined_schedule.sort(key=parse_for_sort)
-
-        return combined_schedule
+        
+        # Limit to reasonable display size
+        return combined_schedule[:50]
 
     async def get_dashboard_stats(self) -> Dict[str, Any]:
         """
@@ -165,14 +166,21 @@ class SchedulerService:
         from services.document_control_service import document_control_service
         
         db = SessionLocal()
+        from services.altimeter_service import altimeter_service
         try:
             # 1. Document Stats
             docs = document_control_service.get_all_documents()
             
-            # 2. Task & Event Stats
+            # 2. Altimeter Stats
+            active_projects = altimeter_service.list_projects()
+            active_projects_count = len(active_projects)
+            
+            # 3. Task & Event Stats
             total_pending_tasks = db.query(Task).filter(Task.status != 'done').count()
             high_priority_tasks = db.query(Task).filter(Task.status != 'done', Task.priority == 'high').count()
-            upcoming_events = db.query(CalendarEvent).filter(CalendarEvent.start_time >= datetime.now()).count()
+            # Today's events should include everything today, even if already started
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            upcoming_events = db.query(CalendarEvent).filter(CalendarEvent.start_time >= today_start).count()
             
             # 3. Email Stats
             total_emails = db.query(Email).count()
@@ -186,6 +194,7 @@ class SchedulerService:
                 "upcoming_events": upcoming_events,
                 "inbox_total": total_emails,
                 "inbox_unread": unread_emails,
+                "active_projects": active_projects_count,
                 "health_score": 98 if total_pending_tasks < 10 else 85
             }
         finally:

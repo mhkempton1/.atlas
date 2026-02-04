@@ -72,9 +72,9 @@ const EmailItem = ({ email, onClick, expanded, onAction }) => {
                         <button
                             onClick={(e) => onAction(e, 'task', email)}
                             className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-xs font-medium"
-                            title="Create Task"
+                            title="Create Task from Email"
                         >
-                            <CheckSquare className="w-3.5 h-3.5" /> Task
+                            <CheckSquare className="w-3.5 h-3.5" /> Create Task
                         </button>
                         <div className="flex-1" />
                         <button

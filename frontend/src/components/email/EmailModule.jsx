@@ -12,7 +12,7 @@ const EmailModule = () => {
         setViewMode('view');
     };
 
-    const handleEmailAction = useCallback((action) => {
+    const handleEmailAction = useCallback((action, id, data) => {
         // After delete/archive, deselect and refresh list
         if (action === 'deleted' || action === 'archived') {
             setSelectedEmail(null);
@@ -20,9 +20,12 @@ const EmailModule = () => {
             setRefreshKey(prev => prev + 1); // Force EmailList to re-fetch
         }
         if (action === 'unread' || action === 'update') {
+            if (data) {
+                setSelectedEmail(prev => prev && prev.email_id === id ? { ...prev, ...data } : prev);
+            }
             setRefreshKey(prev => prev + 1);
         }
-    }, []);
+    }, [setSelectedEmail, setViewMode, setRefreshKey]);
 
     return (
         <div className="email-module h-[calc(100vh-100px)] flex gap-4">

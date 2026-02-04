@@ -155,12 +155,33 @@ const CalendarModule = () => {
                                                         <span className="truncate max-w-[200px]">{event.location}</span>
                                                     </div>
                                                 )}
-                                                {event.attendees && JSON.parse(event.attendees || '[]').length > 0 && (
-                                                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                                                        <Users className="w-3.5 h-3.5" />
-                                                        <span>{JSON.parse(event.attendees).length} Attendees</span>
-                                                    </div>
-                                                )}
+                                                <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                                                    <Users className="w-3.5 h-3.5" />
+                                                    <span>
+                                                        {(() => {
+                                                            try {
+                                                                const attendees = JSON.parse(event.attendees || '[]');
+                                                                return `${attendees.length} Attendees`;
+                                                            } catch {
+                                                                return 'Attendees info unavailable';
+                                                            }
+                                                        })()}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Action Bar */}
+                                            <div className="mt-3 pt-3 border-t border-white/5 flex gap-2">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        // Placeholder for task creation logic
+                                                        addToast("Task creation from event coming soon", "info");
+                                                    }}
+                                                    className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 px-2 py-1 rounded hover:bg-emerald-500/10 transition-colors"
+                                                >
+                                                    <CheckSquare className="w-3 h-3" /> Create Task
+                                                </button>
                                             </div>
                                         </div>
                                     </div>

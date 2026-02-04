@@ -32,6 +32,7 @@ import HistoryView from './components/history/HistoryView';
 import SystemConfig from './components/config/SystemConfig';
 import ReportsDashboard from './components/reporting/ReportsDashboard';
 import CommandBar from './components/shared/CommandBar';
+import SystemStatusView from './components/system/SystemStatusView';
 import { SYSTEM_API } from './services/api';
 
 // ... imports
@@ -46,6 +47,7 @@ const MODULES = [
   { id: 'schedule', label: 'Dept Schedule', icon: Calendar, minStrata: 1 },
   { id: 'reports', label: 'System Reports', icon: BookOpen, minStrata: 2 },
   { id: 'history', label: 'System Logs', icon: HistoryIcon, minStrata: 1 },
+  { id: 'system_status', label: 'System Status', icon: Activity, minStrata: 1 },
   { id: 'sys_health', label: 'System Health', icon: ShieldCheck, minStrata: 4 },
   { id: 'config', label: 'System Config', icon: Settings, minStrata: 4 },
 ];
@@ -76,7 +78,7 @@ function App() {
   }, []);
 
   // Global State for Ubiquity
-  const [globalHealth, setGlobalHealth] = useState(() => JSON.parse(localStorage.getItem('system_health')) || { status: 'online' });
+  const [globalHealth, setGlobalHealth] = useState(() => JSON.parse(localStorage.getItem('system_health')) || { status: 'online', health_percentage: 100 });
 
   // Preload and Sync Data
   useEffect(() => {
@@ -177,6 +179,8 @@ function App() {
         return <PortcullisView />;
       case 'reports':
         return <ReportsDashboard />;
+      case 'system_status':
+        return <SystemStatusView onNavigate={navigateTo} />;
       default:
         return (
           <div className="flex flex-col items-center justify-center h-[60vh] text-text-muted">
@@ -197,6 +201,18 @@ function App() {
         </div>
 
         <div className="nav-controls">
+          <button
+            onClick={() => navigateTo('system_status')}
+            className="px-4 py-2 rounded-xl border transition-all flex items-center gap-2 font-mono text-sm font-bold uppercase tracking-wider hover:scale-105"
+            style={{
+              borderColor: `rgb(${Math.round(252 + (16 - 252) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(211 + (185 - 211) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(77 + (129 - 77) * ((globalHealth?.health_percentage || 0) / 100))})`,
+              color: `rgb(${Math.round(252 + (16 - 252) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(211 + (185 - 211) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(77 + (129 - 77) * ((globalHealth?.health_percentage || 0) / 100))})`,
+              backgroundColor: `rgba(${Math.round(252 + (16 - 252) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(211 + (185 - 211) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(77 + (129 - 77) * ((globalHealth?.health_percentage || 0) / 100))}, 0.1)`
+            }}
+          >
+            <Activity className="w-4 h-4" />
+            ONLINE [{globalHealth?.health_percentage || 0}%]
+          </button>
           <div className="user-badge" onClick={() => navigateTo('config')}>
             <div className="badge-initials">MK</div>
             <div className="badge-details">
@@ -211,33 +227,31 @@ function App() {
       </nav>
 
       {/* --- Sidebar Overlay --- */}
-      {isSidebarOpen && (
-        <div className="sidebar-overlay" onClick={toggleSidebar}>
-          <div className="menu-sidebar animate-slide-in-right" onClick={e => e.stopPropagation()}>
-            <div className="menu-header">SYSTEM NAVIGATION</div>
+      <div className={`sidebar-overlay ${isSidebarOpen ? 'open' : ''}`} onClick={toggleSidebar}>
+        <div className="menu-sidebar" onClick={e => e.stopPropagation()}>
+          <div className="menu-header">SYSTEM NAVIGATION</div>
 
-            <div className="flex-1">
-              {accessibleModules.map(module => (
-                <div
-                  key={module.id}
-                  className={`nav-item ${currentModule === module.id ? 'active' : ''}`}
-                  onClick={() => navigateTo(module.id)}
-                >
-                  <module.icon className="w-5 h-5" />
-                  {module.label}
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-auto pt-4 border-t border-border">
-              <div className="nav-item text-red-400 hover:bg-red-500/10 hover:border-red-500/30">
-                <LogOut className="w-5 h-5" />
-                Disconnect Session
+          <div className="flex-1">
+            {accessibleModules.map(module => (
+              <div
+                key={module.id}
+                className={`nav-item ${currentModule === module.id ? 'active' : ''}`}
+                onClick={() => navigateTo(module.id)}
+              >
+                <module.icon className="w-5 h-5" />
+                {module.label}
               </div>
+            ))}
+          </div>
+
+          <div className="mt-auto pt-4 border-t border-border">
+            <div className="nav-item text-red-400 hover:bg-red-500/10 hover:border-red-500/30">
+              <LogOut className="w-5 h-5" />
+              Disconnect Session
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* --- Main Content Area --- */}
       <main className="main-content">

@@ -57,7 +57,7 @@ class WeatherService:
                     "forecast_days": 7
                 }
                 
-                response = await client.get(url, params=params, timeout=10.0)
+                response = await client.get(url, params=params, timeout=20.0)
                 response.raise_for_status()
                 data = response.json()
                 
@@ -105,21 +105,27 @@ class WeatherService:
                 
         except Exception as e:
             print(f"[WeatherService] Error fetching weather: {e}")
+            # Generate 7-day fallback forecast
+            fallback_forecast = []
+            for i in range(7):
+                date = datetime.now() + timedelta(days=i)
+                fallback_forecast.append({
+                    "date": date.strftime("%Y-%m-%d"),
+                    "display_date": "Today" if i == 0 else date.strftime("%a"),
+                    "high": 32 + (i % 3) * 5,
+                    "low": 18 + (i % 2) * 4,
+                    "condition": "Cloudy" if i % 2 == 0 else "Partly Cloudy",
+                    "wind_speed": 10 + i,
+                    "wind_direction": "N",
+                    "rain_chance": 10 * i
+                })
+            
             return {
                 "location": location,
-                "current": {"condition": "Cloudy"},
-                "forecast": [
-                    {
-                        "date": datetime.now().strftime("%Y-%m-%d"),
-                        "display_date": "Today",
-                        "high": 32,
-                        "low": 18,
-                        "condition": "Cloudy",
-                        "wind_speed": 15,
-                        "wind_direction": "N",
-                        "rain_chance": 20
-                    }
-                ]
+                "current": {"condition": "Cloudy", "temp": 32},
+                "forecast": fallback_forecast,
+                "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "source": "Simulated (Fallback)"
             }
 
 weather_service = WeatherService()

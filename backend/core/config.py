@@ -10,7 +10,12 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api/v1"
     CORS_ORIGINS: List[str] = [
         "http://127.0.0.1:4202",
-        "http://127.0.0.1:4204"
+        "http://127.0.0.1:4204",
+        "http://localhost:4202",
+        "http://localhost:4204",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000"
     ]
     DEBUG: bool = True
     

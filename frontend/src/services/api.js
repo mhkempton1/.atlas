@@ -5,7 +5,7 @@ const ALTIMETER_API_URL = 'http://127.0.0.1:4203/api/v1';
 
 const api = axios.create({
     baseURL: API_URL,
-    timeout: 3000,
+    timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -19,6 +19,30 @@ export const SYSTEM_API = {
         } catch (error) {
             console.error("API Health Check Failed", error);
             return { status: 'offline' };
+        }
+    },
+
+    sendMessage: async (message) => {
+        const response = await api.post('/chat', { message });
+        return response.data;
+    },
+
+    getWeather: async (lat, lon) => {
+        try {
+            const response = await api.get(`/weather/forecast?lat=${lat || ''}&lon=${lon || ''}`);
+            return response.data;
+        } catch (error) {
+            console.warn("Weather fetch failed", error);
+            return { forecast: [], error: error.message || "Unknown API Error" };
+        }
+    },
+
+    getUnifiedSchedule: async () => {
+        try {
+            const response = await api.get('/dashboard/schedule');
+            return response.data;
+        } catch {
+            return [];
         }
     },
 
@@ -155,6 +179,16 @@ export const SYSTEM_API = {
     },
 
     // Email Actions
+    getEmail: async (emailId) => {
+        const response = await api.get(`/email/${emailId}`);
+        return response.data;
+    },
+
+    markEmailRead: async (emailId) => {
+        const response = await api.get(`/email/${emailId}`); // get_email endpoint marks as read
+        return response.data;
+    },
+
     replyToEmail: async (emailId, body, replyAll = false) => {
         const response = await api.post(`/email/${emailId}/reply`, { body, reply_all: replyAll });
         return response.data;

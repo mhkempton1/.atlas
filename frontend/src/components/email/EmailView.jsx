@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Star, Reply, Forward, Trash2, Paperclip, Archive, MailOpen, Send, X, Loader2, Sparkles, CheckSquare, Tag, Brain, Wand2, ClipboardCheck } from 'lucide-react';
 import { Menu } from '@headlessui/react';
 import { SYSTEM_API } from '../../services/api';
@@ -16,6 +16,16 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
     const [drafting, setDrafting] = useState(false);
 
     const CATEGORIES = ['work', 'personal', 'urgent', 'todo', 'finance'];
+
+    useEffect(() => {
+        if (email && !email.is_read) {
+            SYSTEM_API.markEmailRead(email.email_id)
+                .then(() => {
+                    if (onEmailAction) onEmailAction('update', email.email_id, { is_read: true });
+                })
+                .catch(err => console.error("Failed to mark email as read:", err));
+        }
+    }, [email?.email_id, email?.is_read, onEmailAction]);
 
     if (!email) return <div className="h-full flex items-center justify-center text-text-muted">Select an email to read</div>;
 
