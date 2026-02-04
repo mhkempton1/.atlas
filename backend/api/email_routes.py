@@ -151,94 +151,38 @@ async def scan_emails(limit: int = Query(5, ge=1, le=50), db: Session = Depends(
     """
     Scan recent emails, identify project context, and generate tasks/events.
     This is the core 'The Lens' bridge logic.
+
+    UPDATED: Uses TaskQueue for asynchronous processing to prevent locking.
     """
     from services.google_service import google_service
-    from services.altimeter_service import altimeter_service
-    from agents.task_agent import task_agent
-    from agents.calendar_agent import calendar_agent
-    from database.models import Task, CalendarEvent
+    from services.data_api import data_api
     
     # 1. Fetch from Google
-    sync_result = google_service.sync_emails()
+    # sync_result = google_service.sync_emails() # Sync can be heavy, maybe should be backgrounded too
     
     # 2. Get latest emails for processing
     emails = db.query(Email).order_by(Email.date_received.desc()).limit(limit).all()
     
-    tasks_res = []
-    events_res = []
-    
     for email in emails:
-        # Get context from Altimeter
-        context = altimeter_service.get_context_for_email(email.from_address, email.subject)
-        
-        # Agentic Extraction
-        agent_context = {
-            "subject": email.subject,
-            "sender": email.from_address,
-            "body": email.body_text or "",
-            "message_id": email.message_id
-        }
-        
-        # Check for Proposal FIRST to override agent if needed, or pass as hint
-        if context.get("is_proposal"):
-             agent_context["instructions"] = "This appears to be a Request for Proposal (RFP). Create a high priority task to review and bid."
+        # Enqueue processing task via Central Data API
+        # This prevents locking and allows the "Ingester" (this route) to hand off to "Analyzer" (TaskAgent)
+        data_api.add_task(
+            type="analyze_email",
+            payload={
+                "email_id": email.email_id,
+                "subject": email.subject,
+                "from_address": email.from_address,
+                "body_text": email.body_text,
+                "message_id": email.message_id
+            },
+            priority=10
+        )
 
-        # 1. Tasks
-        task_out = await task_agent.process(agent_context)
-        if task_out.get("status") == "success":
-            for t_data in task_out["data"].get("tasks", []):
-                # Force proposal formatting if detected
-                if context.get("is_proposal"):
-                    t_data["title"] = f"PROPOSAL: {t_data['title']}"
-                    t_data["priority"] = "high"
-                    
-                new_task = Task(
-                    title=t_data["title"],
-                    description=t_data["description"],
-                    priority=t_data["priority"].lower(),
-                    due_date=datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
-                    project_id=context.get("project", {}).get("number") if context.get("project") else None,
-                    email_id=email.email_id,
-                    created_from="email"
-                )
-                db.add(new_task)
-                db.flush()
-                tasks_res.append(TaskResult(
-                    task_id=new_task.task_id,
-                    title=new_task.title,
-                    project_id=new_task.project_id,
-                    priority=new_task.priority,
-                    context_precursor=context.get("file_context", ""),
-                    type="proposal" if context.get("is_proposal") else "task"
-                ))
-        
-        # 2. Events
-        event_out = await calendar_agent.process(agent_context)
-        if event_out.get("status") == "success" and event_out["data"].get("is_event"):
-            e_data = event_out["data"]["event"]
-            new_event = CalendarEvent(
-                title=e_data["title"],
-                description=e_data["description"],
-                location=e_data.get("location"),
-                start_time=datetime.fromisoformat(e_data["start_time"]) if e_data.get("start_time") else None,
-                end_time=datetime.fromisoformat(e_data["end_time"]) if e_data.get("end_time") else None,
-                status="confirmed",
-                project_id=context.get("project", {}).get("number") if context.get("project") else None
-            )
-            db.add(new_event)
-            db.flush()
-            events_res.append(EventResult(
-                event_id=new_event.event_id,
-                title=new_event.title,
-                start_time=new_event.start_time.isoformat() if new_event.start_time else None
-            ))
-
-    db.commit()
-
+    # Return empty results immediately as processing is now async
     return ScanResult(
         emails_found=len(emails),
-        tasks_created=tasks_res,
-        events_created=events_res
+        tasks_created=[],
+        events_created=[]
     )
 
 from pydantic import BaseModel
