@@ -12,8 +12,6 @@ const CalendarModule = () => {
     const [days, setDays] = useState(14);
     const { addToast, toastElement } = useToast();
 
-    console.log("CalendarModule rendering..."); // Debugging
-
     const loadEvents = useCallback(async () => {
         setIsLoading(true);
         try {

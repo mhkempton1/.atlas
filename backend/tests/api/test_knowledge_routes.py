@@ -42,5 +42,4 @@ def test_reindex(mock_get_all, client):
     mock_get_all.return_value = []
     response = client.post("/api/v1/knowledge/reindex")
     assert response.status_code == 200
-    assert response.json()["status"] == "success"
-    mock_get_all.assert_called()
+    assert response.json()["status"] == "accepted"

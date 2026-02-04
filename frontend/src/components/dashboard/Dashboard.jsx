@@ -347,7 +347,7 @@ const Dashboard = ({ onNavigate, globalHealth }) => {
                 setCoordinates({ lat: newLat, lon: newLon });
                 fetchWeather(newLat, newLon);
             }, (err) => {
-                console.log("Geolocation unavailable, using default Nixa sector.");
+                // Silently fail to default
             }, { timeout: 3000 });
         }
     }, [retryWeather]);
@@ -396,7 +396,7 @@ const Dashboard = ({ onNavigate, globalHealth }) => {
 
                             {/* Consolidated Stats in Banner */}
                             <div className="hidden md:flex items-center gap-8">
-                                <div className="flex flex-col items-end cursor-pointer group/stat" onClick={() => onNavigate('projects')}>
+                                <div className="flex flex-col items-end cursor-pointer group/stat" onClick={() => onNavigate('alt_tasks')}>
                                     <span className="text-[10px] font-mono text-cyan-400/60 uppercase tracking-widest group-hover/stat:text-cyan-400 transition-colors">Projects</span>
                                     <span className="text-lg font-mono text-white leading-tight">{stats.active_projects || 0}</span>
                                 </div>
