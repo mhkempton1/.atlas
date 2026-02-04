@@ -1,9 +1,10 @@
 import os
 import subprocess
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 import requests
 from typing import Dict, List, Any
 from services.activity_service import activity_service
+from core.security import verify_local_request
 
 router = APIRouter()
 
@@ -15,7 +16,7 @@ async def system_health():
     from services.status_service import get_health_status
     return await get_health_status()
 
-@router.post("/control/{action}")
+@router.post("/control/{action}", dependencies=[Depends(verify_local_request)])
 async def system_control(action: str):
     """
     Trigger system startup/shutdown scripts.
