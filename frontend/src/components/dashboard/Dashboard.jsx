@@ -78,9 +78,9 @@ const StatCard = React.memo(({ label, value, sub, icon, onClick, trend, color = 
     const borderClass = isCyan ? 'border-cyan-500/20' : isAmber ? 'border-amber-500/20' : 'border-white/10';
 
     return (
-        <div
+        <button
             onClick={onClick}
-            className={`relative p-4 cursor-pointer hover:bg-white/5 transition-all group border-l-2 ${borderClass} bg-transparent flex items-center gap-4 border-y border-r border-white/5 rounded-xl shadow-lg`}
+            className={`relative p-4 cursor-pointer hover:bg-white/5 transition-all group border-l-2 ${borderClass} bg-transparent flex items-center gap-4 border-y border-r border-white/5 rounded-xl shadow-lg w-full text-left`}
         >
             <div className={`p-2 rounded-lg bg-white/[0.05] border border-white/10 group-hover:border-primary/50 transition-colors ${color}`}>
                 <Icon className="w-5 h-5" />
@@ -92,9 +92,10 @@ const StatCard = React.memo(({ label, value, sub, icon, onClick, trend, color = 
                 </div>
                 <p className="text-[9px] text-white/50 uppercase tracking-[0.2em] font-medium mt-1 truncate">{label}</p>
             </div>
-        </div>
+        </button>
     );
 });
+
 
 const WeatherForecast = React.memo(({ forecast, loading, onRetry, error }) => {
     const scrollRef = React.useRef(null);
@@ -186,9 +187,9 @@ const MissionItem = ({ item, onNavigate }) => {
     const isAltimeter = item.type === 'altimeter';
 
     return (
-        <div
+        <button
             onClick={() => onNavigate(isTask ? 'tasks' : isAltimeter ? 'projects' : 'calendar_google')}
-            className={`p-4 bg-transparent border border-white/5 rounded-xl hover:bg-white/5 hover:border-cyan-500/30 transition-all cursor-pointer group flex items-center justify-between gap-4`}
+            className={`p-4 bg-transparent border border-white/5 rounded-xl hover:bg-white/5 hover:border-cyan-500/30 transition-all cursor-pointer group flex items-center justify-between gap-4 w-full text-left`}
         >
             <div className="flex items-center gap-4">
                 <div className={`p-2.5 rounded-lg ${isTask ? 'bg-amber-500/10 text-amber-500' : isAltimeter ? 'bg-cyan-500/10 text-cyan-400' : 'bg-purple-500/10 text-purple-400'}`}>
@@ -206,9 +207,10 @@ const MissionItem = ({ item, onNavigate }) => {
                 </span>
                 <p className="text-[9px] font-mono text-white/20 mt-1">{item.current_start}</p>
             </div>
-        </div>
+        </button>
     );
 };
+
 
 const ChatBot = React.memo(({ onNavigate }) => {
     const [isOpen, setIsOpen] = useState(false);
