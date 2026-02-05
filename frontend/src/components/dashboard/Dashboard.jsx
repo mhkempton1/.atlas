@@ -68,7 +68,8 @@ const TelemetryBar = React.memo(({ healthDetails, weather, coordinates }) => {
             </div>
         </div>
     );
-});
+}); // End TelemetryBar
+
 
 const StatCard = React.memo(({ label, value, sub, icon, onClick, trend, color = "text-white" }) => {
     const Icon = icon;
@@ -287,11 +288,14 @@ const Dashboard = ({ onNavigate, globalHealth }) => {
     const { toastElement } = useToast();
     const [loading, setLoading] = useState(!localStorage.getItem('dashboard_stats'));
     const [stats, setStats] = useState(() => JSON.parse(localStorage.getItem('dashboard_stats')) || {});
+    const [healthDetails, setHealthDetails] = useState(() => JSON.parse(localStorage.getItem('system_health')) || { status: 'online' });
     const [weather, setWeather] = useState(() => JSON.parse(localStorage.getItem('weather_telemetry')) || { location: 'Analyzing...', forecast: [], source: 'Pending...', updated_at: '--:--' });
     const [weatherLoading, setWeatherLoading] = useState(!localStorage.getItem('weather_telemetry'));
     const [schedule, setSchedule] = useState(() => JSON.parse(localStorage.getItem('unified_schedule')) || []);
+    const [isNodesOpen, setIsNodesOpen] = useState(false);
     const [isMissionFlowOpen, setIsMissionFlowOpen] = useState(() => JSON.parse(localStorage.getItem('dash_mission_open')) ?? true);
-    // Removed isIntelligenceOpen
+    const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(true);
+
     const [coordinates, setCoordinates] = useState({ lat: 37.04, lon: -93.29 }); // Default Nixa, MO
     const [retryWeather, setRetryWeather] = useState(0);
 
@@ -307,7 +311,9 @@ const Dashboard = ({ onNavigate, globalHealth }) => {
 
                 // Cache the fresh data
                 localStorage.setItem('dashboard_stats', JSON.stringify(dashStats));
+                if (dashStats.health) localStorage.setItem('system_health', JSON.stringify(dashStats.health));
                 localStorage.setItem('unified_schedule', JSON.stringify(scheduleData));
+
             } catch (err) {
                 console.error("Dashboard error", err);
             } finally {
@@ -319,11 +325,11 @@ const Dashboard = ({ onNavigate, globalHealth }) => {
             setWeatherLoading(true);
             try {
                 const weatherData = await SYSTEM_API.getWeather(lat, lon);
-
                 if (weatherData.error) {
                     setWeather(prev => ({ ...prev, error: weatherData.error }));
                 } else if (weatherData && Array.isArray(weatherData.forecast) && weatherData.forecast.length > 0) {
                     setWeather({ ...weatherData, error: null });
+
                     localStorage.setItem('weather_telemetry', JSON.stringify(weatherData));
                 }
             } catch (err) {
