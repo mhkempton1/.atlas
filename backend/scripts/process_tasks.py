@@ -20,16 +20,18 @@ async def process_task(task):
     subject = payload.get('subject')
     sender = payload.get('from_address')
     body = payload.get('body_text')
-    message_id = payload.get('message_id')
+    remote_id = payload.get('remote_id')
+    provider_type = payload.get('provider_type', 'google')
 
-    # 1. Get Context
-    context = altimeter_service.get_context_for_email(sender, subject)
+    # 1. Get Context (Now enriched with mission_intel/SOPs)
+    context = altimeter_service.get_context_for_email(sender, subject, body)
 
     agent_context = {
         "subject": subject,
         "sender": sender,
         "body": body or "",
-        "message_id": message_id
+        "remote_id": remote_id,
+        "provider_type": provider_type
     }
 
     if context.get("is_proposal"):
@@ -43,14 +45,21 @@ async def process_task(task):
                 t_data["title"] = f"PROPOSAL: {t_data['title']}"
                 t_data["priority"] = "high"
 
+            # Enrich with Mission Intel (SOPs, active phases)
+            intel_notes = ""
+            if context.get("mission_intel"):
+                intel_notes = "\n\n### 💎 Mission Intel (SOPs/Context):\n"
+                for intel in context["mission_intel"]:
+                    intel_notes += f"- **{intel['title']}**: {intel['snippet']}\n"
+
             new_task_data = {
                 "title": t_data["title"],
-                "description": t_data["description"],
+                "description": t_data["description"] + intel_notes,
                 "priority": t_data["priority"].lower(),
                 "due_date": datetime.datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
                 "project_id": context.get("project", {}).get("number") if context.get("project") else None,
                 "email_id": email_id,
-                "created_from": "email"
+                "created_from": provider_type
             }
 
             # Write via Data API

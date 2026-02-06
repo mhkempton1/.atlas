@@ -174,6 +174,16 @@ export const SYSTEM_API = {
         return response.data;
     },
 
+    getSystemLogs: async () => {
+        const response = await api.get('/system/logs');
+        return response.data;
+    },
+
+    getEmailStats: async () => {
+        const response = await api.get('/email/stats');
+        return response.data;
+    },
+
     getAltimeterProjects: async () => {
         const response = await api.get('/system/altimeter/projects');
         return response.data;

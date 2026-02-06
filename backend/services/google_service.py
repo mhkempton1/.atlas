@@ -149,10 +149,10 @@ class GoogleService:
         payload = message.get('payload', {})
         headers = {h['name']: h['value'] for h in payload.get('headers', [])}
 
-        # Check duplicate by Gmail ID or Message ID
+        # Check duplicate by Remote ID or Message ID
         message_id = headers.get('Message-ID')
         if db.query(Email).filter(
-            (Email.gmail_id == message['id']) | 
+            (Email.remote_id == message['id']) | 
             ((Email.message_id == message_id) & (Email.message_id.isnot(None)))
         ).first():
             return False
@@ -175,8 +175,9 @@ class GoogleService:
 
         email = Email(
             message_id=message_id or f"atlas-{message['id']}",
-            gmail_id=message['id'],
+            remote_id=message['id'],
             thread_id=message.get('threadId'),
+            provider_type='google',
             from_address=headers.get('From'),
             subject=headers.get('Subject'),
             body_text=body_text, 
@@ -241,13 +242,13 @@ class GoogleService:
                      body_html += h
         return body_text, body_html
 
-    def _download_attachment(self, part, email_id, gmail_id, db):
+    def _download_attachment(self, part, email_id, remote_id, db):
         # ... (Same helper)
         if not self.gmail_service: return
         att_id = part['body'].get('attachmentId')
         if not att_id: return
         try:
-            att = self.gmail_service.users().messages().attachments().get(userId='me', messageId=gmail_id, id=att_id).execute()
+            att = self.gmail_service.users().messages().attachments().get(userId='me', messageId=remote_id, id=att_id).execute()
             data = base64.urlsafe_b64decode(att['data'])
             path = f"data/files/attachments/{email_id}/{part['filename']}"
             os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
@@ -260,7 +261,7 @@ class GoogleService:
         try: return datetime.fromtimestamp(email.utils.mktime_tz(email.utils.parsedate_tz(date_str)))
         except: return datetime.now()
 
-    def reply_to_email(self, gmail_id: str, body: str, reply_all: bool = False) -> dict:
+    def reply_to_email(self, remote_id: str, body: str, reply_all: bool = False) -> dict:
         """Reply to an email using Gmail API, maintaining thread context"""
         if not self.gmail_service:
             self.authenticate()
@@ -268,7 +269,7 @@ class GoogleService:
         try:
             # Get the original message for headers
             original = self.gmail_service.users().messages().get(
-                userId='me', id=gmail_id, format='metadata',
+                userId='me', id=remote_id, format='metadata',
                 metadataHeaders=['From', 'To', 'Cc', 'Subject', 'Message-ID', 'References', 'In-Reply-To']
             ).execute()
 
@@ -456,8 +457,8 @@ class GoogleService:
             raise Exception(f"Calendar sync failed: {e}")
 
     def _store_event(self, event, db):
-        google_id = event['id']
-        existing = db.query(CalendarEvent).filter_by(google_event_id=google_id).first()
+        remote_id = event['id']
+        existing = db.query(CalendarEvent).filter_by(remote_event_id=remote_id).first()
         
         # Parse times
         start = event['start'].get('dateTime', event['start'].get('date'))
@@ -498,7 +499,8 @@ class GoogleService:
         else:
             # Create
             new_event = CalendarEvent(
-                google_event_id=google_id,
+                remote_event_id=remote_id,
+                provider_type='google',
                 calendar_id='primary',
                 title=event.get('summary'),
                 description=event.get('description'),

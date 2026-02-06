@@ -42,7 +42,8 @@ class Email(Base):
     email_id = Column(Integer, primary_key=True, index=True)
     message_id = Column(String, index=True)
     thread_id = Column(String, index=True, nullable=True)
-    gmail_id = Column(String, unique=True, index=True)
+    remote_id = Column(String, unique=True, index=True) # Unified field for Gmail ID, IMAP UID, etc.
+    provider_type = Column(String, default="google", index=True) # e.g., "google", "imap", "internal"
     from_address = Column(String, index=True)
     from_name = Column(String)
     to_addresses = Column(JSON)
@@ -80,7 +81,7 @@ class EmailAttachment(Base):
     mime_type = Column(String, nullable=True)
     file_path = Column(String)
     file_hash = Column(String, nullable=True)
-    gmail_attachment_id = Column(String, nullable=True)
+    remote_attachment_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Task(Base):
@@ -107,7 +108,8 @@ class CalendarEvent(Base):
     __tablename__ = "calendar_events"
 
     event_id = Column(Integer, primary_key=True, index=True)
-    google_event_id = Column(String, unique=True, index=True, nullable=True)
+    remote_event_id = Column(String, unique=True, index=True, nullable=True) # Unified field
+    provider_type = Column(String, default="google", index=True)
     calendar_id = Column(String, nullable=True)
     title = Column(String)
     description = Column(Text)

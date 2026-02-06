@@ -8,7 +8,7 @@ scheduler = BackgroundScheduler()
 
 def sync_emails_job():
     """Background job to sync emails every 5 minutes"""
-    from services.google_service import google_service
+    from services.communication_service import comm_service
     from database.database import get_db
     from database.models import Email
     
@@ -22,7 +22,7 @@ def sync_emails_job():
 
         # Sync
         try:
-            result = google_service.sync_emails(last_sync)
+            result = comm_service.sync_emails(last_sync)
             print(f"[{datetime.now()}] Email sync: {result['synced']} new emails")
             
             # FUTURE: Extract tasks from new emails here
@@ -36,10 +36,10 @@ def sync_emails_job():
 
 def sync_calendar_job():
     """Background job to sync calendar every 15 minutes"""
-    from services.google_service import google_service
+    from services.communication_service import comm_service
     
     try:
-        result = google_service.sync_calendar()
+        result = comm_service.sync_calendar()
         print(f"[{datetime.now()}] Calendar sync: {result['synced']} events updated")
     except Exception as e:
         print(f"Calendar sync failed: {e}")

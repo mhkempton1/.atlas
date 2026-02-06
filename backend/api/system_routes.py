@@ -75,6 +75,13 @@ async def get_altimeter_projects():
     from services.altimeter_service import altimeter_service
     return altimeter_service.list_projects()
 
+@router.get("/logs", response_model=List[Dict[str, Any]])
+async def get_system_logs():
+    """
+    Fetch recent system activity logs (legacy /logs compatibility).
+    """
+    return activity_service.get_recent_activity(limit=50)
+
 @router.get("/geo/status")
 async def get_geo_status():
     """

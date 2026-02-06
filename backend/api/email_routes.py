@@ -9,8 +9,18 @@ router = APIRouter()
 @router.get("/labels")
 async def get_labels():
     """Get available Gmail labels/folders"""
-    from services.google_service import google_service
-    return google_service.get_labels()
+    from services.communication_service import comm_service
+    return comm_service.get_labels()
+
+@router.get("/stats")
+async def get_email_stats(db: Session = Depends(get_db)):
+    """Get email count statistics"""
+    total = db.query(Email).count()
+    unread = db.query(Email).filter(Email.is_read == False).count()
+    return {
+        "total_emails": total,
+        "unread_emails": unread
+    }
 
 @router.get("/list")
 async def get_emails(
@@ -54,7 +64,8 @@ class EmailResponse(BaseModel):
     date_received: Optional[datetime] = None
     is_read: bool
     is_starred: bool
-    gmail_id: Optional[str] = None
+    remote_id: Optional[str] = None
+    provider_type: Optional[str] = "google"
     has_attachments: bool = False
     
     model_config = ConfigDict(from_attributes=True)
@@ -109,7 +120,6 @@ async def toggle_star(email_id: int, db: Session = Depends(get_db)):
 async def sync_gmail():
     """Trigger email sync from Gmail"""
 
-    from services.google_service import google_service
     from database.models import Email as EmailModel
     from database.database import SessionLocal
 
@@ -120,7 +130,8 @@ async def sync_gmail():
         last_sync = last_email.synced_at if last_email else None
 
         # Sync
-        result = google_service.sync_emails(last_sync)
+        from services.communication_service import comm_service
+        result = comm_service.sync_emails(last_sync)
 
         return result
     finally:
@@ -154,11 +165,11 @@ async def scan_emails(limit: int = Query(5, ge=1, le=50), db: Session = Depends(
 
     UPDATED: Uses TaskQueue for asynchronous processing to prevent locking.
     """
-    from services.google_service import google_service
+    from services.communication_service import comm_service
     from services.data_api import data_api
     
-    # 1. Fetch from Google
-    # sync_result = google_service.sync_emails() # Sync can be heavy, maybe should be backgrounded too
+    # 1. Fetch from Provider
+    # sync_result = comm_service.sync_emails() 
     
     # 2. Get latest emails for processing
     emails = db.query(Email).order_by(Email.date_received.desc()).limit(limit).all()
@@ -173,7 +184,8 @@ async def scan_emails(limit: int = Query(5, ge=1, le=50), db: Session = Depends(
                 "subject": email.subject,
                 "from_address": email.from_address,
                 "body_text": email.body_text,
-                "message_id": email.message_id
+                "remote_id": email.remote_id,
+                "provider_type": email.provider_type
             },
             priority=10
         )
@@ -210,10 +222,11 @@ async def reply_to_email(email_id: int, request: ReplyRequest, db: Session = Dep
     email = db.query(Email).filter(Email.email_id == email_id).first()
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")
-    if not email.gmail_id:
-        raise HTTPException(status_code=400, detail="Email has no Gmail ID for reply")
+    if not email.remote_id:
+        raise HTTPException(status_code=400, detail="Email has no Remote ID for reply")
 
-    result = google_service.reply_to_email(email.gmail_id, request.body, request.reply_all)
+    from services.communication_service import comm_service
+    result = comm_service.reply_to_email(email.remote_id, request.body, request.reply_all)
     if not result.get('success'):
         raise HTTPException(status_code=500, detail=result.get('error', 'Reply failed'))
 
@@ -222,15 +235,15 @@ async def reply_to_email(email_id: int, request: ReplyRequest, db: Session = Dep
 @router.post("/{email_id}/forward")
 async def forward_email(email_id: int, request: ForwardRequest, db: Session = Depends(get_db)):
     """Forward an email via Gmail API"""
-    from services.google_service import google_service
+    from services.communication_service import comm_service
 
     email = db.query(Email).filter(Email.email_id == email_id).first()
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")
-    if not email.gmail_id:
-        raise HTTPException(status_code=400, detail="Email has no Gmail ID for forward")
+    if not email.remote_id:
+        raise HTTPException(status_code=400, detail="Email has no Remote ID for forward")
 
-    result = google_service.forward_email(email.gmail_id, request.to_address, request.note)
+    result = comm_service.forward_email(email.remote_id, request.to_address, request.note)
     if not result.get('success'):
         raise HTTPException(status_code=500, detail=result.get('error', 'Forward failed'))
 
@@ -239,17 +252,17 @@ async def forward_email(email_id: int, request: ForwardRequest, db: Session = De
 @router.delete("/{email_id}")
 async def delete_email(email_id: int, db: Session = Depends(get_db)):
     """Trash email in Gmail and remove from local DB"""
-    from services.google_service import google_service
+    from services.communication_service import comm_service
 
     email = db.query(Email).filter(Email.email_id == email_id).first()
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")
 
-    # Trash in Gmail
-    if email.gmail_id:
-        result = google_service.trash_email(email.gmail_id)
+    # Trash in Provider
+    if email.remote_id:
+        result = comm_service.trash_email(email.remote_id)
         if not result.get('success'):
-            raise HTTPException(status_code=500, detail=result.get('error', 'Gmail trash failed'))
+            raise HTTPException(status_code=500, detail=result.get('error', 'Trash failed'))
 
     # Remove from local DB
     db.delete(email)
@@ -260,14 +273,14 @@ async def delete_email(email_id: int, db: Session = Depends(get_db)):
 @router.post("/{email_id}/archive")
 async def archive_email(email_id: int, db: Session = Depends(get_db)):
     """Archive email in Gmail (remove from INBOX label)"""
-    from services.google_service import google_service
+    from services.communication_service import comm_service
 
     email = db.query(Email).filter(Email.email_id == email_id).first()
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")
 
-    if email.gmail_id:
-        result = google_service.archive_email(email.gmail_id)
+    if email.remote_id:
+        result = comm_service.archive_email(email.remote_id)
         if not result.get('success'):
             raise HTTPException(status_code=500, detail=result.get('error', 'Archive failed'))
 
@@ -280,14 +293,14 @@ async def archive_email(email_id: int, db: Session = Depends(get_db)):
 @router.post("/{email_id}/unread")
 async def mark_unread(email_id: int, db: Session = Depends(get_db)):
     """Mark email as unread in Gmail and locally"""
-    from services.google_service import google_service
+    from services.communication_service import comm_service
 
     email = db.query(Email).filter(Email.email_id == email_id).first()
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")
 
-    if email.gmail_id:
-        google_service.mark_unread(email.gmail_id)
+    if email.remote_id:
+        comm_service.mark_unread(email.remote_id)
 
     email.is_read = False
     db.commit()
@@ -297,16 +310,16 @@ async def mark_unread(email_id: int, db: Session = Depends(get_db)):
 @router.post("/{email_id}/move")
 async def move_email(email_id: int, request: MoveRequest, db: Session = Depends(get_db)):
     """Move email to a Gmail label/folder"""
-    from services.google_service import google_service
+    from services.communication_service import comm_service
 
     email = db.query(Email).filter(Email.email_id == email_id).first()
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")
 
-    if not email.gmail_id:
-        raise HTTPException(status_code=400, detail="Email has no Gmail ID")
+    if not email.remote_id:
+        raise HTTPException(status_code=400, detail="Email has no Remote ID")
 
-    result = google_service.move_to_label(email.gmail_id, request.label_name)
+    result = comm_service.move_to_label(email.remote_id, request.label_name)
     if not result.get('success'):
         raise HTTPException(status_code=500, detail=result.get('error', 'Move failed'))
 

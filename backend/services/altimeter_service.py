@@ -144,6 +144,18 @@ class AltimeterService:
         # Get file context
         if context["project"]:
             context["file_context"] = self._get_recent_activity_context(context["project"]["number"])
+        
+        # PROACTIVE BRIDGE: Predict Mission Intel for the identified project context
+        if context["project"]:
+             active_phases = self.get_active_phases()
+             # Filter phases for this specific project
+             project_phases = [p for p in active_phases if p['project_id'] == context['project']['number']]
+             if project_phases:
+                 context["mission_intel"] = intelligence_bridge.predict_mission_intel(project_phases)
+             else:
+                 context["mission_intel"] = []
+        else:
+             context["mission_intel"] = []
 
         return context
 

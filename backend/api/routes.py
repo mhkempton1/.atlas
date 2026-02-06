@@ -44,7 +44,7 @@ async def generate_draft_endpoint(request: DraftRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-from services.google_service import google_service
+# from services.google_service import google_service
 
 class SendEmailRequest(BaseModel):
     recipient: str
@@ -53,7 +53,8 @@ class SendEmailRequest(BaseModel):
 
 @router.post("/agents/send-email")
 async def send_email_endpoint(request: SendEmailRequest):
-    result = google_service.send_email(request.recipient, request.subject, request.body)
+    from services.communication_service import comm_service
+    result = comm_service.send_email(request.recipient, request.subject, request.body)
     if not result.get("success"):
         raise HTTPException(status_code=500, detail=result.get("error"))
     return result
