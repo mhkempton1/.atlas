@@ -1,6 +1,7 @@
 import re
 import sqlite3
 import os
+from urllib.request import pathname2url
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from core.config import settings
@@ -16,12 +17,25 @@ class AltimeterService:
             
         self.db_path = os.path.join(alt_path, "database", "altimeter.db")
 
-    def _get_db_conn(self):
+    def _get_db_conn(self, readonly: bool = False):
         """Get a direct connection to the Altimeter database."""
         if not os.path.exists(self.db_path):
             raise FileNotFoundError(f"Altimeter database not found at {self.db_path}")
-            
-        conn = sqlite3.connect(self.db_path, timeout=5)
+
+        if readonly:
+            # Use URI mode to enforce read-only at the database engine level
+            # file:/absolute/path/to/database?mode=ro
+            try:
+                abs_path = os.path.abspath(self.db_path)
+                db_uri = f"file:{pathname2url(abs_path)}?mode=ro"
+                conn = sqlite3.connect(db_uri, uri=True, timeout=5)
+            except Exception as e:
+                # Fallback if URI fails (though it shouldn't on supported versions)
+                print(f"[AltimeterService] Read-only connection failed, falling back to standard: {e}")
+                conn = sqlite3.connect(self.db_path, timeout=5)
+        else:
+            conn = sqlite3.connect(self.db_path, timeout=5)
+
         conn.row_factory = sqlite3.Row
         return conn
 
@@ -217,7 +231,7 @@ class AltimeterService:
             raise ValueError("Security Alert: Modification queries are strictly forbidden.")
 
         try:
-            conn = self._get_db_conn()
+            conn = self._get_db_conn(readonly=True)
             cursor = conn.cursor()
             cursor.execute(query)
 

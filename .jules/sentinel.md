@@ -7,3 +7,8 @@
 **Vulnerability:** The `/control/{action}` endpoint allowed unauthenticated execution of system scripts via `subprocess` from any network location.
 **Learning:** Sensitive administrative actions (shutdown/boot) were exposed without IP restrictions or authentication.
 **Prevention:** Implemented `verify_local_request` dependency to strictly enforce localhost access (127.0.0.1, ::1) for critical system routes.
+
+## 2026-02-18 - [SQL Injection via Blacklist Bypass]
+**Vulnerability:** `AltimeterService.execute_read_only_query` relied on a keyword blacklist ("INSERT", "UPDATE", etc.) to prevent modification, which was easily bypassed by `CREATE TABLE` and other non-listed commands.
+**Learning:** Keyword blacklists are insufficient for security because they are brittle and easily circumvented.
+**Prevention:** Implemented SQLite URI Read-Only mode (`?mode=ro`) to enforce immutability at the database engine level, providing robust defense-in-depth regardless of the query string.
