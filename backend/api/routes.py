@@ -86,41 +86,106 @@ router.include_router(search_router, prefix="/search", tags=["Search"])
 from api.weather_routes import router as weather_router
 router.include_router(weather_router, prefix="/weather", tags=["Weather"])
 
+from api.reporting_routes import router as reporting_router
+router.include_router(reporting_router, prefix="/reporting", tags=["Reporting"])
+
+from api.foreman_routes import router as foreman_router
+router.include_router(foreman_router, prefix="/foreman", tags=["Foreman Protocol"])
+
 @router.post("/chat")
 async def chat_assistant(request: dict):
-    """Semantic intelligence chat bot"""
+    """
+    Semantic intelligence chat bot.
+    Now enhanced with:
+    - RAG (Docs/Email)
+    - SQL (Altimeter DB)
+    - Strata Security
+    """
     from services.search_service import search_service
+    from services.ai_service import ai_service
+    from services.altimeter_service import altimeter_service
     
     query = request.get("message", "").strip()
     if not query:
         raise HTTPException(status_code=400, detail="Empty message")
 
-    # 1. Search Knowledge Base (Highest Priority)
+    # Strata Level (Mocked to 5 for now as per previous context, but architected for dynamic)
+    user_strata = 5
+
+    # 1. RAG Search (Docs & Email)
+    rag_context = ""
     knowledge_results = search_service.search(query, collection_name="knowledge", n_results=3)
-    
-    if knowledge_results and knowledge_results[0]["score"] < 0.8: # Threshold for high confidence (lower score is better)
-        best_match = knowledge_results[0]
-        meta = best_match["metadata"]
-        snippet = best_match["content_snippet"]
-        
-        reply = f"Based on our internal documents (**{meta.get('title', 'Unknown')}**), here is what I found:\n\n{snippet}\n\nWould you like to view the full document?"
-        links = [{"label": f"View {meta.get('title')}", "moduleId": "procedures", "path": meta.get('path')}]
-        return {"reply": reply, "links": links}
+    if knowledge_results:
+        rag_context += "RELEVANT DOCUMENTS:\n"
+        for res in knowledge_results:
+            rag_context += f"- {res['metadata'].get('title')}: {res['content_snippet']}\n"
 
-    # 2. Search Emails (Secondary Priority)
     email_results = search_service.search(query, collection_name="emails", n_results=2)
-    if email_results and email_results[0]["score"] < 0.7:
-        best_email = email_results[0]
-        meta = best_email["metadata"]
-        reply = f"I found a relevant communication from **{meta.get('sender')}** regarding '{meta.get('subject')}'. \n\nSnippet: {best_email['content_snippet']}"
-        links = [{"label": "Go to Inbox", "moduleId": "email"}]
-        return {"reply": reply, "links": links}
+    if email_results:
+        rag_context += "RELEVANT EMAILS:\n"
+        for res in email_results:
+            rag_context += f"- From {res['metadata'].get('sender')}: {res['content_snippet']}\n"
 
-    # 3. Fallback to general conversational response
-    return {
-        "reply": "I couldn't find a specific policy or email matching that query in my active knowledge core. Try rephrasing, or ask about specific categories like 'safety', 'payroll', or 'engineering'.",
-        "links": [{"label": "Explore Library", "moduleId": "procedures"}]
-    }
+    # 2. Database Schema Injection
+    schema_context = altimeter_service.get_db_schema(user_strata)
+
+    # 3. Prompt Construction
+    system_prompt = f"""
+    You are Jules, the Atlas AI. You have access to the company's Knowledge Base and the Altimeter Project Database.
+
+    USER QUERY: {query}
+
+    CONTEXT (RAG):
+    {rag_context}
+
+    DATABASE ACCESS (SQL):
+    {schema_context}
+
+    INSTRUCTIONS:
+    - If the user asks about data in the database (e.g. "How many active projects?", "Status of task X"), you can WRITE A SQL QUERY.
+    - If you write a SQL query, format it exactly like this: SQL: SELECT * FROM ...
+    - If the user asks to SEE a tool or view (e.g. "Show me the schedule", "Open tasks"), return a UI ACTION.
+    - UI ACTION FORMAT: UI: render_task_list (or render_schedule)
+    - If the answer is in the RAG context, summarize it.
+    - If you don't know, say so.
+    """
+
+    # 4. First Pass: AI Reasoning
+    response_text = await ai_service.generate_content(system_prompt, include_context=True, user_strata=user_strata)
+
+    # 5. Tool Execution Loop (SQL or UI)
+    stripped_resp = response_text.strip()
+
+    if stripped_resp.startswith("SQL:"):
+        sql_query = stripped_resp.replace("SQL:", "").strip()
+        print(f"Executing AI SQL: {sql_query}")
+
+        try:
+            db_results = altimeter_service.execute_read_only_query(sql_query)
+
+            # 6. Second Pass: Synthesize Data
+            final_prompt = f"""
+            The user asked: {query}
+            You decided to run this SQL: {sql_query}
+            Here are the results from the database:
+            {db_results}
+            Please formulate a natural language answer based on these results.
+            """
+            final_response = await ai_service.generate_content(final_prompt)
+            return {"reply": final_response, "links": []}
+
+        except Exception as e:
+            return {"reply": f"I tried to query the database but encountered an error: {str(e)}", "links": []}
+
+    if stripped_resp.startswith("UI:"):
+        component = stripped_resp.replace("UI:", "").strip()
+        return {
+            "reply": f"Opening {component} view...",
+            "ui_action": {"component": component, "props": {}}
+        }
+
+    # 6. Standard Response
+    return {"reply": response_text, "links": [{"label": "Explore Library", "moduleId": "procedures"}]}
 
 # --- Dashboard & Scheduler Routes ---
 from services.scheduler_service import SchedulerService

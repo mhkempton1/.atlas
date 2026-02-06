@@ -168,6 +168,69 @@ class AltimeterService:
             print(f"[AltimeterService] Project listing failed: {e}")
             return []
 
+    def get_db_schema(self, strata_level: int = 1) -> str:
+        """
+        Returns a read-only schema representation filtered by Strata Level.
+        Allows the LLM to write SQL queries safely.
+        """
+        try:
+            conn = self._get_db_conn()
+            cursor = conn.cursor()
+
+            # Fetch all tables
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = [row[0] for row in cursor.fetchall()]
+
+            schema_str = "Database Schema:\n"
+
+            # Permission Logic (Simple)
+            # Strata 1-2: Ops only (Tasks, Projects, Inventory)
+            # Strata 3-4: + Financials (if exists)
+            # Strata 5: All (including system tables)
+
+            allowed_tables = tables
+            if strata_level < 5:
+                allowed_tables = [t for t in tables if t not in ['users', 'secrets', 'audit_logs']]
+            if strata_level < 3:
+                # Filter 'financ' (financials), 'money', 'budget', 'salary'
+                restricted = ['financ', 'money', 'budget', 'salary']
+                allowed_tables = [t for t in allowed_tables if not any(r in t for r in restricted)]
+
+            for table in allowed_tables:
+                cursor.execute(f"PRAGMA table_info({table})")
+                columns = [f"{row[1]} ({row[2]})" for row in cursor.fetchall()]
+                schema_str += f"- Table '{table}': {', '.join(columns)}\n"
+
+            conn.close()
+            return schema_str
+        except Exception as e:
+            return f"Error fetching schema: {e}"
+
+    def execute_read_only_query(self, query: str) -> List[Dict[str, Any]]:
+        """
+        Executes a SQL query strictly for READ access.
+        Safeguarded against modification keywords.
+        """
+        # 1. Safety Check
+        forbidden = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "TRUNCATE", "GRANT", "REVOKE"]
+        if any(word in query.upper() for word in forbidden):
+            raise ValueError("Security Alert: Modification queries are strictly forbidden.")
+
+        try:
+            conn = self._get_db_conn()
+            cursor = conn.cursor()
+            cursor.execute(query)
+
+            # Fetch column names
+            columns = [description[0] for description in cursor.description]
+            rows = cursor.fetchall()
+
+            result = [dict(zip(columns, row)) for row in rows]
+            conn.close()
+            return result
+        except Exception as e:
+            return [{"error": str(e)}]
+
     def get_upcoming_milestones(self, days: int = 14) -> List[Dict[str, Any]]:
         """Fetch upcoming milestones from Altimeter projects."""
         try:
@@ -206,6 +269,7 @@ class AltimeterService:
         """
         try:
             conn = self._get_db_conn()
+            # Assuming project_phases has start_date and completion_date
             query = """
                 SELECT ph.*, p.altimeter_project_id, p.name as project_name
                 FROM project_phases ph
@@ -330,6 +394,7 @@ class IntelligenceBridge:
         weather_alert = False
         weather_keywords = []
         if weather:
+            # Simple heuristic for bad weather
             condition = weather.get("current", {}).get("condition", "").lower()
             if any(x in condition for x in ["rain", "storm", "snow", "wind", "thunder"]):
                 weather_alert = True
@@ -339,20 +404,22 @@ class IntelligenceBridge:
             phase_name = phase.get("phase_name", "")
             keywords = [phase_name]
 
+            # 3. Contextual Boosting
+            # If outdoor phase + bad weather -> prioritization
             is_outdoor = any(x in phase_name.lower() for x in ["exterior", "foundation", "site", "roof", "ground"])
             if is_outdoor and weather_alert:
                 keywords.extend(weather_keywords)
-                keywords.insert(0, "Inclement Weather Protocol")
-
+                keywords.insert(0, "Inclement Weather Protocol") # High priority search
             for term in keywords:
                 results = search_service.search(term, collection_name="knowledge", n_results=2)
                 for res in results:
                     title = res.get("metadata", {}).get("title", "Unknown")
                     if title not in seen_titles:
                         seen_titles.add(title)
+                        # Apply Weighting
                         relevance = 1.0
                         if "weather" in term.lower() and weather_alert:
-                            relevance = 1.5
+                            relevance = 1.5 # Boost weather docs
 
                         intel_results.append({
                             "title": title,
@@ -363,8 +430,11 @@ class IntelligenceBridge:
                             "trigger": "Weather Alert" if (weather_alert and is_outdoor and "weather" in term.lower()) else "Active Phase"
                         })
 
+        # Sort by relevance
+        # For this prototype, we'll sort by our custom 'relevance' multiplier first, then by score.
         intel_results.sort(key=lambda x: (x['trigger'] == "Weather Alert", x['relevance']), reverse=True)
-        return intel_results[:5]
+
+        return intel_results[:5] # Top 5
 
 altimeter_service = AltimeterService()
 intelligence_bridge = IntelligenceBridge()

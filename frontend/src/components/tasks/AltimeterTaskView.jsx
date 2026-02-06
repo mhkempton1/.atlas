@@ -56,7 +56,7 @@ const AltimeterTaskView = () => {
                     title="Altimeter System Unavailable"
                     message={`Ensure the Altimeter service is running on Port 4203.\n\nDiagnostic: ${error}`}
                     action={
-                        <div className="mt-4 p-4 bg-slate-950 rounded-lg border border-white/5 font-mono text-[10px] text-gray-500 text-left w-full max-w-sm">
+                        <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/5 font-mono text-[10px] text-gray-400 text-left w-full max-w-sm backdrop-blur-sm">
                             <p>Target: http://127.0.0.1:4203/api/projects</p>
                             <p>Protocol: HTTP/1.1</p>
                             <p>Bridge: v0.4.1-alpha</p>
@@ -75,9 +75,9 @@ const AltimeterTaskView = () => {
                         <Section title="Active Projects" count={projects.length}>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {projects.map(p => (
-                                    <div key={p.id} className="bg-slate-800/40 border border-white/5 p-4 rounded-xl hover:border-purple-500/30 transition-all cursor-pointer group">
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div className="p-2 bg-slate-900 rounded-lg group-hover:bg-purple-500/10 group-hover:text-purple-400 transition-colors">
+                                    <div key={p.id} className="bg-white/[0.03] border border-white/5 p-4 rounded-xl hover:border-purple-500/30 transition-all cursor-pointer group backdrop-blur-md">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div className="p-2 bg-white/10 rounded-lg group-hover:bg-purple-500/10 group-hover:text-purple-400 transition-colors">
                                                 <Briefcase className="w-5 h-5 text-gray-400" />
                                             </div>
                                             <StatusBadge status={p.status || 'Active'} />

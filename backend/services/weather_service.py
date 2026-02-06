@@ -2,6 +2,7 @@ import httpx
 from datetime import datetime
 from typing import Optional, Dict, Any
 import time
+from datetime import timedelta
 
 class WeatherService:
     def __init__(self):
@@ -35,7 +36,6 @@ class WeatherService:
         latitude = lat if lat is not None else self.DEFAULT_LAT
         longitude = lon if lon is not None else self.DEFAULT_LON
         location = self.DEFAULT_LOCATION if (lat is None or lon is None) else f"Current Location"
-        
         # Check cache
         cache_key = (latitude, longitude)
         if cache_key in self._cache:
@@ -56,11 +56,9 @@ class WeatherService:
                     "timezone": "America/Chicago",
                     "forecast_days": 7
                 }
-                
                 response = await client.get(url, params=params, timeout=20.0)
                 response.raise_for_status()
                 data = response.json()
-                
                 daily = data.get("daily", {})
                 dates = daily.get("time", [])
                 max_temps = daily.get("temperature_2m_max", [])
@@ -68,7 +66,6 @@ class WeatherService:
                 codes = daily.get("weather_code", [])
                 winds = daily.get("wind_speed_10m_max", [])
                 rains = daily.get("precipitation_probability_max", [])
-                
                 forecast = []
                 for i in range(min(7, len(dates))):
                     try:
@@ -85,7 +82,6 @@ class WeatherService:
                         })
                     except (IndexError, ValueError) as e:
                         print(f"[WeatherService] Item error at index {i}: {e}")
-                
                 print(f"[WeatherService] Successfully generated {len(forecast)} day forecast")
 
                 result = {

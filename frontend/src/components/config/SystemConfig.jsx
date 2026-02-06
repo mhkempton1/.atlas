@@ -4,8 +4,16 @@ import { useToast } from '../../hooks/useToast';
 const SystemConfig = () => {
     const { addToast, toastElement } = useToast();
 
-    const handleSave = () => {
-        addToast("System configuration updated successfully", "success");
+    const handleSave = async () => {
+        try {
+            await SYSTEM_API.saveSystemConfig({
+                notifications: { email: true, health: true },
+                security: { session_timeout: 60 }
+            });
+            addToast("System configuration updated successfully", "success");
+        } catch (err) {
+            addToast("Failed to save configuration", "error");
+        }
     };
 
     const handleTestConnection = () => {

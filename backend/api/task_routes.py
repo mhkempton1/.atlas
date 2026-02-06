@@ -29,6 +29,8 @@ class TaskUpdate(BaseModel):
     due_date: Optional[datetime] = None
     estimated_hours: Optional[float] = None
     actual_hours: Optional[float] = None
+    # Foreman Protocol: Safety Acknowledgement
+    safety_ack: Optional[bool] = False
 
 @router.get("/list")
 async def get_tasks(
@@ -119,8 +121,19 @@ async def update_task(task_id: int, request: TaskUpdate, db: Session = Depends(g
 
     old_status = task.status
 
+    # Foreman Protocol: The Gatekeeper
+    # If High Priority and moving to In Progress, enforce safety acknowledgement
+    if (task.priority == "high" or "high-risk" in (task.description or "").lower()) \
+       and request.status == "in_progress" and old_status != "in_progress":
+        if not request.safety_ack:
+             raise HTTPException(
+                status_code=403,
+                detail="Safety Acknowledgement Required: High-risk tasks cannot proceed without explicit safety confirmation."
+            )
+
     # Apply updates (only non-None fields)
     for field, value in request.model_dump(exclude_none=True).items():
+        if field == "safety_ack": continue # Don't try to set on DB model
         setattr(task, field, value)
 
     # Auto-set completed_at when status changes to done

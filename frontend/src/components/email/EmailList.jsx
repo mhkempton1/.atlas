@@ -7,8 +7,8 @@ import { useToast } from '../../hooks/useToast';
 const EmailItem = ({ email, onClick, expanded, onAction }) => {
     return (
         <div
-            className={`border-b border-white/5 transition-all ${expanded ? 'bg-slate-800' : 'hover:bg-slate-800/50'
-                } ${!email.is_read ? 'bg-slate-800/20 border-l-4 border-l-purple-500' : 'border-l-4 border-l-transparent'}`}
+            className={`border-b border-white/5 transition-all ${expanded ? 'bg-white/10' : 'hover:bg-white/5'
+                } ${!email.is_read ? 'bg-purple-500/5 border-l-4 border-l-purple-500' : 'border-l-4 border-l-transparent'}`}
         >
             <div
                 className="p-4 cursor-pointer flex items-start gap-4"
@@ -49,10 +49,10 @@ const EmailItem = ({ email, onClick, expanded, onAction }) => {
                 {email.has_attachments && <Paperclip className="w-4 h-4 text-gray-500" />}
             </div>
 
-            {/* EXPANDED VIEW (Dropdown as requested) */}
+            {/* EXPANDED VIEW */}
             {expanded && (
                 <div className="px-10 pb-4 animate-slide-in">
-                    <div className="bg-slate-900/50 rounded-lg p-4 border border-white/5 text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">
+                    <div className="bg-white/5 rounded-lg p-4 border border-white/5 text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">
                         {email.body_text || "No content"}
                     </div>
 
@@ -65,7 +65,7 @@ const EmailItem = ({ email, onClick, expanded, onAction }) => {
                         </button>
                         <button
                             onClick={(e) => onAction(e, 'forward', email)}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-700/50 text-gray-400 hover:bg-slate-700 hover:text-white text-xs font-medium"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white text-xs font-medium"
                         >
                             <Forward className="w-3.5 h-3.5" /> Forward
                         </button>
@@ -79,14 +79,14 @@ const EmailItem = ({ email, onClick, expanded, onAction }) => {
                         <div className="flex-1" />
                         <button
                             onClick={(e) => onAction(e, 'unread', email)}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-slate-700/50 text-gray-400 hover:text-white text-xs"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-white/5 text-gray-400 hover:text-white text-xs"
                             title="Mark as Unread"
                         >
                             <MailOpen className="w-3.5 h-3.5" /> Unread
                         </button>
                         <button
                             onClick={(e) => onAction(e, 'archive', email)}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-slate-700/50 text-gray-500 hover:text-white text-xs"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white text-xs"
                         >
                             <Archive className="w-3.5 h-3.5" /> Archive
                         </button>
@@ -213,8 +213,8 @@ const EmailList = ({ onSelectEmail }) => {
     if (loading && emails.length === 0) return <Spinner label="Loading Inbox..." />;
 
     return (
-        <div className="h-full flex flex-col bg-slate-900/30 rounded-xl overflow-hidden border border-white/5">
-            <div className="p-4 border-b border-white/5 bg-slate-900/50">
+        <div className="h-full flex flex-col bg-white/[0.02] rounded-xl overflow-hidden border border-white/5 backdrop-blur-xl shadow-2xl">
+            <div className="p-4 border-b border-white/5 bg-white/[0.02]">
                 <PageHeader
                     icon={Mail}
                     title="Inbox"
@@ -234,7 +234,7 @@ const EmailList = ({ onSelectEmail }) => {
             </div>
 
             {/* Category Filter Tabs */}
-            <div className="flex overflow-x-auto border-b border-white/5 bg-slate-900/30 no-scrollbar">
+            <div className="flex overflow-x-auto border-b border-white/5 bg-white/[0.01] no-scrollbar">
                 {CATEGORIES.map(cat => (
                     <button
                         key={cat}

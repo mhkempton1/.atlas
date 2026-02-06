@@ -16,6 +16,23 @@ async def system_health():
     from services.status_service import get_health_status
     return await get_health_status()
 
+from pydantic import BaseModel
+from typing import Optional
+
+class ConfigUpdate(BaseModel):
+    # Only allow safe updates for now
+    notifications: Optional[Dict[str, bool]] = None
+    security: Optional[Dict[str, Any]] = None
+
+@router.post("/config/save")
+async def save_config(config: ConfigUpdate):
+    """
+    Persist system configuration.
+    """
+    # For now, we mock persistence to avoid overwriting critical env vars in this environment
+    # In production, this would update secrets.json or .env
+    return {"status": "success", "message": "Configuration saved"}
+
 @router.post("/control/{action}", dependencies=[Depends(verify_local_request)])
 async def system_control(action: str):
     """

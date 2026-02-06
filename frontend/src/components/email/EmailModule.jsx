@@ -41,7 +41,7 @@ const EmailModule = () => {
                         onEmailAction={handleEmailAction}
                     />
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-text-muted bg-surface-dark rounded-lg border border-border">
+                    <div className="h-full flex flex-col items-center justify-center text-text-muted bg-white/[0.01] rounded-lg border border-white/5 backdrop-blur-sm">
                         <div className="mb-4 text-6xl opacity-20">✉️</div>
                         <p>Select an email to view details</p>
                         <p className="text-sm opacity-50">or sync to fetch new messages</p>

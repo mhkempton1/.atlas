@@ -17,8 +17,25 @@ const TaskList = () => {
         description: '',
         priority: 'medium',
         category: 'work',
+        project_id: '',
         due_date: null
     });
+
+    // Altimeter Projects
+    const [projects, setProjects] = useState([]);
+
+    useEffect(() => {
+        // Fetch Altimeter Projects for the dropdown
+        const fetchProjects = async () => {
+            try {
+                const data = await SYSTEM_API.getAltimeterProjects();
+                setProjects(data);
+            } catch (err) {
+                console.error("Failed to load projects", err);
+            }
+        };
+        fetchProjects();
+    }, []);
 
     const loadTasks = useCallback(async () => {
         setIsLoading(true);
@@ -51,7 +68,7 @@ const TaskList = () => {
             };
             await SYSTEM_API.createTask(taskToCreate);
             addToast("Task created successfully", "success");
-            setNewTask({ title: '', description: '', priority: 'medium', category: 'work', due_date: null });
+            setNewTask({ title: '', description: '', priority: 'medium', category: 'work', project_id: '', due_date: null });
             setShowCreateForm(false);
             loadTasks();
         } catch (error) {
@@ -156,13 +173,13 @@ const TaskList = () => {
 
             {/* Inline Creation Form */}
             {showCreateForm && (
-                <div className="bg-slate-900/50 border border-white/10 rounded-xl p-6 mb-6 backdrop-blur-sm">
+                <div className="bg-white/[0.03] border border-white/10 rounded-xl p-6 mb-6 backdrop-blur-xl">
                     <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider mb-4">Create New Task</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <input
                             type="text"
                             placeholder="Task Title *"
-                            className="bg-slate-950 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500/50"
+                            className="bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500/50"
                             value={newTask.title}
                             onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
                         />
@@ -172,9 +189,9 @@ const TaskList = () => {
                                 value={newTask.priority}
                                 onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
                             >
-                                <option value="high">High Priority</option>
-                                <option value="medium">Medium Priority</option>
-                                <option value="low">Low Priority</option>
+                                <option className="bg-slate-900" value="high">High Priority</option>
+                                <option className="bg-slate-900" value="medium">Medium Priority</option>
+                                <option className="bg-slate-900" value="low">Low Priority</option>
                             </select>
                             <select
                                 className="bg-slate-950 border border-white/10 rounded-lg px-4 py-2 text-gray-300 focus:outline-none focus:border-emerald-500/50 flex-1"
@@ -184,6 +201,21 @@ const TaskList = () => {
                                 <option value="work">Work</option>
                                 <option value="personal">Personal</option>
                                 <option value="home">Home</option>
+                            </select>
+                        </div>
+                        {/* Project Selector */}
+                        <div className="mt-2">
+                            <select
+                                className="w-full bg-slate-950 border border-white/10 rounded-lg px-4 py-2 text-gray-300 focus:outline-none focus:border-emerald-500/50"
+                                value={newTask.project_id || ""}
+                                onChange={(e) => setNewTask({ ...newTask, project_id: e.target.value })}
+                            >
+                                <option value="">Select Altimeter Project (Optional)</option>
+                                {projects.map(p => (
+                                    <option key={p.id} value={p.altimeter_project_id}>
+                                        {p.altimeter_project_id} - {p.name}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     </div>
@@ -197,7 +229,7 @@ const TaskList = () => {
                         <div className="flex flex-col gap-2">
                             <input
                                 type="datetime-local"
-                                className="bg-slate-950 border border-white/10 rounded-lg px-4 py-2 text-gray-300 focus:outline-none focus:border-emerald-500/50"
+                                className="bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-gray-300 focus:outline-none focus:border-emerald-500/50"
                                 value={newTask.due_date}
                                 onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
                             />
@@ -219,8 +251,8 @@ const TaskList = () => {
                         key={f}
                         onClick={() => setFilter(f)}
                         className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${filter === f
-                            ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
-                            : 'bg-slate-800/30 text-gray-400 hover:text-white border border-transparent'
+                            ? 'bg-purple-600/30 text-purple-400 border border-purple-500/40 backdrop-blur-md'
+                            : 'bg-white/5 text-gray-400 hover:text-white border border-transparent'
                             }`}
                     >
                         {f.replace('_', ' ')}
@@ -244,7 +276,7 @@ const TaskList = () => {
                         filteredTasks.map(task => (
                             <div
                                 key={task.task_id}
-                                className={`group bg-slate-900/40 border border-white/5 hover:border-white/10 rounded-xl p-4 transition-all flex items-start gap-4 ${task.status === 'done' ? 'opacity-50' : ''}`}
+                                className={`group bg-white/[0.02] border border-white/5 hover:border-white/10 rounded-xl p-4 transition-all flex items-start gap-4 backdrop-blur-sm ${task.status === 'done' ? 'opacity-50' : ''}`}
                             >
                                 {/* Status Checkbox */}
                                 <button
@@ -276,7 +308,7 @@ const TaskList = () => {
                                     {task.description && <p className="text-xs text-gray-500 line-clamp-2 mb-2">{task.description}</p>}
 
                                     <div className="flex items-center gap-4 text-[10px] text-gray-500 font-mono">
-                                        <span className="flex items-center gap-1.5 px-2 py-1 bg-slate-950 rounded uppercase tracking-wider">
+                                        <span className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded uppercase tracking-wider">
                                             {getCategoryIcon(task.category)}
                                             {task.category}
                                         </span>
