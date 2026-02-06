@@ -21,7 +21,7 @@ class SystemActivity(Base):
     action = Column(String)
     target = Column(String)
     details = Column(Text, nullable=True)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 class TaskQueue(Base):
     __tablename__ = "task_queue"
