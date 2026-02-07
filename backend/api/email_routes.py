@@ -1,10 +1,44 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, status
 from database.database import get_db
 from database.models import Email
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
 router = APIRouter()
+
+def run_background_scan(limit: int):
+    """Background task to sync emails and queue analysis."""
+    from database.database import SessionLocal
+    from services.communication_service import comm_service
+    from services.data_api import data_api
+
+    print(f"Starting background scan (limit={limit})...")
+    try:
+        # 1. Sync from Provider
+        comm_service.sync_emails()
+
+        # 2. Get latest emails for processing
+        db = SessionLocal()
+        try:
+            emails = db.query(Email).order_by(Email.date_received.desc()).limit(limit).all()
+            for email in emails:
+                data_api.add_task(
+                    type="analyze_email",
+                    payload={
+                        "email_id": email.email_id,
+                        "subject": email.subject,
+                        "from_address": email.from_address,
+                        "body_text": email.body_text,
+                        "remote_id": email.remote_id,
+                        "provider_type": email.provider_type
+                    },
+                    priority=10
+                )
+            print(f"Queued analysis for {len(emails)} emails.")
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"Background Scan Error: {e}")
 
 @router.get("/labels")
 async def get_labels():
@@ -157,42 +191,21 @@ class ScanResult(BaseModel):
     tasks_created: List[TaskResult]
     events_created: List[EventResult]
 
-@router.post("/scan", response_model=ScanResult)
-async def scan_emails(limit: int = Query(5, ge=1, le=50), db: Session = Depends(get_db)):
+@router.post("/scan", response_model=ScanResult, status_code=status.HTTP_202_ACCEPTED)
+async def scan_emails(background_tasks: BackgroundTasks, limit: int = Query(5, ge=1, le=50), db: Session = Depends(get_db)):
     """
     Scan recent emails, identify project context, and generate tasks/events.
     This is the core 'The Lens' bridge logic.
 
-    UPDATED: Uses TaskQueue for asynchronous processing to prevent locking.
+    UPDATED: Uses BackgroundTasks for sync + TaskQueue for analysis.
+    Returns 202 Accepted immediately.
     """
-    from services.communication_service import comm_service
-    from services.data_api import data_api
-    
-    # 1. Fetch from Provider
-    # sync_result = comm_service.sync_emails() 
-    
-    # 2. Get latest emails for processing
-    emails = db.query(Email).order_by(Email.date_received.desc()).limit(limit).all()
-    
-    for email in emails:
-        # Enqueue processing task via Central Data API
-        # This prevents locking and allows the "Ingester" (this route) to hand off to "Analyzer" (TaskAgent)
-        data_api.add_task(
-            type="analyze_email",
-            payload={
-                "email_id": email.email_id,
-                "subject": email.subject,
-                "from_address": email.from_address,
-                "body_text": email.body_text,
-                "remote_id": email.remote_id,
-                "provider_type": email.provider_type
-            },
-            priority=10
-        )
+    # Offload the entire sync & queue process to background
+    background_tasks.add_task(run_background_scan, limit)
 
-    # Return empty results immediately as processing is now async
+    # Return empty results immediately
     return ScanResult(
-        emails_found=len(emails),
+        emails_found=0,
         tasks_created=[],
         events_created=[]
     )

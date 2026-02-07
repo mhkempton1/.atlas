@@ -14,8 +14,8 @@ class GmailProvider(CommunicationProvider):
     def sync_emails(self, last_sync_timestamp: Optional[datetime] = None) -> Dict[str, Any]:
         return self.service.sync_emails(last_sync_timestamp)
 
-    def send_email(self, recipient: str, subject: str, body: str) -> Dict[str, Any]:
-        return self.service.send_email(recipient, subject, body)
+    def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None) -> Dict[str, Any]:
+        return self.service.send_email(recipient, subject, body, cc=cc, bcc=bcc)
 
     def reply_to_email(self, remote_id: str, body: str, reply_all: bool = False) -> Dict[str, Any]:
         return self.service.reply_to_email(remote_id, body, reply_all)

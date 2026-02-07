@@ -6,6 +6,7 @@ from google.auth.exceptions import RefreshError
 from email.mime.text import MIMEText
 import base64
 import os
+from typing import List, Optional
 from core.config import settings
 from services.activity_service import activity_service
 import email.utils
@@ -406,10 +407,17 @@ class GoogleService:
         except Exception as e:
             return []
 
-    def send_email(self, recipient, subject, body):
+    def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None) -> dict:
         if not self.gmail_service: self.authenticate()
         msg = MIMEText(body)
-        msg['to'], msg['from'], msg['subject'] = recipient, 'me', subject
+        msg['To'] = recipient
+        msg['From'] = 'me'
+        msg['Subject'] = subject
+        if cc:
+            msg['Cc'] = ', '.join(cc)
+        if bcc:
+            msg['Bcc'] = ', '.join(bcc)
+
         raw = {'raw': base64.urlsafe_b64encode(msg.as_bytes()).decode('utf-8')}
         return self.gmail_service.users().messages().send(userId='me', body=raw).execute()
 
