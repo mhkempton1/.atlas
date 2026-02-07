@@ -1,5 +1,6 @@
 import imaplib
 import email
+import email.utils
 from email.header import decode_header
 import base64
 import os
@@ -32,28 +33,39 @@ class IMAPProvider(CommunicationProvider):
             mail = self._connect()
             mail.select("INBOX")
 
-            # Simple search: all messages
-            # In a production environment, we'd search since last_sync_timestamp
-            # For this implementation, we'll fetch the last 10-20 to verify decoupling
-            status, messages = mail.search(None, 'ALL')
+            search_criteria = 'ALL'
+            if last_sync_timestamp:
+                date_str = last_sync_timestamp.strftime("%d-%b-%Y")
+                search_criteria = f'(SINCE "{date_str}")'
+
+            # Use UID search for robustness
+            status, messages = mail.uid('search', None, search_criteria)
             if status != 'OK':
                 return {"synced": 0, "status": "search_failed"}
 
-            message_ids = messages[0].split()
-            # Most recent first
-            message_ids.reverse()
-            
-            # Limit for demo/safety
-            message_ids = message_ids[:20]
+            uids = messages[0].split()
 
-            for msg_id in message_ids:
-                status, data = mail.fetch(msg_id, '(RFC822)')
+            # Process newer emails first (if possible, though logic iterates all)
+            # Optimization: Check if UID exists in DB before fetching
+            
+            for uid in uids:
+                uid_str = uid.decode()
+
+                # Fast check existence
+                exists = db.query(Email).filter(
+                    Email.remote_id == uid_str,
+                    Email.provider_type == 'imap'
+                ).first()
+                if exists:
+                    continue
+
+                status, data = mail.uid('fetch', uid, '(RFC822)')
                 if status != 'OK': continue
 
                 raw_email = data[0][1]
                 msg = email.message_from_bytes(raw_email)
                 
-                if self._store_imap_email(msg, msg_id.decode(), db):
+                if self._store_imap_email(msg, uid_str, db):
                     synced_count += 1
 
             db.commit()
@@ -71,34 +83,48 @@ class IMAPProvider(CommunicationProvider):
         subject = self._decode_mime_header(msg['Subject'])
         from_raw = msg.get('From')
         message_id = msg.get('Message-ID')
-        
-        # Check duplicate
-        if db.query(Email).filter(
-            (Email.remote_id == imap_uid) | 
-            ((Email.message_id == message_id) & (Email.message_id.isnot(None)))
-        ).first():
+        date_str = msg.get('Date')
+
+        # Check duplicate by Message-ID (if UID check passed but message exists)
+        if message_id and db.query(Email).filter(Email.message_id == message_id).first():
             return False
+
+        # Parse Date
+        date_received = datetime.now()
+        if date_str:
+            try:
+                date_tuple = email.utils.parsedate_tz(date_str)
+                if date_tuple:
+                    date_received = datetime.fromtimestamp(email.utils.mktime_tz(date_tuple))
+            except: pass
 
         # 2. Extract Body
         body_text, body_html = "", ""
-        if msg.is_multipart():
-            for part in msg.walk():
-                content_type = part.get_content_type()
-                content_disposition = str(part.get("Content-Disposition"))
 
-                try:
-                    payload = part.get_payload(decode=True).decode()
-                    if content_type == "text/plain" and "attachment" not in content_disposition:
-                        body_text += payload
-                    elif content_type == "text/html" and "attachment" not in content_disposition:
-                        body_html += payload
-                except:
-                    pass
-        else:
-            try:
-                body_text = msg.get_payload(decode=True).decode()
-            except:
-                pass
+        def extract_parts(message_part):
+            text, html = "", ""
+            if message_part.is_multipart():
+                for part in message_part.get_payload():
+                    t, h = extract_parts(part)
+                    text += t
+                    html += h
+            else:
+                content_type = message_part.get_content_type()
+                disposition = str(message_part.get("Content-Disposition"))
+
+                if "attachment" not in disposition:
+                    try:
+                        payload = message_part.get_payload(decode=True)
+                        charset = message_part.get_content_charset() or 'utf-8'
+                        decoded = payload.decode(charset, errors='replace')
+                        if content_type == "text/plain":
+                            text += decoded
+                        elif content_type == "text/html":
+                            html += decoded
+                    except: pass
+            return text, html
+
+        body_text, body_html = extract_parts(msg)
 
         # 3. Context Bridge via Altimeter
         from services.altimeter_service import altimeter_service
@@ -118,7 +144,7 @@ class IMAPProvider(CommunicationProvider):
             body_text=body_text,
             body_html=body_html,
             snippet=body_text[:200] if body_text else "",
-            date_received=datetime.now(), # In production, parse msg['Date']
+            date_received=date_received,
             is_read=False,
             synced_at=datetime.now(),
             category=category
@@ -126,8 +152,27 @@ class IMAPProvider(CommunicationProvider):
         db.add(email_obj)
         db.flush()
 
-        # 5. Handle Attachments (Simplified)
-        # TODO: Implement IMAP attachment saving
+        # 5. Handle Attachments (Metadata Only)
+        if msg.is_multipart():
+            for part in msg.walk():
+                if part.get_content_maintype() == 'multipart': continue
+                if part.get('Content-Disposition') is None: continue
+
+                filename = part.get_filename()
+                if filename:
+                    filename = self._decode_mime_header(filename)
+                    # Skip saving content, capture metadata
+                    payload = part.get_payload(decode=True)
+                    file_size = len(payload) if payload else 0
+
+                    att = EmailAttachment(
+                        email_id=email_obj.email_id,
+                        filename=filename,
+                        file_size=file_size,
+                        mime_type=part.get_content_type(),
+                        file_path="skipped_in_imap_phase"
+                    )
+                    db.add(att)
 
         # 6. Index
         try:
@@ -155,9 +200,9 @@ class IMAPProvider(CommunicationProvider):
         return result
 
     # Stubs for other interface methods
-    def send_email(self, recipient: str, subject: str, body: str) -> Dict[str, Any]:
+    def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None) -> Dict[str, Any]:
         from services.smtp_provider import SMTPProvider
-        return SMTPProvider().send_email(recipient, subject, body)
+        return SMTPProvider().send_email(recipient, subject, body, cc=cc, bcc=bcc)
 
     def reply_to_email(self, remote_id: str, body: str, reply_all: bool = False) -> Dict[str, Any]:
         return {"success": False, "error": "IMAP Reply not implemented"}

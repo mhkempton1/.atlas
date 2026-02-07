@@ -76,12 +76,29 @@ class AltimeterService:
         is_proposal = any(k in full_content for k in proposal_keywords)
         is_daily_log = any(k in full_content for k in daily_log_keywords)
         
+        # Date Extraction for Milestones
+        # Matches: "due by 2/20", "deadline 2024-05-01", "bid date 12/15"
+        date_patterns = [
+            r"(?:due|deadline|bid date|complete)(?:\s+(?:by|on|date|for))?[\s:]+(\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)",
+            r"(\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?) (?:deadline|due date)"
+        ]
+
+        suggested_milestones = []
+        for pattern in date_patterns:
+            matches = re.findall(pattern, full_content, re.IGNORECASE)
+            for date_str in matches:
+                suggested_milestones.append({
+                    "date_text": date_str,
+                    "source_context": "Found in email body"
+                })
+
         return {
             "project_ids": list(set(project_ids)),
             "is_urgent": is_urgent,
             "doc_types": found_docs,
             "is_proposal": is_proposal,
-            "is_daily_log": is_daily_log
+            "is_daily_log": is_daily_log,
+            "suggested_milestones": suggested_milestones
         }
 
     def get_project_details(self, project_id: str) -> Optional[Dict[str, Any]]:
@@ -117,6 +134,7 @@ class AltimeterService:
         parsed = self.parse_email_for_project(subject, body)
         context["is_proposal"] = parsed["is_proposal"]
         context["is_daily_log"] = parsed["is_daily_log"]
+        context["suggested_milestones"] = parsed["suggested_milestones"]
 
         if parsed["project_ids"]:
             project_id = parsed["project_ids"][0]

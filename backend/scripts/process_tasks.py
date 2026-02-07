@@ -52,6 +52,17 @@ async def process_task(task):
                 for intel in context["mission_intel"]:
                     intel_notes += f"- **{intel['title']}**: {intel['snippet']}\n"
 
+            # Enrich with Milestones (Oracle Protocol)
+            if context.get("suggested_milestones"):
+                if not intel_notes:
+                    intel_notes = "\n\n### 💎 Mission Intel (SOPs/Context):\n"
+                else:
+                    intel_notes += "\n"
+
+                intel_notes += "**Suggested Milestones:**\n"
+                for m in context["suggested_milestones"]:
+                    intel_notes += f"- {m['date_text']}\n"
+
             new_task_data = {
                 "title": t_data["title"],
                 "description": t_data["description"] + intel_notes,

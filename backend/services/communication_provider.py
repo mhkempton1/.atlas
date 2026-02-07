@@ -12,7 +12,7 @@ class CommunicationProvider(ABC):
         pass
 
     @abstractmethod
-    def send_email(self, recipient: str, subject: str, body: str) -> Dict[str, Any]:
+    def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None) -> Dict[str, Any]:
         pass
 
     @abstractmethod
