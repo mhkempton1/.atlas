@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { SYSTEM_API } from '../../services/api';
 import { PageHeader, Section, Spinner, EmptyState, StatusBadge } from '../shared/UIComponents';
 import { useToast } from '../../hooks/useToast';
-import { CheckSquare, Plus, Trash2, Calendar, AlertCircle, Briefcase, Home, User, X, ChevronDown, Check } from 'lucide-react';
+import { CheckSquare, Plus, Trash2, Calendar, AlertCircle, Briefcase, Home, User, X, ChevronDown, Check, Link, Zap } from 'lucide-react';
+import MissionIntelSnippet from '../shared/MissionIntelSnippet';
 
 const TaskList = () => {
     const [tasks, setTasks] = useState([]);
@@ -305,13 +306,48 @@ const TaskList = () => {
                                         </button>
                                     </div>
 
-                                    {task.description && <p className="text-xs text-gray-500 line-clamp-2 mb-2">{task.description}</p>}
+                                    {task.description && (
+                                        <div className="task-body mt-2">
+                                            {/* Mission Intel Parsing Logic */}
+                                            {task.description.includes('### 💎 Mission Intel') ? (
+                                                <>
+                                                    <p className="text-xs text-gray-500 line-clamp-1 mb-2">
+                                                        {task.description.split('### 💎 Mission Intel')[0]}
+                                                    </p>
+                                                    <div className="space-y-1">
+                                                        {task.description.split('### 💎 Mission Intel')[1]
+                                                            .split('\n- ')
+                                                            .filter(line => line.trim() && line.includes(':'))
+                                                            .map((line, idx) => {
+                                                                const [title, snippet] = line.replace(/^\*\*|\*\*$/g, '').split(': ');
+                                                                return (
+                                                                    <MissionIntelSnippet
+                                                                        key={idx}
+                                                                        intel={{ title: title.replace('**', ''), snippet: snippet }}
+                                                                        type="sop"
+                                                                    />
+                                                                );
+                                                            })
+                                                        }
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <p className="text-xs text-gray-500 line-clamp-2 mb-2">{task.description}</p>
+                                            )}
+                                        </div>
+                                    )}
 
                                     <div className="flex items-center gap-4 text-[10px] text-gray-500 font-mono">
                                         <span className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded uppercase tracking-wider">
                                             {getCategoryIcon(task.category)}
                                             {task.category}
                                         </span>
+                                        {task.project_id && (
+                                            <span className="flex items-center gap-1.5 px-2 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded uppercase tracking-wider animate-pulse">
+                                                <Link className="w-3 h-3" />
+                                                {task.project_id}
+                                            </span>
+                                        )}
                                         {task.due_date && (
                                             <span className={`flex items-center gap-1 ${new Date(task.due_date) < new Date() && task.status !== 'done' ? 'text-red-400' : ''
                                                 }`}>

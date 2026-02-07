@@ -108,6 +108,7 @@ const EmailList = ({ onSelectEmail }) => {
     const [emails, setEmails] = useState([]);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
     const [expandedId, setExpandedId] = useState(null);
     const [activeCategory, setActiveCategory] = useState('All');
     const [totalUnread, setTotalUnread] = useState(0);
@@ -140,6 +141,26 @@ const EmailList = ({ onSelectEmail }) => {
     useEffect(() => {
         loadEmails();
     }, [loadEmails, activeCategory]);
+
+    const handleScan = async () => {
+        try {
+            setIsScanning(true);
+            const res = await api.post('/email/scan?limit=10');
+            toast("Intelligence Bridge active: Background scan started.", "info");
+
+            // We don't wait for completion here as per 202 Accepted logic
+            // But we keep the indicator for a moment to feel "Active"
+            setTimeout(() => {
+                setIsScanning(false);
+                loadEmails();
+            }, 3000);
+
+        } catch (err) {
+            console.error("Scan failed", err);
+            toast("Fail: Intelligence Bridge connection error.", "error");
+            setIsScanning(false);
+        }
+    };
 
     const handleSync = async () => {
         try {
@@ -224,10 +245,20 @@ const EmailList = ({ onSelectEmail }) => {
                         <button
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border border-white/10 ${syncing ? 'bg-slate-800 text-gray-400' : 'bg-slate-800 hover:bg-slate-700 text-white'}`}
                             onClick={handleSync}
-                            disabled={syncing}
+                            disabled={syncing || isScanning}
                         >
                             <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
                             {syncing ? 'Syncing...' : 'Sync'}
+                        </button>
+                        <button
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border border-emerald-500/30 ${isScanning ? 'bg-emerald-900/20 text-emerald-400' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}
+                            onClick={handleScan}
+                            disabled={syncing || isScanning}
+                        >
+                            <span className={`w-3.5 h-3.5 flex items-center justify-center ${isScanning ? 'animate-pulse' : ''}`}>
+                                {isScanning ? '🔥' : '🧿'}
+                            </span>
+                            {isScanning ? 'The Lens: Scanning...' : 'The Lens: Scan'}
                         </button>
                     </div>
                 </PageHeader>
