@@ -12,3 +12,7 @@
 **Vulnerability:** The `DocumentControlService` accepted arbitrary paths in `get_document_content` and other methods, allowing access to files outside the intended root directory.
 **Learning:** Relying on `os.path.join` alone or assuming inputs are safe can lead to critical path traversal (LFI/RCE) vulnerabilities. Always validate that the resolved path sits within the intended sandbox.
 **Prevention:** Implemented `_validate_path` using `os.path.commonpath` to strictly enforce that all file operations occur within the `root_path`.
+## 2026-02-18 - [SQL Injection via Blacklist Bypass]
+**Vulnerability:** `AltimeterService.execute_read_only_query` relied on a keyword blacklist ("INSERT", "UPDATE", etc.) to prevent modification, which was easily bypassed by `CREATE TABLE` and other non-listed commands.
+**Learning:** Keyword blacklists are insufficient for security because they are brittle and easily circumvented.
+**Prevention:** Implemented SQLite URI Read-Only mode (`?mode=ro`) to enforce immutability at the database engine level, providing robust defense-in-depth regardless of the query string.

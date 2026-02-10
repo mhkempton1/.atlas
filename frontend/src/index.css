@@ -42,15 +42,61 @@ body {
   overflow-x: hidden;
   min-height: 100vh;
   font-size: 1.05rem;
-  /* Larger base font */
 
-  /* --- Luminous Nebula Background (No Stars) --- */
+  /* --- Ethereal Night Sky Background --- */
   background-image:
-    radial-gradient(circle at 20% 30%, var(--space-blue) 0%, transparent 60%),
-    radial-gradient(circle at 80% 70%, var(--nebula-purple) 0%, transparent 60%),
-    linear-gradient(to bottom, #05071a, #0a0e2a);
-  background-attachment: fixed;
-  animation: bg-shift 30s ease infinite alternate;
+    radial-gradient(circle at 20% 30%, rgba(26, 42, 108, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(88, 28, 135, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(5, 7, 26, 1) 0%, transparent 100%),
+    linear-gradient(to bottom, #020410, #05071a) !important;
+  background-attachment: fixed !important;
+}
+
+/* --- Dynamic Star Field (Box-Shadow Allied) --- */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.4;
+  pointer-events: none;
+  background: transparent;
+  /* Multi-layer stars using box-shadow for variety and performance */
+  box-shadow:
+    10vw 10vh 1px 1px #fff, 25vw 15vh 0.5px 0.5px rgba(255, 255, 255, 0.8),
+    40vw 5vh 1.5px 1.5px #fff, 60vw 20vh 0.5px 0.5px rgba(255, 255, 255, 0.5),
+    85vw 10vh 1px 1px #fff, 15vw 40vh 0.5px 0.5px rgba(255, 255, 255, 0.7),
+    35vw 35vh 1px 1px #fff, 55vw 45vh 2px 2px rgba(255, 255, 255, 0.9),
+    75vw 30vh 0.5px 0.5px rgba(255, 255, 255, 0.4), 95vw 50vh 1px 1px #fff,
+    5vw 60vh 1px 1px rgba(255, 255, 255, 0.8), 20vw 75vh 1.5px 1.5px #fff,
+    45vw 70vh 0.5px 0.5px rgba(255, 255, 255, 0.6), 65vw 85vh 1.5px 1.5px #fff,
+    80vw 65vh 1px 1px rgba(255, 255, 255, 0.7), 10vw 90vh 0.5px 0.5px #fff,
+    30vw 95vh 1px 1px rgba(255, 255, 255, 0.9), 50vw 80vh 2px 2px #fff,
+    70vw 90vh 0.5px 0.5px rgba(255, 255, 255, 0.5), 90vw 95vh 1.5px 1.5px #fff,
+    /* Group 2 (Offset) */
+    12vw 22vh 0.5px 0.5px #fff, 28vw 42vh 1px 1px rgba(255, 255, 255, 0.8),
+    48vw 12vh 0.5px 0.5px rgba(255, 255, 255, 0.6), 68vw 32vh 1px 1px #fff,
+    88vw 52vh 0.5px 0.5px rgba(255, 255, 255, 0.4), 18vw 62vh 1.5px 1.5px #fff,
+    38vw 82vh 0.5px 0.5px rgba(255, 255, 255, 0.7), 58vw 2vh 1px 1px #fff,
+    78vw 22vh 0.5px 0.5px rgba(255, 255, 255, 0.5), 98vw 42vh 2px 2px #fff;
+  animation: stars-twinkle 15s ease-in-out infinite alternate;
+}
+
+@keyframes stars-twinkle {
+  0% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.6;
+    transform: scale(1.02);
+  }
+
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
 }
 
 @keyframes bg-shift {
@@ -103,10 +149,10 @@ h4 {
 
 /* --- Dynamic Luminous Effects --- */
 .space-glow-bg {
-  background: linear-gradient(135deg, rgba(26, 42, 108, 0.2), rgba(242, 153, 74, 0.1), rgba(88, 28, 135, 0.2));
+  background: linear-gradient(135deg, rgba(26, 42, 108, 0.15), rgba(88, 28, 135, 0.1), rgba(0, 242, 255, 0.05));
   background-size: 200% 200%;
   animation: space-flow 20s ease infinite;
-  backdrop-filter: blur(30px);
+  backdrop-filter: blur(40px) saturate(180%);
 }
 
 .text-high-contrast {

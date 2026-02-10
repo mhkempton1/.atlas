@@ -1,13 +1,14 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
 import httpx
+import asyncio
 from typing import List, Dict, Any, Optional
 
 scheduler = BackgroundScheduler()
 
 def sync_emails_job():
     """Background job to sync emails every 5 minutes"""
-    from services.google_service import google_service
+    from services.communication_service import comm_service
     from database.database import get_db
     from database.models import Email
     
@@ -21,7 +22,7 @@ def sync_emails_job():
 
         # Sync
         try:
-            result = google_service.sync_emails(last_sync)
+            result = comm_service.sync_emails(last_sync)
             print(f"[{datetime.now()}] Email sync: {result['synced']} new emails")
             
             # FUTURE: Extract tasks from new emails here
@@ -35,17 +36,51 @@ def sync_emails_job():
 
 def sync_calendar_job():
     """Background job to sync calendar every 15 minutes"""
-    from services.google_service import google_service
+    from services.communication_service import comm_service
     
     try:
-        result = google_service.sync_calendar()
+        result = comm_service.sync_calendar()
         print(f"[{datetime.now()}] Calendar sync: {result['synced']} events updated")
     except Exception as e:
         print(f"Calendar sync failed: {e}")
 
+def watchtower_job():
+    """
+    The Watchtower: Proactive Risk Scanning.
+    Checks Weather + Active Phases for risks.
+    """
+    from services.altimeter_service import altimeter_service, intelligence_bridge
+    from services.weather_service import weather_service
+    from services.activity_service import activity_service
+
+    try:
+        # 1. Get Forecast
+        # get_weather is async, but watchtower_job is run in a background thread.
+        weather = asyncio.run(weather_service.get_weather())
+
+        # 2. Get Active Phases
+        phases = altimeter_service.get_active_phases()
+
+        # 3. Predict Risks
+        intel = intelligence_bridge.predict_mission_intel(phases, weather)
+
+        # 4. Check for 'Weather Alert' triggers
+        alerts = [i for i in intel if i.get('trigger') == 'Weather Alert']
+
+        if alerts:
+            for alert in alerts:
+                msg = f"WATCHTOWER ALERT: {alert['title']} recommended for {alert['phase_match']} due to weather."
+                print(f"[Watchtower] {msg}")
+                # Log to Activity Feed (User Notification Stub)
+                activity_service.log_activity("system", "Risk Detected", msg)
+
+    except Exception as e:
+        print(f"Watchtower scan failed: {e}")
+
 # Schedule jobs
 scheduler.add_job(sync_emails_job, 'interval', minutes=5, id='email_sync', replace_existing=True)
 scheduler.add_job(sync_calendar_job, 'interval', minutes=15, id='calendar_sync', replace_existing=True)
+scheduler.add_job(watchtower_job, 'interval', minutes=60, id='watchtower', replace_existing=True)
 
 class SchedulerService:
     def __init__(self):

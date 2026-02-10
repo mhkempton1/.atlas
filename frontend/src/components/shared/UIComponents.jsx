@@ -62,7 +62,7 @@ export const Section = ({ title, count, children, className = '' }) => (
         <div className="flex items-center gap-2 mb-3">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{title}</h3>
             {count !== undefined && (
-                <span className="text-[10px] bg-slate-800 text-gray-400 px-2 py-0.5 rounded-full">{count}</span>
+                <span className="text-[10px] bg-white/10 text-gray-400 px-2 py-0.5 rounded-full">{count}</span>
             )}
             <div className="flex-1 h-px bg-white/5 ml-2" />
         </div>

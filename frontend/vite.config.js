@@ -7,6 +7,13 @@ export default defineConfig({
   server: {
     port: 4202,
     strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:4201',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   },
   build: {
     rollupOptions: {

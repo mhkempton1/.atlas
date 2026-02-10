@@ -32,11 +32,31 @@ class Settings(BaseSettings):
     OBSIDIAN_KNOWLEDGE_PATH: str = r"C:\Users\mhkem\.obsidian\MKULTRA\CODEX\@Knowledge"
     ONEDRIVE_PATH: str = r"c:\Users\mhkem\OneDrive\Documents\Davis Projects OneDrive"
     
+    # Communication Protocols
+    COMMUNICATION_PROVIDER: str = "google" # "google", "imap"
+    IMAP_HOST: str = ""
+    IMAP_PORT: int = 993
+    IMAP_USER: str = ""
+    IMAP_PASSWORD: str = ""
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+
     # Secrets (Loaded from secrets.json or env vars)
     OPENAI_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "")
     
+    # Strata Permissions Definition
+    STRATA_PERMISSIONS: Dict[int, List[str]] = {
+        1: ["public", "safety", "sops"], # Field
+        2: ["public", "safety", "sops", "schedules", "rosters"], # Supervision
+        3: ["public", "safety", "sops", "schedules", "rosters", "budgets_limited"], # Management
+        4: ["public", "safety", "sops", "schedules", "rosters", "budgets_limited", "hr", "strategy"], # Executive
+        5: ["*"] # Developer / Eyes Only
+    }
+
     class Config:
         env_file = ".env"
 
