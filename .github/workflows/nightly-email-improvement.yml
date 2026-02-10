@@ -1,0 +1,24 @@
+name: Nightly Email Improvement
+
+on:
+  schedule:
+    - cron: '0 1 * * *' # 1:00 AM UTC
+  workflow_dispatch:
+
+jobs:
+  improve-email:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Trigger Email Improvement
+        uses: google-labs/jules-action@v1
+        with:
+          prompt: |
+            Act as the Communications Engineer for Atlas. Focus on improving the email engine. 
+            1. **Audit Performance**: Check current IMAP/SMTP logs and optimize connection pooling or sync speeds.
+            2. **Feature Implementation**: Implement or refine missing IMAP features such as robust attachment metadata extraction or search query optimization.
+            3. **Intelligence Refinement**: Update the 'Email Analysis' prompt templates to improve categorization accuracy (Urgent, Work, Personal, Finance).
+            4. **Architecture Check**: Ensure all modifications strictly adhere to the 'Provider-Agnostic' patterns in backend/services/communication_provider.py.
+            Goal: Make the email experience faster, more reliable, and smarter.

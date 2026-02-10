@@ -1,0 +1,24 @@
+name: Nightly Tasks & Calendar Improvement
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # 2:00 AM UTC
+  workflow_dispatch:
+
+jobs:
+  improve-tasks-calendar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Trigger Tasks/Calendar Improvement
+        uses: google-labs/jules-action@v1
+        with:
+          prompt: |
+            Act as the Product Engineer for Atlas. Focus on improving task management and calendar synchronization.
+            1. **Agent Audit**: Evaluate the CalendarAgent performance in extracting events from complex email bodies.
+            2. **Queue Optimization**: Refine the background task processing logic in backend/scripts/process_tasks.py for better efficiency.
+            3. **Smart Scheduling**: Implement 'Smart Deadlines' - if an email mentions a date, cross-reference the user's calendar for conflicts and suggest optimized due dates in the Atlas task.
+            4. **Sync Robustness**: Improve calendar sync logic to handle multi-day events and recurring event edge cases.
+            Goal: Create a friction-less transition from 'Communication' to 'Action'.

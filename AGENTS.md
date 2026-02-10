@@ -26,6 +26,10 @@ Jules is scheduled to run every night at midnight via [nightly-jules.yml](file:/
 
 - **Daily Ingestion**: Syncs all IMAP/Google mail and bridges to Altimeter.
 - **SOP Prediction**: Updates the internal Knowledge Base with newly relevant SOPs.
+- **Continuous Improvement**:
+  - **1:00 AM (Email)**: Audits and optimizes the communication engine and analysis prompts.
+  - **2:00 AM (Tasks/Calendar)**: Refines extraction logic and implements 'Smart Deadlines'.
+  - **3:00 AM (AI/Assistant)**: Conducts prompt engineering and persona alignment experiments.
 - **Dynamic Prioritization**: Updates the "Current Missions" section below based on the day's communications.
 
 ## 🛠️ Current Missions for Jules

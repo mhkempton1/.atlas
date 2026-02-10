@@ -1,0 +1,24 @@
+name: Nightly AI & Assistant Improvement
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 3:00 AM UTC
+  workflow_dispatch:
+
+jobs:
+  improve-ai-assistant:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Trigger AI Improvement
+        uses: google-labs/jules-action@v1
+        with:
+          prompt: |
+            Act as the AI Researcher for Atlas. Focus on the core 'Personal Assistant' intelligence and underlying models.
+            1. **Prompt Engineering**: Audit and refine the core prompt templates in backend/agents/task_agent.py and backend/agents/draft_agent.py.
+            2. **Persona Alignment**: Ensure all assistant responses maintain the 'Smooth as Ice' tone - professional, concise, and highly contextualized.
+            3. **Knowledge Indexing**: Optimize how 'Mission Intel' and Altimeter SOP snippets are indexed and retrieved to provide better context for the agents.
+            4. **Quality Experiments**: Integrate few-shot examples into agent prompts to improve the accuracy of complex task extractions and tailored email drafts.
+            Goal: Deepen the assistant's understanding of the user's mission and project context.
