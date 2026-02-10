@@ -195,6 +195,14 @@ class SchedulerService:
     async def get_dashboard_stats(self) -> Dict[str, Any]:
         """
         Fetch real-time statistics for the dashboard.
+        Offloads blocking DB calls to a thread to prevent blocking the async event loop.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._get_dashboard_stats_sync)
+
+    def _get_dashboard_stats_sync(self) -> Dict[str, Any]:
+        """
+        Synchronous implementation of dashboard stats fetching.
         """
         from database.database import SessionLocal
         from database.models import Task, Email, CalendarEvent
