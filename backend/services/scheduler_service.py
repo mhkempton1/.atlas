@@ -1,5 +1,7 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
+import requests
+import httpx
 import httpx
 import asyncio
 from typing import List, Dict, Any, Optional
@@ -250,6 +252,8 @@ class SchedulerService:
         # 1. Altimeter Check (via API)
         try:
             async with httpx.AsyncClient() as client:
+                res = await client.get("http://127.0.0.1:4203/api/system/health", timeout=1.0)
+                altimeter_status = "Online" if res.status_code == 200 else "Degraded"
                 res = await client.get("http://127.0.0.1:4203/api/system/health", timeout=1)
             altimeter_status = "Online" if res.status_code == 200 else "Degraded"
         except Exception:
