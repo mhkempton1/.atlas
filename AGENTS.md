@@ -20,7 +20,17 @@ Atlas is integrated with the Altimeter Project management database.
 - Use `altimeter_service.get_context_for_email()` to identify mission-critical SOPs and active project phases from incoming communications.
 - Asynchronous tasks in [scripts/process_tasks.py](file:///backend/scripts/process_tasks.py) should always embed "Mission Intel" (SOPs, Context) into generated Atlas Tasks.
 
+## 🌙 The Nightly Mission
+
+Jules is scheduled to run every night at midnight via [nightly-jules.yml](file://.github/workflows/nightly-jules.yml). During this run, it performs:
+
+- **Daily Ingestion**: Syncs all IMAP/Google mail and bridges to Altimeter.
+- **SOP Prediction**: Updates the internal Knowledge Base with newly relevant SOPs.
+- **Dynamic Prioritization**: Updates the "Current Missions" section below based on the day's communications.
+
 ## 🛠️ Current Missions for Jules
+
+...
 
 1. **IMAP Completion**: Finish the logic in [services/imap_provider.py](file:///backend/services/imap_provider.py) using `imaplib`.
 2. **SMTP Completion**: Finish the logic in [services/smtp_provider.py](file:///backend/services/smtp_provider.py) using `smtplib`.
