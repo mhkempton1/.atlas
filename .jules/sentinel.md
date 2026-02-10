@@ -8,6 +8,10 @@
 **Learning:** Sensitive administrative actions (shutdown/boot) were exposed without IP restrictions or authentication.
 **Prevention:** Implemented `verify_local_request` dependency to strictly enforce localhost access (127.0.0.1, ::1) for critical system routes.
 
+## 2026-05-21 - [Path Traversal in Document Control]
+**Vulnerability:** The `DocumentControlService` accepted arbitrary paths in `get_document_content` and other methods, allowing access to files outside the intended root directory.
+**Learning:** Relying on `os.path.join` alone or assuming inputs are safe can lead to critical path traversal (LFI/RCE) vulnerabilities. Always validate that the resolved path sits within the intended sandbox.
+**Prevention:** Implemented `_validate_path` using `os.path.commonpath` to strictly enforce that all file operations occur within the `root_path`.
 ## 2026-02-18 - [SQL Injection via Blacklist Bypass]
 **Vulnerability:** `AltimeterService.execute_read_only_query` relied on a keyword blacklist ("INSERT", "UPDATE", etc.) to prevent modification, which was easily bypassed by `CREATE TABLE` and other non-listed commands.
 **Learning:** Keyword blacklists are insufficient for security because they are brittle and easily circumvented.
