@@ -88,7 +88,7 @@ const CommandBar = ({ isOpen, onClose, onNavigate, modules }) => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-slate-950/80 backdrop-blur-md"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm"
                     onClick={onClose}
                 />
 
@@ -96,9 +96,9 @@ const CommandBar = ({ isOpen, onClose, onNavigate, modules }) => {
                     initial={{ opacity: 0, scale: 0.95, y: -20, filter: 'blur(10px)' }}
                     animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
                     exit={{ opacity: 0, scale: 0.95, y: -20, filter: 'blur(10px)' }}
-                    className="bg-slate-900/95 backdrop-blur-xl border border-white/10 w-full max-w-2xl rounded-2xl shadow-[0_0_50px_-12px_rgba(168,85,247,0.3)] overflow-hidden flex flex-col max-h-[80vh]"
+                    className="bg-white/[0.02] backdrop-blur-2xl border border-white/10 w-full max-w-2xl rounded-2xl shadow-[0_0_50px_-12px_rgba(168,85,247,0.3)] overflow-hidden flex flex-col max-h-[80vh]"
                 >
-                    <div className="flex items-center gap-3 p-4 border-b border-white/5 bg-slate-950/30">
+                    <div className="flex items-center gap-3 p-4 border-b border-white/5 bg-white/[0.02]">
                         <Command className="w-5 h-5 text-purple-400" />
                         <input
                             ref={inputRef}
@@ -151,7 +151,7 @@ const CommandBar = ({ isOpen, onClose, onNavigate, modules }) => {
                                             className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${selectedIndex === globalIdx ? 'bg-purple-600/20 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
                                         >
                                             <div className="flex items-center gap-3 overflow-hidden">
-                                                <div className="p-1.5 rounded-md bg-slate-950/50">
+                                                <div className="p-1.5 rounded-md bg-white/5">
                                                     <FileText className="w-3.5 h-3.5 text-blue-400" />
                                                 </div>
                                                 <div className="overflow-hidden">
@@ -173,7 +173,7 @@ const CommandBar = ({ isOpen, onClose, onNavigate, modules }) => {
                         )}
                     </div>
 
-                    <div className="p-3 border-t border-white/5 bg-slate-950/20 flex items-center justify-between">
+                    <div className="p-3 border-t border-white/5 bg-white/[0.01] flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-1 text-[10px] text-slate-500 uppercase tracking-widest">
                                 <span className="p-1 rounded bg-white/5 border border-white/10 font-mono">ENTER</span> to select

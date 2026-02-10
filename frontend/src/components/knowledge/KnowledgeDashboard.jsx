@@ -190,14 +190,14 @@ const KnowledgeDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 flex-1 overflow-hidden">
                 {/* Left Panel */}
                 <div className="md:col-span-4 flex flex-col space-y-4 overflow-hidden">
-                    <div className="glass-panel p-4 rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-xl">
+                    <div className="glass-panel p-4 rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl">
                         <form onSubmit={handleSearch} className="relative group">
                             <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                                 <Sparkles className="w-4 h-4 text-purple-400 group-focus-within:animate-pulse" />
                             </div>
                             <input
                                 type="text"
-                                className="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all placeholder:text-slate-600"
+                                className="w-full bg-white/[0.02] border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all placeholder:text-slate-600 backdrop-blur-sm"
                                 placeholder="Ask Atlas about procedures..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -219,14 +219,14 @@ const KnowledgeDashboard = () => {
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar glass-panel rounded-2xl p-2 bg-slate-900/20 border border-white/5">
+                    <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar glass-panel rounded-2xl p-2 bg-white/[0.01] border border-white/5">
                         <AnimatePresence mode="wait">
                             {isLoading ? (
                                 <Motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8"><Spinner label="Consulting Codex..." /></Motion.div>
                             ) : activeTab === 'search' ? (
                                 <Motion.div key="search-results" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-3 p-2">
                                     {searchResults?.length > 0 ? searchResults.map(res => (
-                                        <div key={res.id} onClick={() => handleDocClick(res)} className={`p-4 rounded-xl border transition-all cursor-pointer group ${selectedDoc?.id === res.id ? 'bg-purple-500/10 border-purple-500/40 transform scale-[1.02]' : 'bg-slate-900/40 border-white/5 hover:border-white/20'}`}>
+                                        <div key={res.id} onClick={() => handleDocClick(res)} className={`p-4 rounded-xl border transition-all cursor-pointer group ${selectedDoc?.id === res.id ? 'bg-purple-500/10 border-purple-500/40 transform scale-[1.02]' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
                                             <div className="flex justify-between items-start mb-2">
                                                 <span className="text-[9px] font-black text-purple-400 uppercase tracking-tighter bg-purple-400/10 px-1.5 py-0.5 rounded">Match Score: {(1 - res.score).toFixed(2)}</span>
                                                 {getIcon(res.metadata?.category)}
@@ -246,7 +246,7 @@ const KnowledgeDashboard = () => {
                 </div>
 
                 {/* Right Panel: Content View */}
-                <div className="md:col-span-8 flex flex-col overflow-hidden bg-slate-950/40 border border-white/5 rounded-3xl relative backdrop-blur-md shadow-2xl">
+                <div className="md:col-span-8 flex flex-col overflow-hidden bg-white/[0.01] border border-white/5 rounded-3xl relative backdrop-blur-md shadow-2xl">
                     <AnimatePresence mode="wait">
                         {selectedDoc ? (
                             <Motion.div
@@ -256,12 +256,12 @@ const KnowledgeDashboard = () => {
                                 exit={{ opacity: 0, y: -20 }}
                                 className="h-full flex flex-col"
                             >
-                                <div className="p-8 border-b border-white/5 bg-gradient-to-br from-slate-900/50 to-transparent">
+                                <div className="p-8 border-b border-white/5 bg-white/[0.02]">
                                     <div className="flex items-center gap-2 mb-4">
                                         <span className="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-bold text-purple-400 uppercase tracking-widest">
                                             {selectedDoc.category || selectedDoc.metadata?.category || "Standard Procedure"}
                                         </span>
-                                        <span className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500 bg-slate-950/50 px-3 py-1 rounded-full">
+                                        <span className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500 bg-white/[0.05] px-3 py-1 rounded-full">
                                             <Database className="w-3 h-3" />
                                             {selectedDoc.source || selectedDoc.metadata?.source || "Internal Store"}
                                         </span>
@@ -271,8 +271,8 @@ const KnowledgeDashboard = () => {
                                     </h2>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-slate-950/20">
-                                    <div className="prose prose-invert prose-slate max-w-none prose-headings:text-purple-400 prose-strong:text-amber-500 prose-code:text-emerald-400 prose-code:bg-slate-900 prose-code:rounded prose-code:px-1">
+                                <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-transparent">
+                                    <div className="prose prose-invert prose-slate max-w-none prose-headings:text-purple-400 prose-strong:text-amber-500 prose-code:text-emerald-400 prose-code:bg-white/5 prose-code:rounded prose-code:px-1">
                                         <ReactMarkdown
                                             components={{
                                                 h1: ({ ...props }) => <h1 className="text-3xl font-black mb-8 pb-4 border-b border-white/10" {...props} />,
@@ -281,7 +281,7 @@ const KnowledgeDashboard = () => {
                                                 ul: ({ ...props }) => <ul className="list-disc pl-5 space-y-3 mb-6 border-l border-white/5" {...props} />,
                                                 li: ({ ...props }) => <li className="text-slate-400 marker:text-purple-500" {...props} />,
                                                 blockquote: ({ ...props }) => (
-                                                    <div className="my-8 p-6 bg-slate-900/50 border-l-4 border-amber-500/50 rounded-r-xl italic text-slate-300">
+                                                    <div className="my-8 p-6 bg-white/[0.02] border-l-4 border-amber-500/50 rounded-r-xl italic text-slate-300 backdrop-blur-sm">
                                                         {props.children}
                                                     </div>
                                                 )
@@ -299,7 +299,7 @@ const KnowledgeDashboard = () => {
                                     animate={{ opacity: 1, scale: 1 }}
                                     className="max-w-md"
                                 >
-                                    <div className="mb-6 inline-flex p-6 rounded-3xl bg-slate-900/50 border border-white/5 relative">
+                                    <div className="mb-6 inline-flex p-6 rounded-3xl bg-white/[0.02] border border-white/5 relative backdrop-blur-sm">
                                         <Book className="w-16 h-16 text-slate-700" />
                                         <div className="absolute -top-2 -right-2 p-2 rounded-xl bg-purple-600 border border-purple-400 animate-bounce">
                                             <Sparkles className="w-4 h-4 text-white" />

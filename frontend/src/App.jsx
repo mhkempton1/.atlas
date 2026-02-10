@@ -195,7 +195,7 @@ function App() {
   return (
     <div className="app-container">
       {/* --- Top Navigation --- */}
-      <nav className="top-nav">
+      <nav className="top-nav bg-white/[0.02] backdrop-blur-2xl border-b border-white/5">
         <div className="brand text-yellow-300 font-black tracking-widest text-2xl" style={{ color: '#fbbf24', textShadow: '0 0 20px rgba(251, 191, 36, 0.4)', cursor: 'pointer' }} onClick={() => navigateTo('dashboard')}>
           ATLAS
         </div>
@@ -228,7 +228,7 @@ function App() {
 
       {/* --- Sidebar Overlay --- */}
       <div className={`sidebar-overlay ${isSidebarOpen ? 'open' : ''}`} onClick={toggleSidebar}>
-        <div className="menu-sidebar" onClick={e => e.stopPropagation()}>
+        <div className="menu-sidebar bg-black/60 backdrop-blur-3xl border-l border-white/10 shadow-2xl" onClick={e => e.stopPropagation()}>
           <div className="menu-header">SYSTEM NAVIGATION</div>
 
           <div className="flex-1">

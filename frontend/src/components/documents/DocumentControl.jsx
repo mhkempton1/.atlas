@@ -32,7 +32,9 @@ const DocumentControl = () => {
         setIsLoading(true);
         try {
             const data = await SYSTEM_API.getControlledDocs();
-            setDocs(data);
+            if (data) {
+                setDocs(data);
+            }
         } catch (err) {
             console.error(err);
         } finally {

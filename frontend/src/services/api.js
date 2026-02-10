@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://127.0.0.1:4201/api/v1';
+const API_URL = '/api/v1';
 const ALTIMETER_API_URL = 'http://127.0.0.1:4203/api/v1';
 
 const api = axios.create({
@@ -10,6 +10,25 @@ const api = axios.create({
         'Content-Type': 'application/json',
     },
 });
+
+// Silent Fallback Interceptor
+api.interceptors.response.use(
+    response => response,
+    error => {
+        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+            console.warn("API Request Timed Out (Silent Fallback Active)");
+            // We resolve with a specific structure so usePersistentState can ignore it,
+            // but standard consumers must check for .error or data integrity.
+            // Returning a rejection here would be safer for standard consumers,
+            // but for "Smooth as Ice" we want to suppress the error *if handled*.
+            // The safest middle ground: Reject with a specific flag so try/catch still works,
+            // but usePersistentState can catch it.
+            const safeError = { ...error, isSilentTimeout: true };
+            return Promise.reject(safeError);
+        }
+        return Promise.reject(error);
+    }
+);
 
 export const SYSTEM_API = {
     checkHealth: async () => {
@@ -22,29 +41,6 @@ export const SYSTEM_API = {
         }
     },
 
-    sendMessage: async (message) => {
-        const response = await api.post('/chat', { message });
-        return response.data;
-    },
-
-    getWeather: async (lat, lon) => {
-        try {
-            const response = await api.get(`/weather/forecast?lat=${lat || ''}&lon=${lon || ''}`);
-            return response.data;
-        } catch (error) {
-            console.warn("Weather fetch failed", error);
-            return { forecast: [], error: error.message || "Unknown API Error" };
-        }
-    },
-
-    getUnifiedSchedule: async () => {
-        try {
-            const response = await api.get('/dashboard/schedule');
-            return response.data;
-        } catch {
-            return [];
-        }
-    },
 
     generateDraft: async (sender, subject, body, instructions) => {
         const response = await api.post('/agents/draft', {
@@ -170,6 +166,21 @@ export const SYSTEM_API = {
     // System Control
     triggerAction: async (action) => {
         const response = await api.post(`/system/control/${action}`);
+        return response.data;
+    },
+
+    saveSystemConfig: async (config) => {
+        const response = await api.post('/system/config/save', config);
+        return response.data;
+    },
+
+    getSystemLogs: async () => {
+        const response = await api.get('/system/logs');
+        return response.data;
+    },
+
+    getEmailStats: async () => {
+        const response = await api.get('/email/stats');
         return response.data;
     },
 
@@ -313,6 +324,22 @@ export const SYSTEM_API = {
 
     getOracleFeed: async () => {
         const response = await api.get('/dashboard/oracle');
+        return response.data;
+    },
+
+    // Foreman Protocol
+    generateMissionBriefing: async (phaseId, sopContent) => {
+        const response = await api.post('/foreman/briefing', { phase_id: phaseId, sop_content: sopContent });
+        return response.data;
+    },
+
+    draftDailyLog: async (data) => {
+        const response = await api.post('/reporting/daily-log/draft', data);
+        return response.data;
+    },
+
+    updateTaskStatus: async (taskId, status, safetyAck = false) => {
+        const response = await api.put(`/tasks/${taskId}`, { status, safety_ack: safetyAck });
         return response.data;
     }
 };

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, JSON, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, JSON, ForeignKey, Float
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from database.database import Base
@@ -21,7 +21,7 @@ class SystemActivity(Base):
     action = Column(String)
     target = Column(String)
     details = Column(Text, nullable=True)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 class TaskQueue(Base):
     __tablename__ = "task_queue"
@@ -40,33 +40,49 @@ class Email(Base):
     __tablename__ = "emails"
 
     email_id = Column(Integer, primary_key=True, index=True)
-    gmail_id = Column(String, unique=True, index=True)
     message_id = Column(String, index=True)
     thread_id = Column(String, index=True, nullable=True)
-    subject = Column(String)
+    remote_id = Column(String, unique=True, index=True) # Unified field for Gmail ID, IMAP UID, etc.
+    provider_type = Column(String, default="google", index=True) # e.g., "google", "imap", "internal"
     from_address = Column(String, index=True)
     from_name = Column(String)
     to_addresses = Column(JSON)
+    cc_addresses = Column(JSON, nullable=True)
+    bcc_addresses = Column(JSON, nullable=True)
+    subject = Column(Text)
     body_text = Column(Text)
     body_html = Column(Text)
-    snippet = Column(String, nullable=True)
+    snippet = Column(String(200), nullable=True)
     date_received = Column(DateTime(timezone=True))
+    date_sent = Column(DateTime(timezone=True), nullable=True)
+    labels = Column(JSON, nullable=True)
+    category = Column(String, default="inbox", index=True)
+    importance = Column(String, nullable=True)
+    has_attachments = Column(Boolean, default=False)
+    attachment_count = Column(Integer, default=0)
     is_read = Column(Boolean, default=False)
     is_starred = Column(Boolean, default=False)
-    has_attachments = Column(Boolean, default=False)
-    category = Column(String, default="inbox", index=True)
+    is_draft = Column(Boolean, default=False)
     project_id = Column(String, index=True, nullable=True)
+    contact_id = Column(Integer, nullable=True)
+    raw_eml = Column(Text, nullable=True)
+    vector_embedding = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     synced_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class EmailAttachment(Base):
     __tablename__ = "email_attachments"
 
-    id = Column(Integer, primary_key=True, index=True)
+    attachment_id = Column(Integer, primary_key=True, index=True)
     email_id = Column(Integer, ForeignKey("emails.email_id"))
     filename = Column(String)
+    file_size = Column(Integer, nullable=True)
+    mime_type = Column(String, nullable=True)
     file_path = Column(String)
-    content_type = Column(String, nullable=True)
-    size = Column(Integer, nullable=True)
+    file_hash = Column(String, nullable=True)
+    remote_attachment_id = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -74,19 +90,26 @@ class Task(Base):
     task_id = Column(Integer, primary_key=True, index=True)
     title = Column(String)
     description = Column(Text)
+    status = Column(String, default="open") # open, completed
     priority = Column(String, default="medium")
-    due_date = Column(DateTime(timezone=True), nullable=True)
+    category = Column(String, nullable=True)
     project_id = Column(String, index=True, nullable=True)
     email_id = Column(Integer, ForeignKey("emails.email_id"), nullable=True)
+    due_date = Column(DateTime(timezone=True), nullable=True)
+    original_due_date = Column(DateTime(timezone=True), nullable=True)
+    estimated_hours = Column(Float, nullable=True)
+    actual_hours = Column(Float, nullable=True)
+    parent_task_id = Column(Integer, nullable=True)
     created_from = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    status = Column(String, default="open") # open, completed
+    completed_at = Column(DateTime(timezone=True), nullable=True)
 
 class CalendarEvent(Base):
     __tablename__ = "calendar_events"
 
     event_id = Column(Integer, primary_key=True, index=True)
-    google_event_id = Column(String, unique=True, index=True, nullable=True)
+    remote_event_id = Column(String, unique=True, index=True, nullable=True) # Unified field
+    provider_type = Column(String, default="google", index=True)
     calendar_id = Column(String, nullable=True)
     title = Column(String)
     description = Column(Text)
@@ -94,10 +117,12 @@ class CalendarEvent(Base):
     start_time = Column(DateTime(timezone=True))
     end_time = Column(DateTime(timezone=True))
     all_day = Column(Boolean, default=False)
-    status = Column(String, default="confirmed")
+    attendees = Column(JSON, nullable=True)
     organizer = Column(String, nullable=True)
+    status = Column(String, default="confirmed")
     project_id = Column(String, nullable=True)
-    email_id = Column(Integer, ForeignKey("emails.email_id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     synced_at = Column(DateTime(timezone=True), nullable=True)
 
 class Contact(Base):
@@ -105,10 +130,18 @@ class Contact(Base):
 
     contact_id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
-    email = Column(String, unique=True, index=True)
+    email_address = Column(String, unique=True, index=True)
     phone = Column(String, nullable=True)
     company = Column(String, nullable=True)
     role = Column(String, nullable=True)
+    category = Column(String, nullable=True)
+    altimeter_customer_id = Column(Integer, nullable=True)
+    altimeter_vendor_id = Column(Integer, nullable=True)
+    last_contact_date = Column(DateTime(timezone=True), nullable=True)
+    email_count = Column(Integer, default=0)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 class DocumentComment(Base):
     __tablename__ = "document_comments"
@@ -116,9 +149,10 @@ class DocumentComment(Base):
     comment_id = Column(Integer, primary_key=True, index=True)
     document_path = Column(String, index=True)
     author = Column(String)
-    content = Column(Text)
     comment_type = Column(String, default="general") # general, issue
+    content = Column(Text)
     is_resolved = Column(Boolean, default=False)
     resolved_by = Column(String, nullable=True)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

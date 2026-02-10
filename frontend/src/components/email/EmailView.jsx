@@ -138,7 +138,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
     };
 
     return (
-        <div className="email-view h-full flex flex-col bg-surface-dark border-l border-border">
+        <div className="email-view h-full flex flex-col bg-white/[0.02] border-l border-white/10 backdrop-blur-2xl">
             {/* Header */}
             <div className="header p-4 border-b border-border">
                 <div className="flex justify-between items-center mb-4">
@@ -204,7 +204,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
             </div>
 
             {/* Content */}
-            <div className="content flex-1 overflow-auto p-6 bg-background-dark">
+            <div className="content flex-1 overflow-auto p-6 bg-transparent">
                 <div className="prose prose-invert max-w-none">
                     {email.body_html ? (
                         <div dangerouslySetInnerHTML={{ __html: email.body_html }} />
@@ -282,7 +282,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
 
             {/* Actions Footer */}
             {!replyMode && (
-                <div className="footer p-4 border-t border-border bg-surface-dark flex gap-3">
+                <div className="footer p-4 border-t border-white/10 bg-white/[0.02] flex gap-3">
                     <button className="btn btn-primary flex items-center gap-2" onClick={() => setReplyMode('reply')}>
                         <Reply className="w-4 h-4" /> Reply
                     </button>
