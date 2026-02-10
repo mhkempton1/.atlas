@@ -2,8 +2,8 @@ name: Nightly Jules Maintenance
 
 on:
   schedule:
-    # Run at midnight (00:00) every night
-    - cron: '0 0 * * *'
+    # Run at midnight CST (06:00 UTC) every night
+    - cron: '0 6 * * *'
   workflow_dispatch:
     # Allow manual trigger from the Actions tab
 

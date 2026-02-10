@@ -2,7 +2,7 @@ name: Nightly AI & Assistant Improvement
 
 on:
   schedule:
-    - cron: '0 3 * * *' # 3:00 AM UTC
+    - cron: '0 9 * * *' # 3:00 AM CST (09:00 UTC)
   workflow_dispatch:
 
 jobs:
