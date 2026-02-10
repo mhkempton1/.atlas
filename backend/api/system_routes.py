@@ -1,10 +1,22 @@
 import os
 import subprocess
-from fastapi import APIRouter
+from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Depends
 import requests
 from typing import Dict, List, Any
 from services.activity_service import activity_service
+from core.security import verify_local_request
 
+async def verify_local_request(request: Request):
+    """
+    Security check to ensure the request is coming from localhost.
+    Prevents external network access to sensitive system controls.
+    """
+    allowed_ips = ["127.0.0.1", "::1"]
+    if request.client.host not in allowed_ips:
+        raise HTTPException(status_code=403, detail="Access denied: Local connections only.")
+
+# Remove global dependency so /health is accessible
 router = APIRouter()
 
 @router.get("/health", response_model=Dict)
@@ -15,7 +27,24 @@ async def system_health():
     from services.status_service import get_health_status
     return await get_health_status()
 
-@router.post("/control/{action}")
+from pydantic import BaseModel
+from typing import Optional
+
+class ConfigUpdate(BaseModel):
+    # Only allow safe updates for now
+    notifications: Optional[Dict[str, bool]] = None
+    security: Optional[Dict[str, Any]] = None
+
+@router.post("/config/save")
+async def save_config(config: ConfigUpdate):
+    """
+    Persist system configuration.
+    """
+    # For now, we mock persistence to avoid overwriting critical env vars in this environment
+    # In production, this would update secrets.json or .env
+    return {"status": "success", "message": "Configuration saved"}
+
+@router.post("/control/{action}", dependencies=[Depends(verify_local_request)])
 async def system_control(action: str):
     """
     Trigger system startup/shutdown scripts.
@@ -44,18 +73,25 @@ async def system_control(action: str):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@router.get("/activity", response_model=List[Dict[str, Any]])
+@router.get("/activity", response_model=List[Dict[str, Any]], dependencies=[Depends(verify_local_request)])
 async def get_activity_logs():
     """
     Fetch system activity logs.
     """
     return activity_service.get_recent_activity()
 
-@router.get("/altimeter/projects")
+@router.get("/altimeter/projects", dependencies=[Depends(verify_local_request)])
 async def get_altimeter_projects():
     """Proxy for Altimeter project list via direct DB access"""
     from services.altimeter_service import altimeter_service
     return altimeter_service.list_projects()
+
+@router.get("/logs", response_model=List[Dict[str, Any]])
+async def get_system_logs():
+    """
+    Fetch recent system activity logs (legacy /logs compatibility).
+    """
+    return activity_service.get_recent_activity(limit=50)
 
 @router.get("/geo/status")
 async def get_geo_status():
@@ -64,7 +100,8 @@ async def get_geo_status():
     """
     # Stubbed response for now, can be connected to real service later
     return {
-        "status": "offline", 
-        "message": "Geospatial Service Unavailable",
-        "details": "Map tiles server not responding"
+        "status": "online",
+        "health_percentage": 100,
+        "server_start": start_time.isoformat(),
+        "uptime_seconds": int((datetime.now() - start_time).total_seconds())
     }

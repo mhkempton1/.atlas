@@ -29,6 +29,20 @@ class DocumentControlService:
     def _path_component(self, path: str) -> str:
         return os.path.normpath(path)
 
+    def _validate_path(self, path: str) -> str:
+        """
+        Security check to ensure path is within the allowed root directory.
+        Prevents Path Traversal attacks.
+        """
+        abs_path = os.path.abspath(path)
+        abs_root = os.path.abspath(self.root_path)
+
+        # Check if abs_path starts with abs_root
+        if not os.path.commonpath([abs_path, abs_root]) == abs_root:
+            raise ValueError(f"Access denied: Path '{path}' is outside the allowed directory.")
+
+        return abs_path
+
     # --- Draft Management ---
 
     def create_draft(self, title: str, content: str, section: str = "GUIDELINES") -> Dict[str, str]:
@@ -68,6 +82,8 @@ author: Atlas
 
     def save_draft(self, path: str, content: str) -> Dict[str, str]:
         """Updates an existing draft."""
+        self._validate_path(path)
+
         if not os.path.exists(path):
             raise FileNotFoundError("Draft file not found")
             
@@ -82,6 +98,8 @@ author: Atlas
         
     def delete_draft(self, path: str) -> Dict[str, str]:
         """Deletes a draft."""
+        self._validate_path(path)
+
         if not os.path.exists(path):
              raise FileNotFoundError("Draft not found")
         
@@ -93,6 +111,8 @@ author: Atlas
 
     def get_document_content(self, path: str) -> str:
         """Reads document content"""
+        self._validate_path(path)
+
         if not os.path.exists(path):
             return ""
         with open(path, 'r', encoding='utf-8') as f:
@@ -165,6 +185,8 @@ author: Atlas
         return docs
 
     def promote_to_review(self, draft_path: str) -> dict:
+        self._validate_path(draft_path)
+
         if not os.path.exists(draft_path):
             raise FileNotFoundError("Draft file not found")
         
@@ -222,6 +244,8 @@ approver: Pending
         return {"status": "success", "new_path": review_path, "version": version}
 
     def lock_document(self, review_path: str, approver: str) -> dict:
+        self._validate_path(review_path)
+
         if not os.path.exists(review_path):
             raise FileNotFoundError("Review file not found")
 
@@ -318,6 +342,8 @@ source_origin: {source_path}
     
     def add_comment(self, document_path: str, author: str, content: str, comment_type: str = "general") -> dict:
         """Add a comment to a document."""
+        self._validate_path(document_path)
+
         db = next(get_db())
         try:
             comment = DocumentComment(
@@ -348,6 +374,8 @@ source_origin: {source_path}
     
     def get_comments(self, document_path: str) -> List[Dict]:
         """Get all comments for a document."""
+        self._validate_path(document_path)
+
         db = next(get_db())
         try:
             comments = db.query(DocumentComment).filter(
@@ -396,6 +424,8 @@ source_origin: {source_path}
     
     def get_review_summary(self, document_path: str) -> dict:
         """Get review summary showing unresolved issues count."""
+        self._validate_path(document_path)
+
         db = next(get_db())
         try:
             total_comments = db.query(DocumentComment).filter(
@@ -424,6 +454,8 @@ source_origin: {source_path}
 
     def demote_to_draft(self, review_path: str) -> dict:
         """Sends a document back to DRAFT status."""
+        self._validate_path(review_path)
+
         if not os.path.exists(review_path):
              raise FileNotFoundError("Review file not found")
 

@@ -27,13 +27,13 @@ def test_send_email_endpoint(client, mock_google_service):
 
 def test_get_knowledge_docs(client):
     with MagicMock() as mock_ks:
-        mock_ks.get_all_documents.return_value = ["doc1.md", "doc2.md"]
+        mock_ks.get_all_documents.return_value = [{"title": "doc1", "path": "doc1.md"}, {"title": "doc2", "path": "doc2.md"}]
         # Since knowledge_service is imported, we might need to monkeypatch it where used
         with pytest.MonkeyPatch().context() as mp:
-            mp.setattr("api.routes.knowledge_service", mock_ks)
+            mp.setattr("api.knowledge_routes.knowledge_service", mock_ks)
             response = client.get("/api/v1/knowledge/docs")
             assert response.status_code == 200
-            assert response.json() == ["doc1.md", "doc2.md"]
+            assert response.json() == [{"title": "doc1", "path": "doc1.md"}, {"title": "doc2", "path": "doc2.md"}]
 
 def test_get_dashboard_status(client):
     # Mock scheduler_service.get_system_health (async method)

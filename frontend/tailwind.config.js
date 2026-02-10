@@ -9,12 +9,12 @@ export default {
             colors: {
                 background: {
                     DEFAULT: 'var(--bg-app)',
-                    dark: '#020617',
+                    dark: 'rgba(2, 6, 23, 0.4)',
                 },
                 surface: {
                     DEFAULT: 'var(--bg-card)',
                     hover: 'var(--bg-card-hover)',
-                    dark: '#0f172a',
+                    dark: 'rgba(15, 23, 42, 0.4)',
                 },
                 primary: {
                     DEFAULT: 'var(--primary)',
