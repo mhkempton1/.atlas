@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Star, Reply, Forward, Trash2, Paperclip, Archive, MailOpen, Send, X, Loader2, Sparkles, CheckSquare, Tag, Brain, Wand2, ClipboardCheck } from 'lucide-react';
 import { Menu } from '@headlessui/react';
 import { SYSTEM_API } from '../../services/api';
@@ -16,6 +16,16 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
     const [drafting, setDrafting] = useState(false);
 
     const CATEGORIES = ['work', 'personal', 'urgent', 'todo', 'finance'];
+
+    useEffect(() => {
+        if (email && !email.is_read) {
+            SYSTEM_API.markEmailRead(email.email_id)
+                .then(() => {
+                    if (onEmailAction) onEmailAction('update', email.email_id, { is_read: true });
+                })
+                .catch(err => console.error("Failed to mark email as read:", err));
+        }
+    }, [email?.email_id, email?.is_read, onEmailAction]);
 
     if (!email) return <div className="h-full flex items-center justify-center text-text-muted">Select an email to read</div>;
 
@@ -128,7 +138,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
     };
 
     return (
-        <div className="email-view h-full flex flex-col bg-surface-dark border-l border-border">
+        <div className="email-view h-full flex flex-col bg-white/[0.02] border-l border-white/10 backdrop-blur-2xl">
             {/* Header */}
             <div className="header p-4 border-b border-border">
                 <div className="flex justify-between items-center mb-4">
@@ -194,7 +204,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
             </div>
 
             {/* Content */}
-            <div className="content flex-1 overflow-auto p-6 bg-background-dark">
+            <div className="content flex-1 overflow-auto p-6 bg-transparent">
                 <div className="prose prose-invert max-w-none">
                     {email.body_html ? (
                         <div dangerouslySetInnerHTML={{ __html: email.body_html }} />
@@ -272,7 +282,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
 
             {/* Actions Footer */}
             {!replyMode && (
-                <div className="footer p-4 border-t border-border bg-surface-dark flex gap-3">
+                <div className="footer p-4 border-t border-white/10 bg-white/[0.02] flex gap-3">
                     <button className="btn btn-primary flex items-center gap-2" onClick={() => setReplyMode('reply')}>
                         <Reply className="w-4 h-4" /> Reply
                     </button>

@@ -1,0 +1,27 @@
+name: Nightly Jules Maintenance
+
+on:
+  schedule:
+    # Run at midnight (00:00) every night
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    # Allow manual trigger from the Actions tab
+
+jobs:
+  jules-maintenance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Trigger Jules Maintenance
+        # Using the standard Jules Action to process the nightly prompt
+        uses: google-labs/jules-action@v1
+        with:
+          prompt: |
+            Act as the Autonomous Architect for Atlas. Perform the following nightly maintenance and synthesis:
+            1. **Intelligence Sync**: Trigger a full scan of all communication providers (IMAP and Google) using the internal `comm_service.sync_emails()`. Ensure all unanalyzed emails are processed through 'The Lens' and pushed to the Altimeter bridge.
+            2. **The Oracle Audit**: Review the last 24 hours of emails and cross-reference them with the Altimeter database. Identify any missed milestones, bid deadlines, or project phase changes. 
+            3. **AGENTS.md Update**: Dynamically update the 'Current Missions' section in AGENTS.md to reflect the priority tasks Jules should focus on tomorrow based on tonight’s synthesis.
+            4. **Architectural Guardrails**: Perform a quick static audit of the codebase to ensure no recent changes have violated the 'Provider-Agnostic' or 'Night Sky' styling standards (backdrop-blur, glassmorphism).
+            5. **Preparation**: Draft a 'Daily Intelligence Brief' task in Atlas (category: 'daily_log') that synthesizes all Mission Intel found during this run.

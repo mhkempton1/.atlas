@@ -25,7 +25,7 @@ async def get_events(
     return [
         {
             "event_id": e.event_id,
-            "google_event_id": e.google_event_id,
+            "remote_event_id": e.remote_event_id,
             "title": e.title,
             "description": e.description,
             "location": e.location,
@@ -67,7 +67,7 @@ async def get_today_events(db: Session = Depends(get_db)):
 
 @router.post("/sync")
 async def trigger_calendar_sync():
-    """Manually trigger a calendar sync from Google"""
-    from services.google_service import google_service
-    result = google_service.sync_calendar()
+    """Manually trigger a calendar sync from the active provider"""
+    from services.communication_service import comm_service
+    result = comm_service.sync_calendar()
     return result

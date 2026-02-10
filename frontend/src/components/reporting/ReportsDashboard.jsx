@@ -36,18 +36,19 @@ const ReportsDashboard = () => {
                 </div>
                 <div>
                     <h2 className="text-xl font-bold text-white">Atlas Reports</h2>
-                    <p className="text-sm text-slate-400">Operational intelligence and status reporting</p>
+                    <p className="text-sm text-white/40">Operational intelligence and status reporting</p>
                 </div>
             </div>
 
-            <div className="flex gap-2 border-b border-slate-700 pb-1 overflow-x-auto">
+
+            <div className="flex gap-2 border-b border-white/5 pb-1 overflow-x-auto">
                 {TABS.map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
-                            ? 'bg-slate-700 text-white border-b-2 border-indigo-500'
-                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-medium transition-all whitespace-nowrap ${activeTab === tab.id
+                            ? 'bg-white/10 text-white border-b-2 border-purple-500 backdrop-blur-md'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
                         <tab.icon className="w-4 h-4" />
@@ -56,7 +57,7 @@ const ReportsDashboard = () => {
                 ))}
             </div>
 
-            <div className="flex-1 bg-slate-800 rounded-b-xl rounded-tr-xl p-6 shadow-lg border border-slate-700 min-h-0 overflow-auto">
+            <div className="flex-1 bg-white/[0.02] backdrop-blur-xl rounded-b-xl rounded-tr-xl p-6 shadow-2xl border border-white/10 min-h-0 overflow-auto">
                 {renderContent()}
             </div>
         </div>

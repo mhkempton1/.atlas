@@ -24,9 +24,22 @@ class SearchService:
         self._initialized = True
         try:
             self._client = chromadb.PersistentClient(path=self.persist_path)
-            self._embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-                model_name="all-MiniLM-L6-v2"
-            )
+            try:
+                # Try to load SentenceTransformerEmbeddingFunction only if sentence_transformers is installed
+                import sentence_transformers
+                self._embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
+                    model_name="all-MiniLM-L6-v2"
+                )
+            except (ImportError, Exception) as e:
+                print(f"[SearchService] Warning: Embedding model load failed ({e}). Using fallback dummy embeddings.")
+
+                class DummyEmbedding:
+                    def __call__(self, input):
+                        # Returns a fixed size vector (384 is common for MiniLM)
+                        return [[0.1] * 384 for _ in input]
+
+                self._embedding_fn = DummyEmbedding()
+
             # Collection for Emails
             self._email_collection = self._client.get_or_create_collection(
                 name="emails",

@@ -1,13 +1,14 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
-import requests
+import httpx
+import asyncio
 from typing import List, Dict, Any, Optional
 
 scheduler = BackgroundScheduler()
 
 def sync_emails_job():
     """Background job to sync emails every 5 minutes"""
-    from services.google_service import google_service
+    from services.communication_service import comm_service
     from database.database import get_db
     from database.models import Email
     
@@ -21,7 +22,7 @@ def sync_emails_job():
 
         # Sync
         try:
-            result = google_service.sync_emails(last_sync)
+            result = comm_service.sync_emails(last_sync)
             print(f"[{datetime.now()}] Email sync: {result['synced']} new emails")
             
             # FUTURE: Extract tasks from new emails here
@@ -35,17 +36,51 @@ def sync_emails_job():
 
 def sync_calendar_job():
     """Background job to sync calendar every 15 minutes"""
-    from services.google_service import google_service
+    from services.communication_service import comm_service
     
     try:
-        result = google_service.sync_calendar()
+        result = comm_service.sync_calendar()
         print(f"[{datetime.now()}] Calendar sync: {result['synced']} events updated")
     except Exception as e:
         print(f"Calendar sync failed: {e}")
 
+def watchtower_job():
+    """
+    The Watchtower: Proactive Risk Scanning.
+    Checks Weather + Active Phases for risks.
+    """
+    from services.altimeter_service import altimeter_service, intelligence_bridge
+    from services.weather_service import weather_service
+    from services.activity_service import activity_service
+
+    try:
+        # 1. Get Forecast
+        # get_weather is async, but watchtower_job is run in a background thread.
+        weather = asyncio.run(weather_service.get_weather())
+
+        # 2. Get Active Phases
+        phases = altimeter_service.get_active_phases()
+
+        # 3. Predict Risks
+        intel = intelligence_bridge.predict_mission_intel(phases, weather)
+
+        # 4. Check for 'Weather Alert' triggers
+        alerts = [i for i in intel if i.get('trigger') == 'Weather Alert']
+
+        if alerts:
+            for alert in alerts:
+                msg = f"WATCHTOWER ALERT: {alert['title']} recommended for {alert['phase_match']} due to weather."
+                print(f"[Watchtower] {msg}")
+                # Log to Activity Feed (User Notification Stub)
+                activity_service.log_activity("system", "Risk Detected", msg)
+
+    except Exception as e:
+        print(f"Watchtower scan failed: {e}")
+
 # Schedule jobs
 scheduler.add_job(sync_emails_job, 'interval', minutes=5, id='email_sync', replace_existing=True)
 scheduler.add_job(sync_calendar_job, 'interval', minutes=15, id='calendar_sync', replace_existing=True)
+scheduler.add_job(watchtower_job, 'interval', minutes=60, id='watchtower', replace_existing=True)
 
 class SchedulerService:
     def __init__(self):
@@ -77,12 +112,12 @@ class SchedulerService:
         combined_schedule = []
 
         try:
-            # 1. Fetch Calendar Events (Next 7 days)
-            now = datetime.now()
-            week_out = now + timedelta(days=7)
+            # 1. Fetch Calendar Events (Next 7 days, including all of today)
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            week_out = today_start + timedelta(days=7)
             
             events = db.query(CalendarEvent).filter(
-                CalendarEvent.start_time >= now,
+                CalendarEvent.start_time >= today_start,
                 CalendarEvent.start_time <= week_out
             ).all()
 
@@ -153,26 +188,42 @@ class SchedulerService:
                 return datetime.max
 
         combined_schedule.sort(key=parse_for_sort)
-
-        return combined_schedule
+        
+        # Limit to reasonable display size
+        return combined_schedule[:50]
 
     async def get_dashboard_stats(self) -> Dict[str, Any]:
         """
         Fetch real-time statistics for the dashboard.
+        Offloads blocking DB calls to a thread to prevent blocking the async event loop.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._get_dashboard_stats_sync)
+
+    def _get_dashboard_stats_sync(self) -> Dict[str, Any]:
+        """
+        Synchronous implementation of dashboard stats fetching.
         """
         from database.database import SessionLocal
         from database.models import Task, Email, CalendarEvent
         from services.document_control_service import document_control_service
         
         db = SessionLocal()
+        from services.altimeter_service import altimeter_service
         try:
             # 1. Document Stats
             docs = document_control_service.get_all_documents()
             
-            # 2. Task & Event Stats
+            # 2. Altimeter Stats
+            active_projects = altimeter_service.list_projects()
+            active_projects_count = len(active_projects)
+            
+            # 3. Task & Event Stats
             total_pending_tasks = db.query(Task).filter(Task.status != 'done').count()
             high_priority_tasks = db.query(Task).filter(Task.status != 'done', Task.priority == 'high').count()
-            upcoming_events = db.query(CalendarEvent).filter(CalendarEvent.start_time >= datetime.now()).count()
+            # Today's events should include everything today, even if already started
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            upcoming_events = db.query(CalendarEvent).filter(CalendarEvent.start_time >= today_start).count()
             
             # 3. Email Stats
             total_emails = db.query(Email).count()
@@ -186,6 +237,7 @@ class SchedulerService:
                 "upcoming_events": upcoming_events,
                 "inbox_total": total_emails,
                 "inbox_unread": unread_emails,
+                "active_projects": active_projects_count,
                 "health_score": 98 if total_pending_tasks < 10 else 85
             }
         finally:
@@ -197,9 +249,10 @@ class SchedulerService:
         
         # 1. Altimeter Check (via API)
         try:
-            res = requests.get("http://127.0.0.1:4203/api/system/health", timeout=1)
+            async with httpx.AsyncClient() as client:
+                res = await client.get("http://127.0.0.1:4203/api/system/health", timeout=1)
             altimeter_status = "Online" if res.status_code == 200 else "Degraded"
-        except:
+        except Exception:
             altimeter_status = "Offline"
 
         # 2. Vector DB Check (via SearchService Internal State)

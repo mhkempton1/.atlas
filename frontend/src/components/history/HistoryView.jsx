@@ -23,7 +23,7 @@ const HistoryItem = ({ item }) => {
         <div className="border-b border-white/5 last:border-0">
             <div
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center gap-4 py-3 px-2 hover:bg-slate-800/30 cursor-pointer transition-colors group"
+                className="flex items-center gap-4 py-3 px-2 hover:bg-white/10 cursor-pointer transition-colors group"
             >
                 <div className="flex-shrink-0 w-8 flex justify-center">
                     {getIcon(item.type)}
@@ -47,7 +47,7 @@ const HistoryItem = ({ item }) => {
 
             {isExpanded && item.details && (
                 <div className="px-14 pb-4 animate-slide-down">
-                    <div className="bg-slate-950/50 border border-white/5 rounded p-3 text-xs font-mono text-gray-400 leading-relaxed overflow-x-auto">
+                    <div className="bg-white/[0.02] border border-white/5 rounded p-3 text-xs font-mono text-gray-400 leading-relaxed overflow-x-auto backdrop-blur-xl">
                         {item.details}
                     </div>
                 </div>
@@ -117,7 +117,7 @@ const HistoryView = () => {
                                 {date}
                                 <div className="h-px bg-white/5 flex-1" />
                             </h3>
-                            <div className="bg-slate-900/40 border border-white/5 rounded-xl overflow-hidden backdrop-blur-sm">
+                            <div className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden backdrop-blur-md">
                                 {grouped[date].map(item => (
                                     <HistoryItem key={item.id} item={item} />
                                 ))}
@@ -126,7 +126,7 @@ const HistoryView = () => {
                     ))}
 
                     <div className="text-center py-8 opacity-50">
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-800/50 border border-white/5">
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/5">
                             <Clock className="w-3 h-3 text-gray-500" />
                             <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">End of visible trail</span>
                         </div>
