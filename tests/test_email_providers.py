@@ -10,6 +10,7 @@ sys.path.append(os.path.join(os.getcwd(), 'backend'))
 from services.altimeter_service import AltimeterService
 from services.smtp_provider import SMTPProvider
 from services.imap_provider import IMAPProvider
+from core.config import settings
 
 class TestEmailIntegration(unittest.TestCase):
 
@@ -114,6 +115,34 @@ class TestEmailIntegration(unittest.TestCase):
         self.assertTrue(db_mock.add.called)
 
 class TestIMAPProviderMethods(unittest.TestCase):
+    def setUp(self):
+        # Save original settings
+        self.original_settings = {
+            'IMAP_HOST': settings.IMAP_HOST,
+            'IMAP_PORT': settings.IMAP_PORT,
+            'IMAP_USER': settings.IMAP_USER,
+            'IMAP_PASSWORD': settings.IMAP_PASSWORD,
+            'SMTP_HOST': settings.SMTP_HOST,
+            'SMTP_PORT': settings.SMTP_PORT,
+            'SMTP_USER': settings.SMTP_USER,
+            'SMTP_PASSWORD': settings.SMTP_PASSWORD
+        }
+
+        # Configure settings for IMAPProvider
+        settings.IMAP_HOST = "imap.test.com"
+        settings.IMAP_PORT = 993
+        settings.IMAP_USER = "user@test.com"
+        settings.IMAP_PASSWORD = "password"
+        settings.SMTP_HOST = "smtp.test.com"
+        settings.SMTP_PORT = 587
+        settings.SMTP_USER = "user@test.com"
+        settings.SMTP_PASSWORD = "password"
+
+    def tearDown(self):
+        # Restore original settings
+        for key, value in self.original_settings.items():
+            setattr(settings, key, value)
+
     @patch('services.imap_provider.imaplib.IMAP4_SSL')
     @patch('services.smtp_provider.SMTPProvider') # Patch the source class
     def test_reply_to_email(self, MockSMTPProvider, mock_imap):
@@ -156,14 +185,16 @@ class TestIMAPProviderMethods(unittest.TestCase):
 
         # Mock folder list
         mock_mail.list.return_value = ('OK', [b'(\\HasNoChildren) "/" "Trash"'])
+        # Mock COPY response
+        mock_mail.uid.return_value = ('OK', [b'Success'])
 
         provider = IMAPProvider()
         result = provider.trash_email("123")
 
         self.assertTrue(result['success'])
         # Check copy to Trash and flag Deleted
-        mock_mail.uid.assert_any_call('copy', '123', 'Trash')
-        mock_mail.uid.assert_any_call('store', '123', '+FLAGS', r'(\Deleted)')
+        mock_mail.uid.assert_any_call('COPY', '123', 'Trash')
+        mock_mail.uid.assert_any_call('STORE', '123', '+FLAGS', r'(\Deleted)')
 
 class TestSMTPProviderExtra(unittest.TestCase):
     @patch('services.smtp_provider.smtplib.SMTP')

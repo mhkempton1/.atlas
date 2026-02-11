@@ -51,3 +51,8 @@ No changes.
 ### Manual Verification
 
 - [ ] Verify sending emails with headers works if connected to real SMTP.
+
+## Implemented
+
+- [x] Verified `IMAPProvider` implementation via `tests/test_imap_features.py` and `tests/test_email_providers.py`.
+- [x] Fixed regression in `tests/test_email_providers.py` regarding `trash_email` case sensitivity and `reply_to_email` configuration.
