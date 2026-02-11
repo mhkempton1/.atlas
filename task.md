@@ -23,3 +23,8 @@
   - [x] Create `JULES_RUNBOOKS.md` (Strategy Document).
   - [x] Define Day/Night Cycle Prompts.
   - [x] Update `AGENTS.md` with manual scheduling workflow.
+
+## Technical Debt: Test Suite Stabilization
+- [ ] **Fix Service Mocking**: Refactor `SearchService` and `GoogleService` tests to use `patch` more effectively for complex return structures.
+- [ ] **Environment Isolation**: Ensure `AltimeterService` tests correctly reload configurations to prevent leakage between tests.
+- [ ] **Integration Tests**: Stabilize API route tests by properly mocking `BackgroundTasks` and external service dependencies.

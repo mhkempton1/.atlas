@@ -1,42 +1,25 @@
-# OVERNIGHT REPORT
-**Date:** $(date)
-**Agent:** J (Maintenance & Stability Agent)
+# Overnight Report
 
-## Executive Summary
-**System Status:** GREEN (Stable)
-**Tests Passed:** 80/80
-**Frontend Integrity:** Verified
-**Backend Integrity:** Verified
+## Code Cleanup & Polish
+**Date**: 2026-02-11
+**Agent**: Atlas_Midnight_Janitor
 
-## Fixes Applied
+### Summary
+Executed a comprehensive cleanup of the codebase, focusing on removing technical debt, standardizing formatting, and improving documentation.
 
-### Backend
-1.  **Restored Missing Modules:**
-    -   `backend/database/database.py`: Recreated database connection logic.
-    -   `backend/database/models.py`: Reconstructed SQLAlchemy models based on usage in `backend/api` and `backend/services`.
-2.  **Dependencies:**
-    -   Installed missing packages: `sqlalchemy`, `fastapi`, `uvicorn`, `httpx`, `chromadb`, `google-genai`, `google-generativeai`, `pytest-asyncio`, `pydantic-settings`.
-    -   Updated `SearchService` to fallback gracefully when `sentence-transformers` is missing (preventing crash).
-3.  **Schema & Config:**
-    -   Added `is_starred` to `Email` model.
-    -   Added `project_id`, `attendees` to `CalendarEvent` model.
-    -   Added `GOOGLE_CALENDAR_ID` to `backend/core/config.py`.
-4.  **Testing:**
-    -   Fixed `test_knowledge_routes.py` to match API response (`accepted` vs `success`).
-    -   Fixed `test_routes.py` import paths (`api.knowledge_routes` instead of `api.routes`).
+### Key Actions
+1.  **Cleanup**: Removed unused imports, debug print statements, and obsolete TODO comments across the backend (`backend/`).
+2.  **Formatting**: Applied PEP8 formatting to backend Python files using `autopep8`.
+3.  **Documentation**: Added docstrings to key data models (`backend/database/models.py`) and services (`GoogleService`, `SearchService`, etc.).
+4.  **Configuration Refactor**: Updated `backend/core/config.py` to use environment variables (`DATABASE_URL`, `ALTIMETER_PATH`) instead of hardcoded Windows paths, improving cross-platform compatibility.
+5.  **Test Improvements**: Updated outdated test references (e.g., `gmail_id` -> `remote_id`) and improved `test_scan_route.py` to handle background tasks.
 
-### Frontend
-1.  **Dead Code Removal:**
-    -   Deleted `frontend/src/components/procedures/ProceduresExplorer.jsx` (Unused).
-    -   Deleted `frontend/src/components/dashboard/SystemDiagnosticsModal.jsx` (Unused).
-2.  **Cleanup:**
-    -   Removed `console.log` from `frontend/src/components/calendar/CalendarModule.jsx` and `frontend/src/components/dashboard/Dashboard.jsx`.
-    -   Fixed dead link in `Dashboard.jsx`: Changed `projects` -> `alt_tasks` (Altimeter Ops).
+### Known Issues (Technical Debt)
+The following tests are currently failing and require dedicated attention to stabilize:
+*   **`backend/tests/services/test_search_service.py`**: Fails due to `ChromaDB` mocking mismatches. The mock returns a score structure that differs from what the service expects in the test environment.
+*   **`tests/test_security_readonly.py`**: Fails to reload the `AltimeterService` with mocked settings, leading to assertions running against the wrong database path.
+*   **API Route Tests**: Some tests (`test_email_routes.py`, etc.) fail due to complex dependencies on external services (`GoogleService`) that are difficult to fully mock without deeper refactoring.
 
-## Issues Log
--   **Note:** `frontend/package.json` is missing. This prevents running `npm` commands but `frontend/src` analysis was successful manually.
--   **Search Service:** Running in fallback mode (Dummy Embeddings) because `sentence-transformers` installation timed out. This ensures stability but semantic search quality is reduced until package is installed.
-
-## Recommendations
--   Restore `frontend/package.json` to enable standard frontend build/lint pipelines.
--   Install `sentence-transformers` in the deployment environment for full vector search capabilities.
+### Next Steps
+*   Address the "Technical Debt: Test Suite Stabilization" items in `task.md`.
+*   Continue monitoring `OVERNIGHT_LOG.md` for any runtime anomalies.
