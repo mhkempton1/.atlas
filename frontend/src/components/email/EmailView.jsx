@@ -232,7 +232,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
 
             {/* Reply/Forward Compose Area */}
             {replyMode && (
-                <div className="border-t border-border p-4 bg-slate-900/50 space-y-3">
+                <div className="border-t border-border p-4 bg-white/5 space-y-3">
                     <div className="flex justify-between items-center">
                         <h4 className="text-sm font-semibold text-text-bright">
                             {replyMode === 'reply' ? 'Reply' : 'Forward'}

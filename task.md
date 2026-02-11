@@ -38,3 +38,7 @@
   - [ ] Update `execute_mission.py` to allow file modifications (AI coding).
 - [ ] **Frontend Verification**
   - [ ] Verify `EmailView.jsx` actions work with `IMAPProvider`.
+
+## Architecture Review (Midday)
+- [x] **Provider Decoupling**: Refactor `IMAPProvider` to use injected `SMTPProvider`.
+- [x] **Frontend Polish**: Update `EmailView.jsx` to consistent glassmorphism style.

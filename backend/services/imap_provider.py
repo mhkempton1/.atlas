@@ -12,11 +12,12 @@ from database.database import SessionLocal
 from database.models import Email, EmailAttachment
 
 class IMAPProvider(CommunicationProvider):
-    def __init__(self):
+    def __init__(self, sender: Optional[CommunicationProvider] = None):
         self.host = settings.IMAP_HOST
         self.port = settings.IMAP_PORT
         self.user = settings.IMAP_USER
         self.password = settings.IMAP_PASSWORD
+        self.sender = sender
 
     def _connect(self):
         mail = imaplib.IMAP4_SSL(self.host, self.port)
@@ -226,8 +227,9 @@ class IMAPProvider(CommunicationProvider):
 
     # Stubs for other interface methods
     def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None, extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-        from services.smtp_provider import SMTPProvider
-        return SMTPProvider().send_email(recipient, subject, body, cc=cc, bcc=bcc, extra_headers=extra_headers)
+        if not self.sender:
+            return {"success": False, "error": "Sender not configured for IMAP provider"}
+        return self.sender.send_email(recipient, subject, body, cc=cc, bcc=bcc, extra_headers=extra_headers)
 
     def reply_to_email(self, remote_id: str, body: str, reply_all: bool = False) -> Dict[str, Any]:
         msg = self._get_original_email(remote_id)
