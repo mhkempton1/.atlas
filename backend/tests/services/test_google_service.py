@@ -50,7 +50,7 @@ def test_store_email_duplicate(google_service_instance, db):
     }
     
     # Add existing email to DB
-    existing_email = Email(gmail_id='msg123', message_id='id123')
+    existing_email = Email(remote_id='msg123', message_id='id123')
     db.add(existing_email)
     db.commit()
     
@@ -78,7 +78,7 @@ def test_store_email_success(google_service_instance, db):
     result = google_service_instance._store_email(message, db)
     assert result is True
     
-    stored = db.query(Email).filter_by(gmail_id='msg_new').first()
+    stored = db.query(Email).filter_by(remote_id='msg_new').first()
     assert stored is not None
     assert stored.subject == 'Test Subject'
     assert stored.from_address == 'test@example.com'
@@ -98,7 +98,7 @@ def test_sync_calendar_storage(google_service_instance, db):
     result = google_service_instance._store_event(event_data, db)
     assert result is True
     
-    stored = db.query(CalendarEvent).filter_by(google_event_id='event123').first()
+    stored = db.query(CalendarEvent).filter_by(remote_event_id='event123').first()
     assert stored is not None
     assert stored.title == 'Meeting'
     assert stored.organizer == 'boss@example.com'
@@ -131,6 +131,6 @@ def test_store_email_missing_message_id(google_service_instance, db):
     result = google_service_instance._store_email(message, db)
     assert result is True
     
-    stored = db.query(Email).filter_by(gmail_id='msg_no_id').first()
+    stored = db.query(Email).filter_by(remote_id='msg_no_id').first()
     assert stored is not None
     assert stored.message_id.startswith('atlas-')

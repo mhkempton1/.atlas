@@ -13,6 +13,9 @@ sys.path.insert(0, backend_dir)
 print(f"DEBUG: backend_dir={backend_dir}")
 print(f"DEBUG: sys.path={sys.path}")
 
+# Override DATABASE_URL for tests to prevent using production DB
+os.environ["DATABASE_URL"] = "sqlite:///./test_atlas.db"
+
 from core.app import app
 from database.database import Base, get_db
 from core.config import settings

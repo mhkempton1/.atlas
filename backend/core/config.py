@@ -25,12 +25,12 @@ class Settings(BaseSettings):
     DATA_DIR: str = os.path.join(BASE_DIR, "data")
     
     # Database
-    DATABASE_URL: str = f"sqlite:///C:/Users/mhkem/OneDrive/Documents/databasedev/atlas.db"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./data/atlas.db")
     
     # Integrations
-    ALTIMETER_PATH: str = r"c:/Users/mhkem/.altimeter"
-    OBSIDIAN_KNOWLEDGE_PATH: str = r"C:\Users\mhkem\.obsidian\MKULTRA\CODEX\@Knowledge"
-    ONEDRIVE_PATH: str = r"c:\Users\mhkem\OneDrive\Documents\Davis Projects OneDrive"
+    ALTIMETER_PATH: str = os.getenv("ALTIMETER_PATH", "./data/altimeter")
+    OBSIDIAN_KNOWLEDGE_PATH: str = os.getenv("OBSIDIAN_KNOWLEDGE_PATH", "./data/knowledge")
+    ONEDRIVE_PATH: str = os.getenv("ONEDRIVE_PATH", "./data/onedrive")
     
     # Communication Protocols
     COMMUNICATION_PROVIDER: str = "google" # "google", "imap"

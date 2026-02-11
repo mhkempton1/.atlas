@@ -56,3 +56,26 @@ No changes.
 
 - [x] Verified `IMAPProvider` implementation via `tests/test_imap_features.py` and `tests/test_email_providers.py`.
 - [x] Fixed regression in `tests/test_email_providers.py` regarding `trash_email` case sensitivity and `reply_to_email` configuration.
+
+# Implementation Plan - Test Suite Stabilization
+
+## Goal Description
+Fix critical environment configuration issues and refactor service tests (`SearchService`, `GoogleService`) to use correct database models, enabling the test suite to run reliably in CI/CD environments.
+
+## Proposed Changes
+
+### Configuration
+#### [MODIFY] `backend/core/config.py`
+- Updated `DATABASE_URL`, `ALTIMETER_PATH`, `OBSIDIAN_KNOWLEDGE_PATH`, and `ONEDRIVE_PATH` to use relative path defaults and `os.getenv` overrides, replacing hardcoded absolute Windows paths.
+
+#### [MODIFY] `backend/tests/conftest.py`
+- Added explicit `os.environ["DATABASE_URL"] = "sqlite:///./test_atlas.db"` setup to force tests to use a temporary database instead of the production one.
+
+### Tests
+#### [MODIFY] `backend/tests/services/test_google_service.py`
+- Refactored tests to use `remote_id` instead of `gmail_id` and `remote_event_id` instead of `google_event_id`, aligning with the updated database schema.
+
+## Implemented
+- [x] Configuration updated for cross-platform compatibility.
+- [x] Test environment isolated from production database.
+- [x] `test_google_service.py` and `test_search_service.py` passing.
