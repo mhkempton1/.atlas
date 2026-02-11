@@ -12,13 +12,19 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Trigger AI Improvement
-        uses: google-labs/jules-action@v1
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          prompt: |
-            Act as the AI Researcher for Atlas. Focus on the core 'Personal Assistant' intelligence and underlying models.
-            1. **Prompt Engineering**: Audit and refine the core prompt templates in backend/agents/task_agent.py and backend/agents/draft_agent.py.
-            2. **Persona Alignment**: Ensure all assistant responses maintain the 'Smooth as Ice' tone - professional, concise, and highly contextualized.
-            3. **Knowledge Indexing**: Optimize how 'Mission Intel' and Altimeter SOP snippets are indexed and retrieved to provide better context for the agents.
-            4. **Quality Experiments**: Integrate few-shot examples into agent prompts to improve the accuracy of complex task extractions and tailored email drafts.
-            Goal: Deepen the assistant's understanding of the user's mission and project context.
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Execute AI Assistant Improvement
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python backend/scripts/execute_mission.py --type ai --prompt "Act as the AI Researcher for Atlas. Focus on the core 'Personal Assistant' intelligence. 1. Prompt Engineering: Suggest refinements for task_agent.py prompts. 2. Custom Persona: Evaluate response tone against 'Smooth as Ice' standards. 3. Knowledge Indexing: Suggest optimizations for Mission Intel retrieval."

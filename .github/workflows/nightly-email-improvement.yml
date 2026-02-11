@@ -12,13 +12,19 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Trigger Email Improvement
-        uses: google-labs/jules-action@v1
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          prompt: |
-            Act as the Communications Engineer for Atlas. Focus on improving the email engine. 
-            1. **Audit Performance**: Check current IMAP/SMTP logs and optimize connection pooling or sync speeds.
-            2. **Feature Implementation**: Implement or refine missing IMAP features such as robust attachment metadata extraction or search query optimization.
-            3. **Intelligence Refinement**: Update the 'Email Analysis' prompt templates to improve categorization accuracy (Urgent, Work, Personal, Finance).
-            4. **Architecture Check**: Ensure all modifications strictly adhere to the 'Provider-Agnostic' patterns in backend/services/communication_provider.py.
-            Goal: Make the email experience faster, more reliable, and smarter.
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Execute Email Improvement
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python backend/scripts/execute_mission.py --type email --prompt "Act as the Communications Engineer for Atlas. Focus on improving the email engine. 1. Audit Performance: Check current IMAP/SMTP logs and optimize connection pooling. 2. Feature Implementation: Suggest robust attachment metadata extraction improvements. 3. Intelligence Refinement: Suggest updates to 'Email Analysis' prompt templates."
