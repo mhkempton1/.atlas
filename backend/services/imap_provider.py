@@ -200,23 +200,196 @@ class IMAPProvider(CommunicationProvider):
         return result
 
     # Stubs for other interface methods
-    def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None) -> Dict[str, Any]:
+    def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None, extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         from services.smtp_provider import SMTPProvider
-        return SMTPProvider().send_email(recipient, subject, body, cc=cc, bcc=bcc)
+        return SMTPProvider().send_email(recipient, subject, body, cc=cc, bcc=bcc, extra_headers=extra_headers)
 
     def reply_to_email(self, remote_id: str, body: str, reply_all: bool = False) -> Dict[str, Any]:
-        return {"success": False, "error": "IMAP Reply not implemented"}
+        mail = self._connect()
+        try:
+            mail.select("INBOX") # Assume INBOX for now, or find where it is
+            status, data = mail.uid('fetch', remote_id, '(RFC822)')
+            if status != 'OK' or not data or not data[0]:
+                return {"success": False, "error": "Original email not found"}
+
+            raw_email = data[0][1]
+            if isinstance(raw_email, int): # Sometimes fetch returns just the UID if failed silently?
+                 raw_email = data[1] # Handle different response formats
+
+            msg = email.message_from_bytes(raw_email)
+
+            # Extract Headers
+            original_message_id = msg.get('Message-ID', '')
+            original_references = msg.get('References', '')
+            original_subject = self._decode_mime_header(msg.get('Subject', ''))
+            reply_to = msg.get('Reply-To') or msg.get('From')
+
+            # Construct New Headers
+            new_subject = original_subject
+            if not new_subject.lower().startswith('re:'):
+                new_subject = f"Re: {new_subject}"
+
+            references = f"{original_references} {original_message_id}".strip()
+
+            extra_headers = {
+                "In-Reply-To": original_message_id,
+                "References": references
+            }
+
+            # Determine Recipient
+            # If reply_all, we need to parse To and Cc. For now, simple reply to sender.
+            # TODO: Implement full reply_all logic parsing addresses
+            recipient = reply_to # Simplified
+
+            # Send
+            return self.send_email(recipient, new_subject, body, extra_headers=extra_headers)
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        finally:
+            try: mail.logout()
+            except: pass
+
     def forward_email(self, remote_id: str, to_address: str, note: str = "") -> Dict[str, Any]:
-        return {"success": False, "error": "IMAP Forward not implemented"}
+        mail = self._connect()
+        try:
+            mail.select("INBOX")
+            status, data = mail.uid('fetch', remote_id, '(RFC822)')
+            if status != 'OK':
+                return {"success": False, "error": "Original email not found"}
+
+            raw_email = data[0][1]
+            msg = email.message_from_bytes(raw_email)
+
+            subject = self._decode_mime_header(msg.get('Subject', ''))
+            new_subject = f"Fwd: {subject}"
+
+            # Extract body to append
+            text_body = ""
+            if msg.is_multipart():
+                for part in msg.walk():
+                    if part.get_content_type() == "text/plain":
+                         text_body += part.get_payload(decode=True).decode(part.get_content_charset() or 'utf-8', errors='replace')
+            else:
+                text_body = msg.get_payload(decode=True).decode(msg.get_content_charset() or 'utf-8', errors='replace')
+
+            full_body = f"{note}\n\n---------- Forwarded message ----------\nFrom: {msg.get('From')}\nDate: {msg.get('Date')}\nSubject: {subject}\n\n{text_body}"
+
+            return self.send_email(to_address, new_subject, full_body)
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        finally:
+            try: mail.logout()
+            except: pass
+    def _find_folder(self, mail, patterns: List[str]) -> Optional[str]:
+        try:
+            status, folders = mail.list()
+            if status != 'OK': return None
+            for pattern in patterns:
+                for folder in folders:
+                    folder_str = folder.decode()
+                    if pattern.lower() in folder_str.lower():
+                        # Extract folder name, handling quotes and flags
+                        # Example: (\HasNoChildren) "/" "Trash"
+                        parts = folder_str.split(' "')
+                        if len(parts) > 1:
+                            name = parts[-1].replace('"', '')
+                            return name
+                        else:
+                            # Fallback simple split if no quotes
+                            return folder_str.split()[-1]
+        except: pass
+        return None
+
     def trash_email(self, remote_id: str) -> Dict[str, Any]:
-        return {"success": False, "error": "IMAP Trash not implemented"}
+        mail = self._connect()
+        try:
+            mail.select("INBOX")
+            trash_folder = self._find_folder(mail, ["Trash", "Bin", "Deleted"])
+
+            if trash_folder:
+                # Move to Trash
+                mail.uid('copy', remote_id, trash_folder)
+
+            # Mark deleted in current folder
+            mail.uid('store', remote_id, '+FLAGS', r'(\Deleted)')
+            mail.expunge()
+
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        finally:
+            try: mail.logout()
+            except: pass
+
     def archive_email(self, remote_id: str) -> Dict[str, Any]:
-        return {"success": False, "error": "IMAP Archive not implemented"}
+        mail = self._connect()
+        try:
+            mail.select("INBOX")
+            archive_folder = self._find_folder(mail, ["Archive", "All Mail"])
+
+            if archive_folder:
+                mail.uid('copy', remote_id, archive_folder)
+
+            # Mark deleted in current (Inbox)
+            mail.uid('store', remote_id, '+FLAGS', r'(\Deleted)')
+            mail.expunge()
+
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        finally:
+            try: mail.logout()
+            except: pass
+
     def mark_unread(self, remote_id: str) -> Dict[str, Any]:
-        return {"success": False, "error": "IMAP Mark Unread not implemented"}
+        mail = self._connect()
+        try:
+            mail.select("INBOX")
+            mail.uid('store', remote_id, '-FLAGS', r'(\Seen)')
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        finally:
+            try: mail.logout()
+            except: pass
+
     def move_to_label(self, remote_id: str, label_name: str) -> Dict[str, Any]:
-        return {"success": False, "error": "IMAP Move not implemented"}
+        mail = self._connect()
+        try:
+            mail.select("INBOX")
+            # Try to copy to label
+            # Note: label_name might need to be quoted or encoded
+            status, _ = mail.uid('copy', remote_id, label_name)
+            if status == 'OK':
+                mail.uid('store', remote_id, '+FLAGS', r'(\Deleted)')
+                mail.expunge()
+                return {"success": True}
+            else:
+                return {"success": False, "error": f"Folder {label_name} not found or copy failed"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        finally:
+            try: mail.logout()
+            except: pass
+
     def get_labels(self) -> List[Dict[str, Any]]:
-        return [{"id": "INBOX", "name": "INBOX"}]
+        mail = self._connect()
+        try:
+            status, folders = mail.list()
+            result = []
+            if status == 'OK':
+                for folder in folders:
+                    folder_str = folder.decode()
+                    # Parse logic (simplified)
+                    name = folder_str.split(' "')[-1].replace('"', '') if '"' in folder_str else folder_str.split()[-1]
+                    result.append({"id": name, "name": name})
+            return result
+        except Exception:
+            return [{"id": "INBOX", "name": "INBOX"}]
+        finally:
+            try: mail.logout()
+            except: pass
     def sync_calendar(self) -> Dict[str, Any]:
         return {"synced": 0, "status": "not_supported"}

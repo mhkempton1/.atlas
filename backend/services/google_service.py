@@ -407,7 +407,7 @@ class GoogleService:
         except Exception as e:
             return []
 
-    def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None) -> dict:
+    def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None, extra_headers: Optional[dict] = None) -> dict:
         if not self.gmail_service: self.authenticate()
         msg = MIMEText(body)
         msg['To'] = recipient
@@ -417,6 +417,10 @@ class GoogleService:
             msg['Cc'] = ', '.join(cc)
         if bcc:
             msg['Bcc'] = ', '.join(bcc)
+
+        if extra_headers:
+            for k, v in extra_headers.items():
+                msg[k] = v
 
         raw = {'raw': base64.urlsafe_b64encode(msg.as_bytes()).decode('utf-8')}
         return self.gmail_service.users().messages().send(userId='me', body=raw).execute()

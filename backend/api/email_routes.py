@@ -230,8 +230,6 @@ class MoveRequest(BaseModel):
 @router.post("/{email_id}/reply")
 async def reply_to_email(email_id: int, request: ReplyRequest, db: Session = Depends(get_db)):
     """Reply to an email via Gmail API"""
-    from services.google_service import google_service
-
     email = db.query(Email).filter(Email.email_id == email_id).first()
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")
