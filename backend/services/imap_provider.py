@@ -99,32 +99,7 @@ class IMAPProvider(CommunicationProvider):
             except: pass
 
         # 2. Extract Body
-        body_text, body_html = "", ""
-
-        def extract_parts(message_part):
-            text, html = "", ""
-            if message_part.is_multipart():
-                for part in message_part.get_payload():
-                    t, h = extract_parts(part)
-                    text += t
-                    html += h
-            else:
-                content_type = message_part.get_content_type()
-                disposition = str(message_part.get("Content-Disposition"))
-
-                if "attachment" not in disposition:
-                    try:
-                        payload = message_part.get_payload(decode=True)
-                        charset = message_part.get_content_charset() or 'utf-8'
-                        decoded = payload.decode(charset, errors='replace')
-                        if content_type == "text/plain":
-                            text += decoded
-                        elif content_type == "text/html":
-                            html += decoded
-                    except: pass
-            return text, html
-
-        body_text, body_html = extract_parts(msg)
+        body_text, body_html = self._extract_body_from_msg(msg)
 
         # 3. Context Bridge via Altimeter
         from services.altimeter_service import altimeter_service
@@ -199,197 +174,195 @@ class IMAPProvider(CommunicationProvider):
                 result += s
         return result
 
+    def _extract_body_from_msg(self, msg):
+        def extract_parts(message_part):
+            text, html = "", ""
+            if message_part.is_multipart():
+                for part in message_part.get_payload():
+                    t, h = extract_parts(part)
+                    text += t
+                    html += h
+            else:
+                content_type = message_part.get_content_type()
+                disposition = str(message_part.get("Content-Disposition"))
+
+                if "attachment" not in disposition:
+                    try:
+                        payload = message_part.get_payload(decode=True)
+                        charset = message_part.get_content_charset() or 'utf-8'
+                        decoded = payload.decode(charset, errors='replace')
+                        if content_type == "text/plain":
+                            text += decoded
+                        elif content_type == "text/html":
+                            html += decoded
+                    except: pass
+            return text, html
+
+        return extract_parts(msg)
+
+    def _get_original_email(self, remote_id: str):
+        """Fetch full original email from IMAP for context."""
+        if not self.host or not self.user: return None
+        try:
+            mail = self._connect()
+            mail.select("INBOX")
+            status, data = mail.uid('fetch', remote_id, '(RFC822)')
+            if status != 'OK' or not data or not data[0]:
+                mail.logout()
+                return None
+
+            # data[0] is usually (uid, content)
+            raw_email = data[0][1]
+            if not raw_email:
+                 mail.logout()
+                 return None
+
+            msg = email.message_from_bytes(raw_email)
+            mail.logout()
+            return msg
+        except Exception as e:
+            print(f"IMAP Fetch Error: {e}")
+            return None
+
     # Stubs for other interface methods
     def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None, extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         from services.smtp_provider import SMTPProvider
         return SMTPProvider().send_email(recipient, subject, body, cc=cc, bcc=bcc, extra_headers=extra_headers)
 
     def reply_to_email(self, remote_id: str, body: str, reply_all: bool = False) -> Dict[str, Any]:
-        mail = self._connect()
+        msg = self._get_original_email(remote_id)
+        if not msg:
+            return {"success": False, "error": "Could not fetch original email"}
+
         try:
-            mail.select("INBOX") # Assume INBOX for now, or find where it is
-            status, data = mail.uid('fetch', remote_id, '(RFC822)')
-            if status != 'OK' or not data or not data[0]:
-                return {"success": False, "error": "Original email not found"}
+            # Extract headers
+            orig_subject = self._decode_mime_header(msg.get('Subject', ''))
+            orig_from = msg.get('Reply-To') or msg.get('From')
+            orig_message_id = msg.get('Message-ID', '')
+            orig_refs = msg.get('References', '')
+            orig_date = msg.get('Date', '')
 
-            raw_email = data[0][1]
-            if isinstance(raw_email, int): # Sometimes fetch returns just the UID if failed silently?
-                 raw_email = data[1] # Handle different response formats
-
-            msg = email.message_from_bytes(raw_email)
-
-            # Extract Headers
-            original_message_id = msg.get('Message-ID', '')
-            original_references = msg.get('References', '')
-            original_subject = self._decode_mime_header(msg.get('Subject', ''))
-            reply_to = msg.get('Reply-To') or msg.get('From')
-
-            # Construct New Headers
-            new_subject = original_subject
+            # Construct new headers
+            new_subject = orig_subject
             if not new_subject.lower().startswith('re:'):
                 new_subject = f"Re: {new_subject}"
 
-            references = f"{original_references} {original_message_id}".strip()
-
             extra_headers = {
-                "In-Reply-To": original_message_id,
-                "References": references
+                'In-Reply-To': orig_message_id,
+                'References': f"{orig_refs} {orig_message_id}".strip()
             }
 
-            # Determine Recipient
-            # If reply_all, we need to parse To and Cc. For now, simple reply to sender.
-            # TODO: Implement full reply_all logic parsing addresses
-            recipient = reply_to # Simplified
+            # Determine recipients
+            to_addr = email.utils.parseaddr(orig_from)[1]
+            cc_addrs = []
+            if reply_all:
+                # Add original To and Cc to Cc list, excluding self
+                orig_to = msg.get_all('To', [])
+                orig_cc = msg.get_all('Cc', [])
+                all_recipients = email.utils.getaddresses(orig_to + orig_cc)
+                for name, addr in all_recipients:
+                    if addr.lower() != self.user.lower() and addr.lower() != to_addr.lower():
+                        cc_addrs.append(addr)
 
-            # Send
-            return self.send_email(recipient, new_subject, body, extra_headers=extra_headers)
+            # Construct body with quote
+            orig_text, _ = self._extract_body_from_msg(msg)
+            full_body = f"{body}\n\nOn {orig_date}, {orig_from} wrote:\n> " + orig_text.replace('\n', '\n> ')
 
+            return self.send_email(to_addr, new_subject, full_body, cc=cc_addrs, extra_headers=extra_headers)
         except Exception as e:
             return {"success": False, "error": str(e)}
-        finally:
-            try: mail.logout()
-            except: pass
 
     def forward_email(self, remote_id: str, to_address: str, note: str = "") -> Dict[str, Any]:
-        mail = self._connect()
+        msg = self._get_original_email(remote_id)
+        if not msg:
+            return {"success": False, "error": "Could not fetch original email"}
+
         try:
-            mail.select("INBOX")
-            status, data = mail.uid('fetch', remote_id, '(RFC822)')
-            if status != 'OK':
-                return {"success": False, "error": "Original email not found"}
+            orig_subject = self._decode_mime_header(msg.get('Subject', ''))
+            orig_from = msg.get('From')
+            orig_date = msg.get('Date')
 
-            raw_email = data[0][1]
-            msg = email.message_from_bytes(raw_email)
+            new_subject = f"Fwd: {orig_subject}"
 
-            subject = self._decode_mime_header(msg.get('Subject', ''))
-            new_subject = f"Fwd: {subject}"
-
-            # Extract body to append
-            text_body = ""
-            if msg.is_multipart():
-                for part in msg.walk():
-                    if part.get_content_type() == "text/plain":
-                         text_body += part.get_payload(decode=True).decode(part.get_content_charset() or 'utf-8', errors='replace')
-            else:
-                text_body = msg.get_payload(decode=True).decode(msg.get_content_charset() or 'utf-8', errors='replace')
-
-            full_body = f"{note}\n\n---------- Forwarded message ----------\nFrom: {msg.get('From')}\nDate: {msg.get('Date')}\nSubject: {subject}\n\n{text_body}"
+            orig_text, _ = self._extract_body_from_msg(msg)
+            full_body = f"{note}\n\n---------- Forwarded message ----------\nFrom: {orig_from}\nDate: {orig_date}\nSubject: {orig_subject}\n\n{orig_text}"
 
             return self.send_email(to_address, new_subject, full_body)
-
         except Exception as e:
             return {"success": False, "error": str(e)}
-        finally:
-            try: mail.logout()
-            except: pass
-    def _find_folder(self, mail, patterns: List[str]) -> Optional[str]:
-        try:
-            status, folders = mail.list()
-            if status != 'OK': return None
-            for pattern in patterns:
-                for folder in folders:
-                    folder_str = folder.decode()
-                    if pattern.lower() in folder_str.lower():
-                        # Extract folder name, handling quotes and flags
-                        # Example: (\HasNoChildren) "/" "Trash"
-                        parts = folder_str.split(' "')
-                        if len(parts) > 1:
-                            name = parts[-1].replace('"', '')
-                            return name
-                        else:
-                            # Fallback simple split if no quotes
-                            return folder_str.split()[-1]
-        except: pass
-        return None
-
     def trash_email(self, remote_id: str) -> Dict[str, Any]:
-        mail = self._connect()
-        try:
-            mail.select("INBOX")
-            trash_folder = self._find_folder(mail, ["Trash", "Bin", "Deleted"])
-
-            if trash_folder:
-                # Move to Trash
-                mail.uid('copy', remote_id, trash_folder)
-
-            # Mark deleted in current folder
-            mail.uid('store', remote_id, '+FLAGS', r'(\Deleted)')
-            mail.expunge()
-
-            return {"success": True}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-        finally:
-            try: mail.logout()
-            except: pass
+        return self.move_to_label(remote_id, "Trash")
 
     def archive_email(self, remote_id: str) -> Dict[str, Any]:
-        mail = self._connect()
-        try:
-            mail.select("INBOX")
-            archive_folder = self._find_folder(mail, ["Archive", "All Mail"])
-
-            if archive_folder:
-                mail.uid('copy', remote_id, archive_folder)
-
-            # Mark deleted in current (Inbox)
-            mail.uid('store', remote_id, '+FLAGS', r'(\Deleted)')
-            mail.expunge()
-
-            return {"success": True}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-        finally:
-            try: mail.logout()
-            except: pass
+        return self.move_to_label(remote_id, "Archive")
 
     def mark_unread(self, remote_id: str) -> Dict[str, Any]:
-        mail = self._connect()
+        if not self.host or not self.user:
+             return {"success": False, "error": "Not configured"}
         try:
+            mail = self._connect()
             mail.select("INBOX")
-            mail.uid('store', remote_id, '-FLAGS', r'(\Seen)')
+            mail.uid('STORE', remote_id, '-FLAGS', '(\\Seen)')
+            mail.logout()
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
-        finally:
-            try: mail.logout()
-            except: pass
 
     def move_to_label(self, remote_id: str, label_name: str) -> Dict[str, Any]:
-        mail = self._connect()
+        if not self.host or not self.user:
+            return {"success": False, "error": "Not configured"}
+
         try:
+            mail = self._connect()
             mail.select("INBOX")
-            # Try to copy to label
-            # Note: label_name might need to be quoted or encoded
-            status, _ = mail.uid('copy', remote_id, label_name)
-            if status == 'OK':
-                mail.uid('store', remote_id, '+FLAGS', r'(\Deleted)')
-                mail.expunge()
-                return {"success": True}
-            else:
-                return {"success": False, "error": f"Folder {label_name} not found or copy failed"}
+
+            # Simple quoting for mailbox name
+            mailbox = label_name
+            if ' ' in mailbox and not mailbox.startswith('"'):
+                mailbox = f'"{mailbox}"'
+
+            # COPY
+            result = mail.uid('COPY', remote_id, mailbox)
+            if result[0] != 'OK':
+                mail.logout()
+                return {"success": False, "error": f"COPY failed: {result}"}
+
+            # Mark Deleted in source
+            mail.uid('STORE', remote_id, '+FLAGS', '(\\Deleted)')
+            mail.expunge()
+
+            mail.logout()
+            return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
-        finally:
-            try: mail.logout()
-            except: pass
 
     def get_labels(self) -> List[Dict[str, Any]]:
-        mail = self._connect()
+        if not self.host or not self.user: return []
         try:
+            mail = self._connect()
             status, folders = mail.list()
-            result = []
+            mail.logout()
+
+            labels = []
+            import shlex
             if status == 'OK':
                 for folder in folders:
-                    folder_str = folder.decode()
-                    # Parse logic (simplified)
-                    name = folder_str.split(' "')[-1].replace('"', '') if '"' in folder_str else folder_str.split()[-1]
-                    result.append({"id": name, "name": name})
-            return result
+                    if not folder: continue
+                    try:
+                        f_str = folder.decode()
+                        # Parse standard IMAP list response: (Flags) "Delimiter" "Name"
+                        parts = f_str.split(')')
+                        if len(parts) < 2: continue
+
+                        rest = parts[1].strip()
+                        tokens = shlex.split(rest)
+                        if tokens:
+                            name = tokens[-1]
+                            labels.append({"id": name, "name": name})
+                    except: continue
+
+            return labels if labels else [{"id": "INBOX", "name": "INBOX"}]
         except Exception:
             return [{"id": "INBOX", "name": "INBOX"}]
-        finally:
-            try: mail.logout()
-            except: pass
     def sync_calendar(self) -> Dict[str, Any]:
         return {"synced": 0, "status": "not_supported"}
