@@ -30,10 +30,10 @@
 - [ ] **Integration Tests**: Stabilize API route tests by properly mocking `BackgroundTasks` and external service dependencies.
 ## 🚀 Next Steps (Post-Decoupling)
 
-- [ ] **IMAP Interactivity**
-  - [ ] Implement `reply_to_email` in `IMAPProvider`.
-  - [ ] Implement `archive_email` and `trash_email` (move to Trash folder).
-  - [ ] Implement `mark_unread`.
+- [x] **IMAP Interactivity**
+  - [x] Implement `reply_to_email` in `IMAPProvider`.
+  - [x] Implement `archive_email` and `trash_email` (move to Trash folder).
+  - [x] Implement `mark_unread`.
 - [ ] **Autonomous Loop**
   - [ ] Update `execute_mission.py` to allow file modifications (AI coding).
 - [ ] **Frontend Verification**
