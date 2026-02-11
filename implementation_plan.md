@@ -1,17 +1,34 @@
-# Implementation Plan - IMAP Completion
+# Implementation Plan - [Current Feature Name]
 
-## Phase 1: Preparation
-- [x] Create reproduction script/test (`tests/test_imap_provider_manual.py`)
+## Goal Description
 
-## Phase 2: Implementation
-- [x] Enhance `SMTPProvider` to support `extra_headers`.
-- [x] Implement `IMAPProvider.reply_to_email`.
-- [x] Implement `IMAPProvider.forward_email`.
-- [x] Implement `IMAPProvider.trash_email`.
-- [x] Implement `IMAPProvider.archive_email`.
-- [x] Implement `IMAPProvider.mark_unread`.
-- [x] Implement `IMAPProvider.move_to_label`.
-- [x] Implement `IMAPProvider.get_labels`.
+[Brief description of what is being built or fixed.]
 
-## Phase 3: Verification
-- [x] Run tests to verify all methods work as expected (mocked).
+## User Review Required
+>
+> [!IMPORTANT]
+> [List any breaking changes or critical decisions here.]
+
+## Proposed Changes
+
+### Backend
+
+#### [NEW] [filename]
+
+- [Description of change]
+
+### Frontend
+
+#### [MODIFY] [filename]
+
+- [Description of change]
+
+## Verification Plan
+
+### Automated Tests
+
+- [ ] Run `pytest tests/`
+
+### Manual Verification
+
+- [ ] [Step 1]
