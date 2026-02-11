@@ -35,10 +35,6 @@ class SMTPProvider(CommunicationProvider):
             if bcc:
                 recipients.extend(bcc)
 
-            if extra_headers:
-                for key, value in extra_headers.items():
-                    msg[key] = value
-
             msg.attach(MIMEText(body, 'plain'))
 
             server = smtplib.SMTP(self.host, self.port)

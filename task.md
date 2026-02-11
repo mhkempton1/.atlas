@@ -36,5 +36,10 @@
   - [x] Implement `mark_unread`.
 - [ ] **Autonomous Loop**
   - [ ] Update `execute_mission.py` to allow file modifications (AI coding).
-- [ ] **Frontend Verification**
-  - [ ] Verify `EmailView.jsx` actions work with `IMAPProvider`.
+- [x] **Frontend Verification**
+  - [x] Verify `EmailView.jsx` actions work with `IMAPProvider`.
+  - [x] Refactor `EmailList.jsx` to use cleaner API parameter passing.
+
+## Architecture Refactoring (Midday Architect)
+- [x] **Decoupling**: Injected `SMTPProvider` into `IMAPProvider` via `CommunicationService` to remove hardcoded dependency.
+- [x] **Code Quality**: Removed redundant header processing in `SMTPProvider`.
