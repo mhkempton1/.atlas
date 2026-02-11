@@ -23,3 +23,14 @@
   - [x] Create `JULES_RUNBOOKS.md` (Strategy Document).
   - [x] Define Day/Night Cycle Prompts.
   - [x] Update `AGENTS.md` with manual scheduling workflow.
+
+## 🚀 Next Steps (Post-Decoupling)
+
+- [ ] **IMAP Interactivity**
+  - [ ] Implement `reply_to_email` in `IMAPProvider`.
+  - [ ] Implement `archive_email` and `trash_email` (move to Trash folder).
+  - [ ] Implement `mark_unread`.
+- [ ] **Autonomous Loop**
+  - [ ] Update `execute_mission.py` to allow file modifications (AI coding).
+- [ ] **Frontend Verification**
+  - [ ] Verify `EmailView.jsx` actions work with `IMAPProvider`.
