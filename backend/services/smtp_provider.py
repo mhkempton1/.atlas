@@ -12,7 +12,7 @@ class SMTPProvider(CommunicationProvider):
         self.user = settings.SMTP_USER
         self.password = settings.SMTP_PASSWORD
 
-    def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None) -> Dict[str, Any]:
+    def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None, extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         if not self.host or not self.user:
             return {"success": False, "error": "SMTP Not configured"}
 
@@ -21,6 +21,10 @@ class SMTPProvider(CommunicationProvider):
             msg['From'] = self.user
             msg['To'] = recipient
             msg['Subject'] = subject
+
+            if extra_headers:
+                for k, v in extra_headers.items():
+                    msg[k] = v
 
             recipients = [recipient]
 

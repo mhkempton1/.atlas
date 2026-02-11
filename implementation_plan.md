@@ -1,34 +1,53 @@
-# Implementation Plan - [Current Feature Name]
+# Implementation Plan - IMAP Features Completion
 
 ## Goal Description
 
-[Brief description of what is being built or fixed.]
+Complete the implementation of the `IMAPProvider` in `backend/services/imap_provider.py` to support full email functionality including Reply, Forward, Move, Trash, Archive, Mark Unread, and Get Labels. This ensures that Atlas works with standard IMAP/SMTP providers, not just Google.
 
 ## User Review Required
 >
 > [!IMPORTANT]
-> [List any breaking changes or critical decisions here.]
+> - `CommunicationProvider.send_email` signature has changed to accept `extra_headers`.
+> - `IMAPProvider` now requires a configured `SMTPProvider` to send emails (replies/forwards).
 
 ## Proposed Changes
 
 ### Backend
 
-#### [NEW] [filename]
+#### [MODIFY] `backend/services/communication_provider.py`
 
-- [Description of change]
+- Updated `send_email` signature to include `extra_headers`.
+
+#### [MODIFY] `backend/services/smtp_provider.py`
+
+- Updated `send_email` to handle `extra_headers` and inject them into the MIME message (e.g., `In-Reply-To`, `References`).
+
+#### [MODIFY] `backend/services/google_service.py` & `backend/services/gmail_provider.py`
+
+- Updated `send_email` to match the new interface and support `extra_headers`.
+
+#### [MODIFY] `backend/services/imap_provider.py`
+
+- Implemented `reply_to_email`: Fetches original email via IMAP, constructs reply with proper threading headers, and sends via SMTP.
+- Implemented `forward_email`: Fetches original email via IMAP, constructs forward body, and sends via SMTP.
+- Implemented `move_to_label`: Uses IMAP `COPY` + `STORE \Deleted` + `EXPUNGE`.
+- Implemented `trash_email`: Moves to "Trash".
+- Implemented `archive_email`: Moves to "Archive".
+- Implemented `mark_unread`: Removes `\Seen` flag.
+- Implemented `get_labels`: Lists and parses IMAP folders.
+- Added helpers: `_get_original_email`, `_extract_body_from_msg`.
 
 ### Frontend
 
-#### [MODIFY] [filename]
-
-- [Description of change]
+No changes.
 
 ## Verification Plan
 
 ### Automated Tests
 
-- [ ] Run `pytest tests/`
+- [x] Run `python tests/test_imap_features.py` (New test file created)
+- [x] Run `python tests/test_email_providers.py` (Regression check)
 
 ### Manual Verification
 
-- [ ] [Step 1]
+- [ ] Verify sending emails with headers works if connected to real SMTP.
