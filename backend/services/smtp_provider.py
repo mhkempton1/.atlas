@@ -22,6 +22,10 @@ class SMTPProvider(CommunicationProvider):
             msg['To'] = recipient
             msg['Subject'] = subject
 
+            if extra_headers:
+                for k, v in extra_headers.items():
+                    msg[k] = v
+
             recipients = [recipient]
 
             if cc:
