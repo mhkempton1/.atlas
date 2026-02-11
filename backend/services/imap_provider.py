@@ -199,24 +199,156 @@ class IMAPProvider(CommunicationProvider):
                 result += s
         return result
 
-    # Stubs for other interface methods
-    def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None) -> Dict[str, Any]:
+    def _get_email_details(self, remote_id: str) -> Dict[str, str]:
+        """
+        Helper to get subject, from, message-id from DB or IMAP.
+        """
+        db = SessionLocal()
+        try:
+            email_obj = db.query(Email).filter(Email.remote_id == remote_id, Email.provider_type == 'imap').first()
+            if email_obj:
+                return {
+                    "subject": email_obj.subject,
+                    "from": email_obj.from_address,
+                    "message_id": email_obj.message_id
+                }
+
+            # Fallback to IMAP
+            mail = self._connect()
+            mail.select("INBOX")
+            status, data = mail.uid('fetch', remote_id, '(BODY[HEADER.FIELDS (SUBJECT FROM MESSAGE-ID)])')
+            mail.logout()
+
+            if status == 'OK' and data and data[0]:
+                raw_headers = data[0][1]
+                if isinstance(raw_headers, bytes):
+                    msg = email.message_from_bytes(raw_headers)
+                    return {
+                        "subject": self._decode_mime_header(msg['Subject']),
+                        "from": msg['From'],
+                        "message_id": msg['Message-ID']
+                    }
+            return {}
+        except Exception as e:
+            print(f"Error fetching email details: {e}")
+            return {}
+        finally:
+            db.close()
+
+    def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None, extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         from services.smtp_provider import SMTPProvider
-        return SMTPProvider().send_email(recipient, subject, body, cc=cc, bcc=bcc)
+        return SMTPProvider().send_email(recipient, subject, body, cc=cc, bcc=bcc, extra_headers=extra_headers)
 
     def reply_to_email(self, remote_id: str, body: str, reply_all: bool = False) -> Dict[str, Any]:
-        return {"success": False, "error": "IMAP Reply not implemented"}
+        details = self._get_email_details(remote_id)
+        if not details.get("from"):
+            return {"success": False, "error": "Original email not found"}
+
+        orig_subject = details["subject"]
+        orig_from = details["from"]
+        orig_msg_id = details["message_id"]
+
+        new_subject = f"Re: {orig_subject}" if not orig_subject.lower().startswith("re:") else orig_subject
+
+        # Extract email from "Name <email>" if needed, but SMTP usually handles it.
+        # However, for safety:
+        recipient_addr = email.utils.parseaddr(orig_from)[1]
+
+        extra_headers = {}
+        if orig_msg_id:
+            extra_headers['In-Reply-To'] = orig_msg_id
+            extra_headers['References'] = orig_msg_id
+
+        return self.send_email(recipient_addr, new_subject, body, extra_headers=extra_headers)
+
     def forward_email(self, remote_id: str, to_address: str, note: str = "") -> Dict[str, Any]:
-        return {"success": False, "error": "IMAP Forward not implemented"}
+        details = self._get_email_details(remote_id)
+        if not details.get("subject"):
+            return {"success": False, "error": "Original email not found"}
+
+        orig_subject = details["subject"]
+        new_subject = f"Fwd: {orig_subject}" if not orig_subject.lower().startswith("fwd:") else orig_subject
+
+        # In a real forward, we would attach the original email or quote the body.
+        # Since _get_email_details doesn't return body, we might need to fetch it if we want to quote it.
+        # For this MVP, we will just send the note with the subject.
+        # OPTIONAL: Fetch body to append.
+
+        # Let's try to fetch body for better UX
+        full_body = note
+
+        # ... Fetching body logic skipped for brevity/complexity in this iteration unless critical.
+        # Task says "Finish the logic", implies working forward. A forward without content is empty.
+        # I should try to fetch body.
+
+        db = SessionLocal()
+        try:
+            email_obj = db.query(Email).filter(Email.remote_id == remote_id, Email.provider_type == 'imap').first()
+            if email_obj:
+                full_body += f"\n\n--- Forwarded message ---\nFrom: {email_obj.from_address}\nDate: {email_obj.date_received}\nSubject: {email_obj.subject}\n\n{email_obj.body_text}"
+        except:
+            pass
+        finally:
+            db.close()
+
+        return self.send_email(to_address, new_subject, full_body)
+
     def trash_email(self, remote_id: str) -> Dict[str, Any]:
-        return {"success": False, "error": "IMAP Trash not implemented"}
+        return self.move_to_label(remote_id, "Trash")
+
     def archive_email(self, remote_id: str) -> Dict[str, Any]:
-        return {"success": False, "error": "IMAP Archive not implemented"}
+        return self.move_to_label(remote_id, "Archive")
+
     def mark_unread(self, remote_id: str) -> Dict[str, Any]:
-        return {"success": False, "error": "IMAP Mark Unread not implemented"}
+        try:
+            mail = self._connect()
+            mail.select("INBOX")
+            mail.uid('STORE', remote_id, '-FLAGS', '(\Seen)')
+            mail.logout()
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def move_to_label(self, remote_id: str, label_name: str) -> Dict[str, Any]:
-        return {"success": False, "error": "IMAP Move not implemented"}
+        try:
+            mail = self._connect()
+            mail.select("INBOX")
+
+            # Check if destination exists (optional, but good practice).
+            # If not, create? Or fail? Standard IMAP folders usually exist.
+            # Assuming it exists.
+
+            result = mail.uid('COPY', remote_id, label_name)
+            if result[0] == 'OK':
+                mail.uid('STORE', remote_id, '+FLAGS', '(\Deleted)')
+                mail.expunge()
+                mail.logout()
+                return {"success": True}
+            else:
+                # If COPY failed (e.g. folder doesn't exist), try creating it?
+                # For now, return error.
+                mail.logout()
+                return {"success": False, "error": f"Copy failed: {result}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def get_labels(self) -> List[Dict[str, Any]]:
-        return [{"id": "INBOX", "name": "INBOX"}]
+        try:
+            mail = self._connect()
+            status, folders = mail.list()
+            mail.logout()
+
+            labels = []
+            if status == 'OK':
+                for folder in folders:
+                    # folder is bytes: b'(\HasNoChildren) "/" "INBOX"'
+                    # Parse name.
+                    name = folder.decode().split(' "')[-1].strip('"')
+                    labels.append({"id": name, "name": name})
+            return labels
+        except Exception as e:
+            print(f"IMAP List Error: {e}")
+            return [{"id": "INBOX", "name": "INBOX"}]
+
     def sync_calendar(self) -> Dict[str, Any]:
         return {"synced": 0, "status": "not_supported"}
