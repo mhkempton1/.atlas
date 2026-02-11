@@ -1,7 +1,7 @@
 import sys
 import os
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, ANY
 from datetime import datetime
 
 # Add backend to path
@@ -112,6 +112,79 @@ class TestEmailIntegration(unittest.TestCase):
 
         # Verify DB add called
         self.assertTrue(db_mock.add.called)
+
+class TestIMAPProviderMethods(unittest.TestCase):
+    @patch('services.imap_provider.imaplib.IMAP4_SSL')
+    @patch('services.smtp_provider.SMTPProvider') # Patch the source class
+    def test_reply_to_email(self, MockSMTPProvider, mock_imap):
+        # Mock IMAP connection
+        mock_mail = MagicMock()
+        mock_imap.return_value = mock_mail
+        # Mock fetch response
+        mock_mail.uid.return_value = ('OK', [(b'123 (RFC822 {100})', b'Message-ID: <original@test.com>\r\nReferences: <ref1@test.com>\r\nSubject: Original Subject\r\nFrom: sender@test.com\r\n\r\nBody')])
+
+        # Mock SMTP Provider instance
+        mock_smtp_instance = MockSMTPProvider.return_value
+        mock_smtp_instance.send_email.return_value = {"success": True}
+
+        provider = IMAPProvider()
+        # Ensure provider has connection (mocked) logic or bypass _connect if needed
+        # _connect creates IMAP4_SSL, which is mocked
+
+        # Test reply
+        result = provider.reply_to_email("123", "Reply Body")
+
+        # Verify
+        self.assertTrue(result['success'])
+
+        # Check if SMTPProvider.send_email was called
+        mock_smtp_instance.send_email.assert_called_once()
+        args, kwargs = mock_smtp_instance.send_email.call_args
+
+        self.assertEqual(args[0], 'sender@test.com')
+        self.assertEqual(args[1], 'Re: Original Subject')
+
+        extra_headers = kwargs.get('extra_headers')
+        self.assertIsNotNone(extra_headers)
+        self.assertEqual(extra_headers['In-Reply-To'], '<original@test.com>')
+        self.assertEqual(extra_headers['References'], '<ref1@test.com> <original@test.com>')
+
+    @patch('services.imap_provider.imaplib.IMAP4_SSL')
+    def test_trash_email(self, mock_imap):
+        mock_mail = MagicMock()
+        mock_imap.return_value = mock_mail
+
+        # Mock folder list
+        mock_mail.list.return_value = ('OK', [b'(\\HasNoChildren) "/" "Trash"'])
+
+        provider = IMAPProvider()
+        result = provider.trash_email("123")
+
+        self.assertTrue(result['success'])
+        # Check copy to Trash and flag Deleted
+        mock_mail.uid.assert_any_call('copy', '123', 'Trash')
+        mock_mail.uid.assert_any_call('store', '123', '+FLAGS', r'(\Deleted)')
+
+class TestSMTPProviderExtra(unittest.TestCase):
+    @patch('services.smtp_provider.smtplib.SMTP')
+    def test_send_email_extra_headers(self, mock_smtp):
+        mock_server = MagicMock()
+        mock_smtp.return_value = mock_server
+
+        provider = SMTPProvider()
+        provider.user = "user@test.com"
+        provider.host = "smtp.test.com"
+
+        extra_headers = {"X-Custom": "Value", "In-Reply-To": "<msgid>"}
+        result = provider.send_email("to@test.com", "Subj", "Body", extra_headers=extra_headers)
+
+        self.assertTrue(result['success'])
+        mock_server.send_message.assert_called_once()
+        args, _ = mock_server.send_message.call_args
+        msg = args[0]
+
+        self.assertEqual(msg['X-Custom'], 'Value')
+        self.assertEqual(msg['In-Reply-To'], '<msgid>')
 
 if __name__ == '__main__':
     unittest.main()
