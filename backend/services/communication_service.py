@@ -7,9 +7,10 @@ from core.config import settings
 
 class CommunicationService:
     def __init__(self):
+        smtp_provider = SMTPProvider()
         self.providers = {
             "google": GmailProvider(),
-            "imap": IMAPProvider()
+            "imap": IMAPProvider(sender=smtp_provider)
         }
         self.active_provider_name = settings.COMMUNICATION_PROVIDER if settings.COMMUNICATION_PROVIDER in self.providers else "google"
 

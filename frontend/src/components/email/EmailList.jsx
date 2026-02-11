@@ -118,13 +118,13 @@ const EmailList = ({ onSelectEmail }) => {
     const loadEmails = useCallback(async () => {
         try {
             setLoading(true);
-            let url = '/email/list?limit=50';
+            const params = { limit: 50 };
             if (activeCategory === 'UNREAD') {
-                url += '&is_read=false';
+                params.is_read = false;
             } else if (activeCategory && activeCategory !== 'All') {
-                url += `&category=${activeCategory}`;
+                params.category = activeCategory;
             }
-            const res = await api.get(url);
+            const res = await api.get('/email/list', { params });
             setEmails(res.data);
 
             // Also update total unread from stats
