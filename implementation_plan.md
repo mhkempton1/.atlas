@@ -75,17 +75,26 @@ Fix critical environment configuration issues and refactor service tests (`Searc
 #### [MODIFY] `backend/tests/services/test_google_service.py`
 - Refactored tests to use `remote_id` instead of `gmail_id` and `remote_event_id` instead of `google_event_id`, aligning with the updated database schema.
 
-### Service Mocking Refactor
-#### [MODIFY] `backend/tests/services/test_search_service.py`
-- Refactored `mock_chroma` fixture to allow flexible per-test configuration of return values.
-- Added comprehensive tests for `index_email`, `index_knowledge_batch`, `search` (success/empty/fail), and initialization logic.
+### API Route Tests Stabilization
+#### [MODIFY] `backend/tests/api/test_scan_route.py`
+- Updated `sample_email` fixture to use `remote_id` instead of `gmail_id`.
+- Patched `database.database.SessionLocal` to ensure background tasks use the test database session.
 
-#### [MODIFY] `backend/tests/services/test_google_service.py`
-- Expanded `google_service_instance` fixture to mock Gmail API method chains (`users().messages().get()`, etc.).
-- Added unit tests for `reply_to_email`, `forward_email`, `trash_email`, `mark_unread`, and calendar date parsing.
-- Fixed a bug in `GoogleService.reply_to_email` where the subject header was being duplicated.
+#### [MODIFY] `backend/tests/api/test_email_routes.py`
+- Updated `sample_email` fixture to use `remote_id` instead of `gmail_id`.
+- Patched `services.communication_service.comm_service` instead of `services.google_service.google_service` to align with the decoupled architecture.
+
+#### [MODIFY] `backend/tests/api/test_calendar_routes.py`
+- Updated tests to use `remote_event_id` instead of `google_event_id`.
+
+#### [MODIFY] `backend/tests/conftest.py`
+- Removed invalid patching of `api.routes.google_service` as the router now correctly uses `comm_service`.
+
+#### [MODIFY] `backend/api/system_routes.py`
+- Removed redundant redefinition of `verify_local_request` which was shadowing the secure version from `core.security` (and blocking tests).
 
 ## Implemented
 - [x] Configuration updated for cross-platform compatibility.
 - [x] Test environment isolated from production database.
-- [x] `test_google_service.py` and `test_search_service.py` passing with improved coverage and robust mocking.
+- [x] `test_google_service.py` and `test_search_service.py` passing.
+- [x] All API route tests (`test_scan_route`, `test_email_routes`, `test_calendar_routes`, `test_routes`, `test_system_routes`) are passing.

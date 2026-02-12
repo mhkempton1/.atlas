@@ -43,3 +43,17 @@
 ## Architecture Refactoring (Midday Architect)
 - [x] **Decoupling**: Injected `SMTPProvider` into `IMAPProvider` via `CommunicationService` to remove hardcoded dependency.
 - [x] **Code Quality**: Removed redundant header processing in `SMTPProvider`.
+
+## 🔮 Next Steps
+
+### 1. Autonomous Loop Implementation
+- [ ] **Tool Execution**: Update `execute_mission.py` to parse and execute tool calls (e.g., `write_file`, `run_command`) from the LLM response.
+- [ ] **Context Injection**: Improve context injection to include file contents when requested.
+
+### 2. Test Suite Stabilization
+- [ ] **Pytest Setup**: Install and configure `pytest`.
+- [ ] **Mocking Strategy**: Fix flaky tests by improving service mocking.
+- [ ] **Environment Isolation**: Ensure tests run in an isolated environment.
+
+### 3. Verification
+- [ ] **End-to-End Tests**: Create scripts to verify the full flow from email receipt to task creation.
