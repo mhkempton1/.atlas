@@ -15,7 +15,7 @@ def sample_email(db):
     from datetime import datetime
     email = Email(
         message_id="test-msg-001",
-        gmail_id="gmail_abc123",
+        remote_id="gmail_abc123",
         thread_id="thread_xyz",
         from_address="sender@example.com",
         subject="Test Subject",
@@ -39,24 +39,24 @@ def test_toggle_star(client, sample_email):
     assert response.status_code == 200
     assert response.json()["starred"] == True
 
-@patch("services.google_service.google_service")
-def test_delete_email(mock_gs, client, sample_email):
-    mock_gs.trash_email.return_value = {"success": True}
+@patch("services.communication_service.comm_service")
+def test_delete_email(mock_comm, client, sample_email):
+    mock_comm.trash_email.return_value = {"success": True}
     response = client.delete(f"/api/v1/email/{sample_email.email_id}")
     assert response.status_code == 200
     assert response.json()["success"] == True
-    mock_gs.trash_email.assert_called_once_with("gmail_abc123")
+    mock_comm.trash_email.assert_called_once_with("gmail_abc123")
 
-@patch("services.google_service.google_service")
-def test_archive_email(mock_gs, client, sample_email):
-    mock_gs.archive_email.return_value = {"success": True}
+@patch("services.communication_service.comm_service")
+def test_archive_email(mock_comm, client, sample_email):
+    mock_comm.archive_email.return_value = {"success": True}
     response = client.post(f"/api/v1/email/{sample_email.email_id}/archive")
     assert response.status_code == 200
     assert response.json()["success"] == True
 
-@patch("services.google_service.google_service")
-def test_reply_to_email(mock_gs, client, sample_email):
-    mock_gs.reply_to_email.return_value = {"success": True, "message_id": "new_msg"}
+@patch("services.communication_service.comm_service")
+def test_reply_to_email(mock_comm, client, sample_email):
+    mock_comm.reply_to_email.return_value = {"success": True, "message_id": "new_msg"}
     response = client.post(
         f"/api/v1/email/{sample_email.email_id}/reply",
         json={"body": "Thanks for your email!"}
@@ -64,9 +64,9 @@ def test_reply_to_email(mock_gs, client, sample_email):
     assert response.status_code == 200
     assert response.json()["success"] == True
 
-@patch("services.google_service.google_service")
-def test_forward_email(mock_gs, client, sample_email):
-    mock_gs.forward_email.return_value = {"success": True, "message_id": "fwd_msg"}
+@patch("services.communication_service.comm_service")
+def test_forward_email(mock_comm, client, sample_email):
+    mock_comm.forward_email.return_value = {"success": True, "message_id": "fwd_msg"}
     response = client.post(
         f"/api/v1/email/{sample_email.email_id}/forward",
         json={"to_address": "other@example.com", "note": "FYI"}
@@ -78,8 +78,8 @@ def test_mark_unread(client, sample_email, db):
     # First mark as read
     client.get(f"/api/v1/email/{sample_email.email_id}")
     
-    with patch("services.google_service.google_service") as mock_gs:
-        mock_gs.mark_unread.return_value = {"success": True}
+    with patch("services.communication_service.comm_service") as mock_comm:
+        mock_comm.mark_unread.return_value = {"success": True}
         response = client.post(f"/api/v1/email/{sample_email.email_id}/unread")
         assert response.status_code == 200
 
