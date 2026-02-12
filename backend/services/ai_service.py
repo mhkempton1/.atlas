@@ -1,4 +1,5 @@
-from typing import Dict, Any, Optional
+from typing import Optional
+import asyncio
 try:
     from google import genai
 except ImportError:
@@ -6,7 +7,11 @@ except ImportError:
 from core.config import settings
 
 class GeminiService:
+    """
+    Service for interacting with Google Gemini AI.
+    """
     def __init__(self):
+        """Initialize the Gemini Service."""
         # Initialize Gemini if key is present
         if settings.GEMINI_API_KEY and genai:
             self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -14,20 +19,25 @@ class GeminiService:
         else:
             self.client = None
             self.model_name = None
-            if not genai:
-                print("Warning: google-genai package not found.")
-            else:
-                print("Warning: GEMINI_API_KEY not found. AI features will be limited.")
 
     async def generate_content(self, prompt: str, max_retries: int = 3, include_context: bool = False, user_strata: int = 1) -> Optional[str]:
+        """
+        Generate content using Gemini AI.
+
+        Args:
+            prompt: The prompt to send to the AI.
+            max_retries: Maximum number of retries in case of failure.
+            include_context: Whether to include system context in the prompt.
+            user_strata: The user's strata level for context customization.
+
+        Returns:
+            The generated content as a string, or an error message.
+        """
         if not self.client:
             return "AI Service Unavailable: Missing API Key"
         
-        import asyncio
-        import time
         from services.altimeter_service import altimeter_service
         from services.learning_service import learning_service
-        from core.config import settings
 
         final_prompt = prompt
         
@@ -48,8 +58,8 @@ class GeminiService:
                 projects = altimeter_service.list_projects()
                 active_projects = [p['name'] for p in projects[:3]]
                 context_str += f"Active Projects: {', '.join(active_projects)}\n"
-            except Exception as e:
-                print(f"Context injection failed: {e}")
+            except Exception:
+                pass
 
             final_prompt += context_str
 
@@ -67,15 +77,12 @@ class GeminiService:
                 
                 if is_rate_limit and attempt < max_retries:
                     wait_time = (2 ** attempt) + 1
-                    print(f"Gemini Rate Limit (429). Retrying in {wait_time}s... (Attempt {attempt + 1}/{max_retries})")
                     await asyncio.sleep(wait_time)
                     continue
                 
                 if is_rate_limit:
-                    print(f"Gemini Rate Limit Exceeded after {max_retries} retries: {error_msg}")
                     return "ERROR_RATE_LIMIT_EXCEEDED"
                 
-                print(f"Gemini API Error: {e}")
                 return f"Error generating content: {error_msg}"
 
 # Singleton instance

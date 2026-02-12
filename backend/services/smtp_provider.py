@@ -6,13 +6,32 @@ from typing import Dict, List, Optional, Any
 from core.config import settings
 
 class SMTPProvider(CommunicationProvider):
+    """
+    SMTP implementation of the CommunicationProvider interface.
+    Handles sending emails via SMTP.
+    """
     def __init__(self):
+        """Initialize the SMTP provider."""
         self.host = settings.SMTP_HOST
         self.port = settings.SMTP_PORT
         self.user = settings.SMTP_USER
         self.password = settings.SMTP_PASSWORD
 
     def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None, extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+        """
+        Send an email using SMTP.
+
+        Args:
+            recipient: The email address of the recipient.
+            subject: The subject of the email.
+            body: The body of the email.
+            cc: Optional list of CC recipients.
+            bcc: Optional list of BCC recipients.
+            extra_headers: Optional dictionary of extra headers.
+
+        Returns:
+            A dictionary indicating success or failure.
+        """
         if not self.host or not self.user:
             return {"success": False, "error": "SMTP Not configured"}
 
@@ -45,7 +64,6 @@ class SMTPProvider(CommunicationProvider):
 
             return {"success": True}
         except Exception as e:
-            print(f"SMTP Send Error: {e}")
             return {"success": False, "error": str(e)}
 
     # Stubs for other interface methods

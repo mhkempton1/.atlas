@@ -2,8 +2,7 @@ import imaplib
 import email
 import email.utils
 from email.header import decode_header
-import base64
-import os
+import shlex
 from datetime import datetime
 from services.communication_provider import CommunicationProvider
 from typing import Dict, List, Optional, Any
@@ -12,7 +11,17 @@ from database.database import SessionLocal
 from database.models import Email, EmailAttachment
 
 class IMAPProvider(CommunicationProvider):
+    """
+    IMAP implementation of the CommunicationProvider interface.
+    Handles syncing emails from an IMAP server and managing email operations.
+    """
     def __init__(self, sender: Optional[CommunicationProvider] = None):
+        """
+        Initialize the IMAP provider.
+
+        Args:
+            sender: An optional CommunicationProvider instance used for sending emails (e.g., SMTPProvider).
+        """
         self.sender = sender
         self.host = settings.IMAP_HOST
         self.port = settings.IMAP_PORT
@@ -20,11 +29,21 @@ class IMAPProvider(CommunicationProvider):
         self.password = settings.IMAP_PASSWORD
 
     def _connect(self):
+        """Connect to the IMAP server."""
         mail = imaplib.IMAP4_SSL(self.host, self.port)
         mail.login(self.user, self.password)
         return mail
 
     def sync_emails(self, last_sync_timestamp: Optional[datetime] = None) -> Dict[str, Any]:
+        """
+        Sync emails from the IMAP server.
+
+        Args:
+            last_sync_timestamp: The timestamp of the last successful sync.
+
+        Returns:
+            A dictionary containing sync statistics.
+        """
         if not self.host or not self.user:
             return {"synced": 0, "status": "not_configured"}
 
@@ -74,12 +93,12 @@ class IMAPProvider(CommunicationProvider):
             return {"synced": synced_count, "status": "success"}
         except Exception as e:
             db.rollback()
-            print(f"IMAP Sync Error: {e}")
             return {"synced": 0, "status": "error", "error": str(e)}
         finally:
             db.close()
 
     def _store_imap_email(self, msg, imap_uid, db):
+        """Store a single email in the database."""
         # 1. Parse Headers
         subject = self._decode_mime_header(msg['Subject'])
         from_raw = msg.get('From')
@@ -165,6 +184,7 @@ class IMAPProvider(CommunicationProvider):
         return True
 
     def _decode_mime_header(self, header):
+        """Decode MIME encoded headers."""
         if not header: return ""
         decoded = decode_header(header)
         result = ""
@@ -176,6 +196,7 @@ class IMAPProvider(CommunicationProvider):
         return result
 
     def _extract_body_from_msg(self, msg):
+        """Extract plain text and HTML body from email message."""
         def extract_parts(message_part):
             text, html = "", ""
             if message_part.is_multipart():
@@ -221,17 +242,18 @@ class IMAPProvider(CommunicationProvider):
             msg = email.message_from_bytes(raw_email)
             mail.logout()
             return msg
-        except Exception as e:
-            print(f"IMAP Fetch Error: {e}")
+        except Exception:
             return None
 
     # Stubs for other interface methods
     def send_email(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None, extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+        """Delegate email sending to the configured sender."""
         if self.sender:
             return self.sender.send_email(recipient, subject, body, cc=cc, bcc=bcc, extra_headers=extra_headers)
         return {"success": False, "error": "No sender configured for IMAP provider"}
 
     def reply_to_email(self, remote_id: str, body: str, reply_all: bool = False) -> Dict[str, Any]:
+        """Reply to an email."""
         msg = self._get_original_email(remote_id)
         if not msg:
             return {"success": False, "error": "Could not fetch original email"}
@@ -275,6 +297,7 @@ class IMAPProvider(CommunicationProvider):
             return {"success": False, "error": str(e)}
 
     def forward_email(self, remote_id: str, to_address: str, note: str = "") -> Dict[str, Any]:
+        """Forward an email."""
         msg = self._get_original_email(remote_id)
         if not msg:
             return {"success": False, "error": "Could not fetch original email"}
@@ -292,13 +315,17 @@ class IMAPProvider(CommunicationProvider):
             return self.send_email(to_address, new_subject, full_body)
         except Exception as e:
             return {"success": False, "error": str(e)}
+
     def trash_email(self, remote_id: str) -> Dict[str, Any]:
+        """Move email to Trash."""
         return self.move_to_label(remote_id, "Trash")
 
     def archive_email(self, remote_id: str) -> Dict[str, Any]:
+        """Archive email."""
         return self.move_to_label(remote_id, "Archive")
 
     def mark_unread(self, remote_id: str) -> Dict[str, Any]:
+        """Mark email as unread."""
         if not self.host or not self.user:
              return {"success": False, "error": "Not configured"}
         try:
@@ -311,6 +338,7 @@ class IMAPProvider(CommunicationProvider):
             return {"success": False, "error": str(e)}
 
     def move_to_label(self, remote_id: str, label_name: str) -> Dict[str, Any]:
+        """Move email to a specific label/folder."""
         if not self.host or not self.user:
             return {"success": False, "error": "Not configured"}
 
@@ -339,6 +367,7 @@ class IMAPProvider(CommunicationProvider):
             return {"success": False, "error": str(e)}
 
     def get_labels(self) -> List[Dict[str, Any]]:
+        """Get list of available labels/folders."""
         if not self.host or not self.user: return []
         try:
             mail = self._connect()
@@ -346,7 +375,6 @@ class IMAPProvider(CommunicationProvider):
             mail.logout()
 
             labels = []
-            import shlex
             if status == 'OK':
                 for folder in folders:
                     if not folder: continue
@@ -366,5 +394,7 @@ class IMAPProvider(CommunicationProvider):
             return labels if labels else [{"id": "INBOX", "name": "INBOX"}]
         except Exception:
             return [{"id": "INBOX", "name": "INBOX"}]
+
     def sync_calendar(self) -> Dict[str, Any]:
+        """Sync calendar (Not supported for IMAP)."""
         return {"synced": 0, "status": "not_supported"}

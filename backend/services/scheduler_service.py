@@ -1,7 +1,5 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
-import requests
-import httpx
 import httpx
 import asyncio
 from typing import List, Dict, Any, Optional
@@ -9,7 +7,7 @@ from typing import List, Dict, Any, Optional
 scheduler = BackgroundScheduler()
 
 def sync_emails_job():
-    """Background job to sync emails every 5 minutes"""
+    """Background job to sync emails every 5 minutes."""
     from services.communication_service import comm_service
     from database.database import get_db
     from database.models import Email
@@ -24,27 +22,25 @@ def sync_emails_job():
 
         # Sync
         try:
-            result = comm_service.sync_emails(last_sync)
-            print(f"[{datetime.now()}] Email sync: {result['synced']} new emails")
+            comm_service.sync_emails(last_sync)
             
             # FUTURE: Extract tasks from new emails here
             # extract_tasks_from_new_emails(db)
 
-        except Exception as e:
-            print(f"Email sync failed: {e}")
+        except Exception:
+            pass
             
-    except Exception as e:
-        print(f"Job execution failed: {e}")
+    except Exception:
+        pass
 
 def sync_calendar_job():
-    """Background job to sync calendar every 15 minutes"""
+    """Background job to sync calendar every 15 minutes."""
     from services.communication_service import comm_service
     
     try:
-        result = comm_service.sync_calendar()
-        print(f"[{datetime.now()}] Calendar sync: {result['synced']} events updated")
-    except Exception as e:
-        print(f"Calendar sync failed: {e}")
+        comm_service.sync_calendar()
+    except Exception:
+        pass
 
 def watchtower_job():
     """
@@ -72,12 +68,11 @@ def watchtower_job():
         if alerts:
             for alert in alerts:
                 msg = f"WATCHTOWER ALERT: {alert['title']} recommended for {alert['phase_match']} due to weather."
-                print(f"[Watchtower] {msg}")
                 # Log to Activity Feed (User Notification Stub)
                 activity_service.log_activity("system", "Risk Detected", msg)
 
-    except Exception as e:
-        print(f"Watchtower scan failed: {e}")
+    except Exception:
+        pass
 
 # Schedule jobs
 scheduler.add_job(sync_emails_job, 'interval', minutes=5, id='email_sync', replace_existing=True)
@@ -85,30 +80,35 @@ scheduler.add_job(sync_calendar_job, 'interval', minutes=15, id='calendar_sync',
 scheduler.add_job(watchtower_job, 'interval', minutes=60, id='watchtower', replace_existing=True)
 
 class SchedulerService:
+    """
+    Service for managing background jobs and system health checks.
+    """
     def __init__(self):
+        """Initialize the SchedulerService."""
         pass # Scheduler is global for now, this class wraps other scheduling logic like Altimeter
 
     def start(self):
+        """Start the background scheduler."""
         if not scheduler.running:
             scheduler.start()
             
     def shutdown(self):
+        """Shutdown the background scheduler."""
         if scheduler.running:
             scheduler.shutdown()
-
-    # Reuse existing Altimeter proxy methods for continuity if needed by other components
-    # Although prompt replaced the whole file content for "scheduler_service.py" in Step 3?
-    # Actually prompt Step 3 says "ENHANCE EXISTING". 
-    # The existing file had get_my_schedule and get_system_health.
-    # I should preserve them.
 
     def get_my_schedule(self, employee_id: str) -> List[Dict[str, Any]]:
         """
         Aggregates data from CalendarEvents and Tasks into a unified format.
+
+        Args:
+            employee_id: The ID of the employee to fetch the schedule for.
+
+        Returns:
+            A list of schedule items (calendar events and tasks).
         """
         from database.database import SessionLocal
         from database.models import CalendarEvent, Task
-        from datetime import datetime, timedelta
 
         db = SessionLocal()
         combined_schedule = []
@@ -198,6 +198,9 @@ class SchedulerService:
         """
         Fetch real-time statistics for the dashboard.
         Offloads blocking DB calls to a thread to prevent blocking the async event loop.
+
+        Returns:
+            A dictionary of dashboard statistics.
         """
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self._get_dashboard_stats_sync)
@@ -209,9 +212,9 @@ class SchedulerService:
         from database.database import SessionLocal
         from database.models import Task, Email, CalendarEvent
         from services.document_control_service import document_control_service
+        from services.altimeter_service import altimeter_service
         
         db = SessionLocal()
-        from services.altimeter_service import altimeter_service
         try:
             # 1. Document Stats
             docs = document_control_service.get_all_documents()
@@ -246,7 +249,12 @@ class SchedulerService:
             db.close()
 
     async def get_system_health(self) -> Dict[str, Any]:
-        """Check status of critical external services"""
+        """
+        Check status of critical external services.
+
+        Returns:
+            A dictionary containing the health status of various components.
+        """
         from services.search_service import search_service
         
         # 1. Altimeter Check (via API)
@@ -254,8 +262,6 @@ class SchedulerService:
             async with httpx.AsyncClient() as client:
                 res = await client.get("http://127.0.0.1:4203/api/system/health", timeout=1.0)
                 altimeter_status = "Online" if res.status_code == 200 else "Degraded"
-                res = await client.get("http://127.0.0.1:4203/api/system/health", timeout=1)
-            altimeter_status = "Online" if res.status_code == 200 else "Degraded"
         except Exception:
             altimeter_status = "Offline"
 
