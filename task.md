@@ -45,6 +45,8 @@
 - [x] **Code Quality**: Removed redundant header processing in `SMTPProvider`.
 - [x] **Provider Decoupling**: Refactored `IMAPProvider` to remove dependencies on `AltimeterService` and `SearchService`, moving intelligence to `process_tasks.py`.
 - [x] **Frontend Code Quality**: Refactored `EmailList.jsx` to use helper functions for styling, removing complex inline logic.
+- [x] **Lazy Initialization**: Refactored `GoogleService` to remove eager authentication on import.
+- [x] **Glassmorphism**: Standardized `EmailView` and `EmailList` components to use `bg-white/5` for consistency.
 
 ## 🔮 Next Steps
 
