@@ -138,7 +138,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
     };
 
     return (
-        <div className="email-view h-full flex flex-col bg-white/[0.02] border-l border-white/10 backdrop-blur-2xl">
+        <div className="email-view h-full flex flex-col bg-white/5 border-l border-white/10 backdrop-blur-2xl">
             {/* Header */}
             <div className="header p-4 border-b border-border">
                 <div className="flex justify-between items-center mb-4">
@@ -232,7 +232,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
 
             {/* Reply/Forward Compose Area */}
             {replyMode && (
-                <div className="border-t border-border p-4 bg-slate-900/50 space-y-3">
+                <div className="border-t border-border p-4 bg-white/5 space-y-3">
                     <div className="flex justify-between items-center">
                         <h4 className="text-sm font-semibold text-text-bright">
                             {replyMode === 'reply' ? 'Reply' : 'Forward'}
@@ -282,7 +282,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
 
             {/* Actions Footer */}
             {!replyMode && (
-                <div className="footer p-4 border-t border-white/10 bg-white/[0.02] flex gap-3">
+                <div className="footer p-4 border-t border-white/10 bg-white/5 flex gap-3">
                     <button className="btn btn-primary flex items-center gap-2" onClick={() => setReplyMode('reply')}>
                         <Reply className="w-4 h-4" /> Reply
                     </button>

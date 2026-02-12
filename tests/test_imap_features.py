@@ -97,7 +97,8 @@ class TestIMAPFeatures(unittest.TestCase):
         mock_smtp = MagicMock()
         mock_smtp_cls.return_value = mock_smtp
 
-        provider = IMAPProvider()
+        smtp_provider = SMTPProvider()
+        provider = IMAPProvider(sender=smtp_provider)
 
         result = provider.reply_to_email("123", "My Reply Body")
 
@@ -143,7 +144,8 @@ class TestIMAPFeatures(unittest.TestCase):
         mock_smtp = MagicMock()
         mock_smtp_cls.return_value = mock_smtp
 
-        provider = IMAPProvider()
+        smtp_provider = SMTPProvider()
+        provider = IMAPProvider(sender=smtp_provider)
         result = provider.forward_email("123", "new@example.com", "FYI")
 
         self.assertTrue(result['success'])
