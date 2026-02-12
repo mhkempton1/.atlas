@@ -75,7 +75,17 @@ Fix critical environment configuration issues and refactor service tests (`Searc
 #### [MODIFY] `backend/tests/services/test_google_service.py`
 - Refactored tests to use `remote_id` instead of `gmail_id` and `remote_event_id` instead of `google_event_id`, aligning with the updated database schema.
 
+### Service Mocking Refactor
+#### [MODIFY] `backend/tests/services/test_search_service.py`
+- Refactored `mock_chroma` fixture to allow flexible per-test configuration of return values.
+- Added comprehensive tests for `index_email`, `index_knowledge_batch`, `search` (success/empty/fail), and initialization logic.
+
+#### [MODIFY] `backend/tests/services/test_google_service.py`
+- Expanded `google_service_instance` fixture to mock Gmail API method chains (`users().messages().get()`, etc.).
+- Added unit tests for `reply_to_email`, `forward_email`, `trash_email`, `mark_unread`, and calendar date parsing.
+- Fixed a bug in `GoogleService.reply_to_email` where the subject header was being duplicated.
+
 ## Implemented
 - [x] Configuration updated for cross-platform compatibility.
 - [x] Test environment isolated from production database.
-- [x] `test_google_service.py` and `test_search_service.py` passing.
+- [x] `test_google_service.py` and `test_search_service.py` passing with improved coverage and robust mocking.

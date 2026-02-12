@@ -282,9 +282,10 @@ class GoogleService:
             msg['to'] = headers.get('From', '')  # Reply to sender
             if reply_all and headers.get('Cc'):
                 msg['cc'] = headers['Cc']
-            msg['subject'] = headers.get('Subject', '')
-            if not msg['subject'].lower().startswith('re:'):
-                msg['subject'] = f"Re: {msg['subject']}"
+            subject = headers.get('Subject', '')
+            if not subject.lower().startswith('re:'):
+                subject = f"Re: {subject}"
+            msg['Subject'] = subject
             msg['In-Reply-To'] = headers.get('Message-ID', '')
             msg['References'] = f"{headers.get('References', '')} {headers.get('Message-ID', '')}".strip()
 
