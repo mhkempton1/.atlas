@@ -234,8 +234,8 @@ const EmailList = ({ onSelectEmail }) => {
     if (loading && emails.length === 0) return <Spinner label="Loading Inbox..." />;
 
     return (
-        <div className="h-full flex flex-col bg-white/[0.02] rounded-xl overflow-hidden border border-white/5 backdrop-blur-xl shadow-2xl">
-            <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+        <div className="h-full flex flex-col bg-white/5 rounded-xl overflow-hidden border border-white/5 backdrop-blur-xl shadow-2xl">
+            <div className="p-4 border-b border-white/5 bg-white/5">
                 <PageHeader
                     icon={Mail}
                     title="Inbox"

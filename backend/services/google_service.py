@@ -26,11 +26,6 @@ class GoogleService:
     def __init__(self):
         self.gmail_service = None
         self.calendar_service = None
-        
-        try:
-            self.authenticate()
-        except Exception as e:
-            print(f"Google Auth Error: {e}")
 
     def authenticate(self):
         """OAuth 2.0 authentication with Google for multiple services"""
