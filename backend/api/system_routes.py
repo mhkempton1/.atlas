@@ -7,15 +7,6 @@ from typing import Dict, List, Any
 from services.activity_service import activity_service
 from core.security import verify_local_request
 
-async def verify_local_request(request: Request):
-    """
-    Security check to ensure the request is coming from localhost.
-    Prevents external network access to sensitive system controls.
-    """
-    allowed_ips = ["127.0.0.1", "::1"]
-    if request.client.host not in allowed_ips:
-        raise HTTPException(status_code=403, detail="Access denied: Local connections only.")
-
 # Remove global dependency so /health is accessible
 router = APIRouter()
 

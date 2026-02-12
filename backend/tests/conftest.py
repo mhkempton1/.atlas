@@ -75,7 +75,7 @@ def mock_google_service(monkeypatch):
     mock.sync_emails.return_value = {"success": True, "count": 5}
     mock.sync_calendar.return_value = {"success": True, "count": 2}
     monkeypatch.setattr("services.google_service.google_service", mock)
-    monkeypatch.setattr("api.routes.google_service", mock)
+    # monkeypatch.setattr("api.routes.google_service", mock) # Removed as api.routes no longer imports google_service directly
     return mock
 
 @pytest.fixture

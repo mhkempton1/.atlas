@@ -75,7 +75,26 @@ Fix critical environment configuration issues and refactor service tests (`Searc
 #### [MODIFY] `backend/tests/services/test_google_service.py`
 - Refactored tests to use `remote_id` instead of `gmail_id` and `remote_event_id` instead of `google_event_id`, aligning with the updated database schema.
 
+### API Route Tests Stabilization
+#### [MODIFY] `backend/tests/api/test_scan_route.py`
+- Updated `sample_email` fixture to use `remote_id` instead of `gmail_id`.
+- Patched `database.database.SessionLocal` to ensure background tasks use the test database session.
+
+#### [MODIFY] `backend/tests/api/test_email_routes.py`
+- Updated `sample_email` fixture to use `remote_id` instead of `gmail_id`.
+- Patched `services.communication_service.comm_service` instead of `services.google_service.google_service` to align with the decoupled architecture.
+
+#### [MODIFY] `backend/tests/api/test_calendar_routes.py`
+- Updated tests to use `remote_event_id` instead of `google_event_id`.
+
+#### [MODIFY] `backend/tests/conftest.py`
+- Removed invalid patching of `api.routes.google_service` as the router now correctly uses `comm_service`.
+
+#### [MODIFY] `backend/api/system_routes.py`
+- Removed redundant redefinition of `verify_local_request` which was shadowing the secure version from `core.security` (and blocking tests).
+
 ## Implemented
 - [x] Configuration updated for cross-platform compatibility.
 - [x] Test environment isolated from production database.
 - [x] `test_google_service.py` and `test_search_service.py` passing.
+- [x] All API route tests (`test_scan_route`, `test_email_routes`, `test_calendar_routes`, `test_routes`, `test_system_routes`) are passing.
