@@ -35,15 +35,14 @@ Jules is scheduled to run every night at midnight via [nightly-jules.yml](file:/
 ## 🛠️ Current Missions for Jules
 
 ### 🟢 Completed (Last 24h)
-1. **IMAP Base Sync**: Implemented robust `IMAPProvider` with UID search and date filtering.
-2. **SMTP Send**: Implemented `SMTPProvider` for sending emails.
-3. **Intelligence Bridge**: Enriched `process_tasks.py` with `altimeter_service` context and milestone extraction.
+1. **IMAP Interactivity**: Implemented `reply`, `archive`, `trash`, and `mark_unread` in `IMAPProvider`.
+2. **Documentation Recovery**: Re-created `JULES_RUNBOOKS.md` to document the strategy.
+3. **Frontend Wiring**: Ensured the UI triggers the new backend provider methods.
 
 ### 🟡 Active Priorities (Next 24h)
-1. **IMAP Interactivity**: Implement `reply`, `archive`, `trash`, and `mark_unread` in `IMAPProvider`.
-2. **Documentation Recovery**: Re-create `JULES_RUNBOOKS.md` to document the strategy.
-3. **Frontend Wiring**: Ensure the UI (e.g., "Reply" button) triggers the new backend provider methods.
-4. **Autonomous Loop**: Enhance `execute_mission.py` to support file writing or more complex actions beyond printing.
+1. **Autonomous Loop**: Enhance `execute_mission.py` to support file writing and complex actions beyond printing.
+2. **Test Suite Stabilization**: Fix service mocking and environment isolation to ensure reliable CI/CD.
+3. **Verification**: Verify the frontend integration with end-to-end tests or manual scripts.
 
 ## 🛑 Critical Constraints
 
