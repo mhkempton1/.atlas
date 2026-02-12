@@ -5,8 +5,6 @@ import {
   BookOpen,
   Settings,
   Menu,
-  X,
-  User,
   LogOut,
   ShieldCheck,
   FolderGit2,
@@ -14,12 +12,9 @@ import {
   Activity,
   Network,
   History as HistoryIcon,
-  Navigation
 } from 'lucide-react';
-import EmailScanner from './components/EmailScanner';
 import SystemHealthView from './components/dashboard/SystemHealthView';
 import SchedulerView from './components/dashboard/SchedulerView';
-import ComposeDraft from './components/email/ComposeDraft';
 import EmailModule from './components/email/EmailModule';
 import KnowledgeDashboard from './components/knowledge/KnowledgeDashboard';
 import Dashboard from './components/dashboard/Dashboard';
@@ -35,11 +30,9 @@ import CommandBar from './components/shared/CommandBar';
 import SystemStatusView from './components/system/SystemStatusView';
 import { SYSTEM_API } from './services/api';
 
-// ... imports
-
 const MODULES = [
   { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard, minStrata: 1 },
-  { id: 'procedures', label: 'The Library', icon: BookOpen, minStrata: 1 }, // Consolidated Knowledge & SOPs
+  { id: 'procedures', label: 'The Library', icon: BookOpen, minStrata: 1 },
   { id: 'docs', label: 'Document Control', icon: FolderGit2, minStrata: 3 },
   { id: 'email', label: 'Email Control', icon: Mail, minStrata: 1 },
   { id: 'tasks', label: 'Mission Tasks', icon: ShieldCheck, minStrata: 1 },
@@ -111,7 +104,6 @@ function App() {
     url.searchParams.set('module', moduleId);
 
     // Clear other params except module initially, unless specified
-    // Actually better to just set provided params
     Object.keys(params).forEach(key => url.searchParams.set(key, params[key]));
 
     window.history.pushState({ moduleId, params }, "", url.toString());
