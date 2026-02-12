@@ -4,11 +4,26 @@ import api, { SYSTEM_API } from '../../services/api';
 import { PageHeader, Spinner, EmptyState, Section, StatusBadge } from '../shared/UIComponents';
 import { useToast } from '../../hooks/useToast';
 
+const getEmailItemStyle = (is_read, expanded) => {
+    const base = "border-b border-white/5 transition-all";
+    const bg = expanded ? 'bg-white/10' : 'hover:bg-white/5';
+    const border = !is_read ? 'bg-purple-500/5 border-l-4 border-l-purple-500' : 'border-l-4 border-l-transparent';
+    return `${base} ${bg} ${border}`;
+};
+
+const getCategoryBadgeStyle = (category) => {
+    switch (category) {
+        case 'urgent': return 'bg-red-500/10 text-red-400 border-red-500/20';
+        case 'work': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        case 'personal': return 'bg-green-500/10 text-green-400 border-green-500/20';
+        default: return 'bg-white/10 text-white/70 border-white/5';
+    }
+};
+
 const EmailItem = ({ email, onClick, expanded, onAction }) => {
     return (
         <div
-            className={`border-b border-white/5 transition-all ${expanded ? 'bg-white/10' : 'hover:bg-white/5'
-                } ${!email.is_read ? 'bg-purple-500/5 border-l-4 border-l-purple-500' : 'border-l-4 border-l-transparent'}`}
+            className={getEmailItemStyle(email.is_read, expanded)}
         >
             <div
                 className="p-4 cursor-pointer flex items-start gap-4"
@@ -28,11 +43,7 @@ const EmailItem = ({ email, onClick, expanded, onAction }) => {
 
                     <h4 className={`text-sm mb-1 truncate ${!email.is_read ? 'text-gray-200 font-medium' : 'text-gray-500'}`}>
                         {email.category && (
-                            <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase mr-2 border ${email.category === 'urgent' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                email.category === 'work' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                                    email.category === 'personal' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                        'bg-white/10 text-white/70 border-white/5'
-                                }`}>
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase mr-2 border ${getCategoryBadgeStyle(email.category)}`}>
                                 {email.category}
                             </span>
                         )}

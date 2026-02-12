@@ -10,7 +10,9 @@ from services.data_api import data_api
 from services.altimeter_service import altimeter_service
 from agents.task_agent import task_agent
 from agents.calendar_agent import calendar_agent
-from database.database import Base, engine
+from database.database import Base, engine, SessionLocal
+from database.models import Email
+from services.search_service import search_service
 
 async def process_task(task):
     print(f"Processing task {task['id']}...")
@@ -25,6 +27,35 @@ async def process_task(task):
 
     # 1. Get Context (Now enriched with mission_intel/SOPs)
     context = altimeter_service.get_context_for_email(sender, subject, body)
+
+    # 1.5 Update Email Category & Index (Moved from IMAP Provider)
+    if email_id:
+        db = SessionLocal()
+        try:
+            email_obj = db.query(Email).filter(Email.email_id == email_id).first()
+            if email_obj:
+                category_update = None
+                if context.get('is_proposal'): category_update = 'proposal'
+                elif context.get('is_daily_log'): category_update = 'daily_log'
+
+                if category_update:
+                    email_obj.category = category_update
+                    db.commit()
+                    print(f"  -> Updated Email Category: {category_update}")
+
+                # Index for Search
+                search_service.index_email({
+                    "subject": email_obj.subject,
+                    "sender": email_obj.from_address,
+                    "body": email_obj.body_text or email_obj.body_html,
+                    "message_id": email_obj.message_id,
+                    "date": email_obj.date_received.isoformat() if email_obj.date_received else ""
+                })
+                print(f"  -> Indexed Email in Vector DB")
+        except Exception as e:
+            print(f"  -> Error updating/indexing email: {e}")
+        finally:
+            db.close()
 
     agent_context = {
         "subject": subject,

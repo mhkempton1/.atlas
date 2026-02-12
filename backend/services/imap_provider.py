@@ -121,15 +121,7 @@ class IMAPProvider(CommunicationProvider):
         # 2. Extract Body
         body_text, body_html = self._extract_body_from_msg(msg)
 
-        # 3. Context Bridge via Altimeter
-        from services.altimeter_service import altimeter_service
-        context = altimeter_service.get_context_for_email(from_raw, subject, body_text)
-        
-        category = None
-        if context.get('is_proposal'): category = 'proposal'
-        elif context.get('is_daily_log'): category = 'daily_log'
-
-        # 4. Save to DB
+        # 3. Save to DB
         email_obj = Email(
             message_id=message_id or f"imap-{imap_uid}",
             remote_id=imap_uid,
@@ -142,7 +134,7 @@ class IMAPProvider(CommunicationProvider):
             date_received=date_received,
             is_read=False,
             synced_at=datetime.now(),
-            category=category
+            category=None # Categorization happens in background task
         )
         db.add(email_obj)
         db.flush()
@@ -168,18 +160,6 @@ class IMAPProvider(CommunicationProvider):
                         file_path="skipped_in_imap_phase"
                     )
                     db.add(att)
-
-        # 6. Index
-        try:
-            from services.search_service import search_service
-            search_service.index_email({
-                "subject": email_obj.subject,
-                "sender": email_obj.from_address,
-                "body": email_obj.body_text or email_obj.body_html,
-                "message_id": email_obj.message_id,
-                "date": email_obj.date_received.isoformat()
-            })
-        except: pass
 
         return True
 
