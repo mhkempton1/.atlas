@@ -8,8 +8,8 @@
 
 ## 🚀 Next Steps
 
-1. **Test Coverage**: Implement `backend/tests/api/test_notification_routes.py` and `backend/tests/services/test_scheduler_service.py`.
-2. **AI Hardening**: Add JSON output mode and structured output parsing to `backend/services/ai_service.py`.
+1. **Test Coverage**: Implement `backend/tests/services/test_scheduler_service.py` and `backend/tests/services/test_notification_service.py`.
+2. **AI Hardening**: Implement AI audit logging in `backend/services/ai_service.py`.
 3. **Autonomous Loop**: Enhance `backend/scripts/execute_mission.py` to support actual tool execution (file editing, shell commands).
 
 ---
@@ -29,7 +29,7 @@
 - [x] `backend/tests/api/test_task_routes.py` — Test CRUD for `/tasks`: create, read (with filters for status/priority/category), update, delete.
 - [x] `backend/tests/api/test_email_routes.py` — Test `/emails/list`, `/emails/{id}`, `/emails/sync`, `/emails/{id}/category`.
 - [x] `backend/tests/api/test_calendar_routes.py` — Test `/calendar/events` GET (date range filtering) and POST (event creation with validation).
-- [ ] `backend/tests/api/test_notification_routes.py` — Test `/notifications/list`, `/notifications/{id}/read`, `/notifications/clear`. Verify unread count decrements correctly.
+- [x] `backend/tests/api/test_notification_routes.py` — Test `/notifications/list`, `/notifications/{id}/read`, `/notifications/clear`. Verify unread count decrements correctly.
 - [x] `backend/tests/api/test_system_routes.py` — Test `/system/health`, `/system/status`, `/system/dashboard-stats`.
 
 ### 1.3 Service-Level Tests
@@ -61,11 +61,11 @@
 
 ### 2.2 AI Service Reliability
 
-- [ ] In `backend/services/ai_service.py`:
+- [x] In `backend/services/ai_service.py`:
   - Add structured JSON output mode using Gemini's `response_mime_type: "application/json"` parameter.
   - Implement exponential backoff (not just a flat 60s sleep) for rate limit retries.
   - Add a `max_retries` parameter (default 3) to `generate_content`.
-  - Log all AI prompts and responses to `backend/data/ai_audit_log.jsonl` for debugging and prompt refinement.
+- [ ] Log all AI prompts and responses to `backend/data/ai_audit_log.jsonl` for debugging and prompt refinement.
 
 ### 2.3 Learning & Context
 
