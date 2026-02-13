@@ -23,7 +23,7 @@ const getCategoryBadgeStyle = (category) => {
 const EmailItem = ({ email, onClick, expanded, onAction }) => {
     return (
         <div
-            className={getEmailItemStyle(email.is_read, expanded)}
+            className={`${getEmailItemStyle(email.is_read, expanded)} group relative`}
         >
             <div
                 className="p-4 cursor-pointer flex items-start gap-4"
@@ -31,7 +31,7 @@ const EmailItem = ({ email, onClick, expanded, onAction }) => {
             >
                 <div className={`mt-1 w-2 h-2 rounded-full ${!email.is_read ? 'bg-purple-500' : 'bg-transparent'}`} />
 
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 transition-all group-hover:pr-20">
                     <div className="flex justify-between items-start mb-1">
                         <span className={`text-sm font-medium ${!email.is_read ? 'text-white' : 'text-gray-400'}`}>
                             {email.from_name || email.from_address}
@@ -59,6 +59,26 @@ const EmailItem = ({ email, onClick, expanded, onAction }) => {
 
                 {email.has_attachments && <Paperclip className="w-4 h-4 text-gray-500" />}
             </div>
+
+            {/* Quick Hover Actions */}
+            {!expanded && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                        onClick={(e) => onAction(e, 'archive', email)}
+                        className="p-2 rounded-lg bg-slate-900/80 border border-white/5 text-gray-400 hover:text-white hover:border-white/20 shadow-xl backdrop-blur-md"
+                        title="Archive"
+                    >
+                        <Archive className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={(e) => onAction(e, 'delete', email)}
+                        className="p-2 rounded-lg bg-red-950/20 border border-red-500/10 text-gray-500 hover:text-red-400 hover:border-red-500/30 shadow-xl backdrop-blur-md"
+                        title="Delete"
+                    >
+                        <Trash className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
 
             {/* EXPANDED VIEW */}
             {expanded && (

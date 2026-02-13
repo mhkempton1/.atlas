@@ -15,7 +15,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
     const [extracting, setExtracting] = useState(false);
     const [drafting, setDrafting] = useState(false);
 
-    const CATEGORIES = ['work', 'personal', 'urgent', 'todo', 'finance'];
+    const CATEGORIES = ['work', 'personal', 'urgent', 'todo', 'finance', 'archive', 'drafts'];
 
     useEffect(() => {
         if (email && !email.is_read) {
@@ -160,6 +160,25 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
                                     {cat}
                                 </button>
                             ))}
+                        </div>
+
+                        {/* Move to Folder Dropdown */}
+                        <div className="relative group">
+                            <button className="flex items-center gap-1.5 px-2 py-1 text-[9px] uppercase font-bold rounded border border-white/10 text-gray-400 hover:text-white hover:border-white/30 transition-all">
+                                <Tag className="w-3 h-3" />
+                                {email.category || 'FOLDER'}
+                            </button>
+                            <div className="absolute right-0 top-full mt-2 w-40 bg-slate-900 border border-white/10 rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                                {CATEGORIES.map(cat => (
+                                    <button
+                                        key={cat}
+                                        onClick={() => handleCategoryChange(cat)}
+                                        className="w-full text-left px-4 py-2 text-[10px] uppercase font-mono text-gray-400 hover:text-white hover:bg-white/5 first:rounded-t-lg last:rounded-b-lg"
+                                    >
+                                        {cat}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         <button

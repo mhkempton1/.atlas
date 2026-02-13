@@ -378,3 +378,7 @@ class IMAPProvider(CommunicationProvider):
     def sync_calendar(self) -> Dict[str, Any]:
         """Sync calendar (Not supported for IMAP)."""
         return {"synced": 0, "status": "not_supported"}
+
+    def create_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        """IMAP does not support calendar events."""
+        return {"error": "IMAP provider does not support calendar operations."}

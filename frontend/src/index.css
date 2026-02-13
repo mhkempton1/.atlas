@@ -140,7 +140,7 @@ h4 {
 .main-content {
   flex: 1;
   overflow-y: auto;
-  padding: 0;
+  padding: 1.5rem;
   background: transparent;
   width: 100%;
   box-sizing: border-box;

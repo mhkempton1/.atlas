@@ -36,9 +36,17 @@ def sync_emails_job():
 def sync_calendar_job():
     """Background job to sync calendar every 15 minutes."""
     from services.communication_service import comm_service
+    from services.notification_service import notification_service
     
     try:
-        comm_service.sync_calendar()
+        result = comm_service.sync_calendar()
+        if result and result.get("synced_count", 0) > 0:
+            notification_service.push_notification(
+                type="calendar",
+                title="Calendar Sync Complete",
+                message=f"Synced {result['synced_count']} new events from Google Calendar.",
+                priority="low"
+            )
     except Exception:
         pass
 

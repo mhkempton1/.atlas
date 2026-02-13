@@ -156,3 +156,16 @@ class DocumentComment(Base):
     resolved_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    type = Column(String, index=True) # e.g., "task", "system", "calendar", "health"
+    title = Column(String)
+    message = Column(Text)
+    priority = Column(String, default="medium") # low, medium, high, critical
+    is_read = Column(Boolean, default=False, index=True)
+    link = Column(String, nullable=True) # Optional URL or internal module link
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    read_at = Column(DateTime(timezone=True), nullable=True)

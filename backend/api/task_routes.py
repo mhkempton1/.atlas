@@ -261,3 +261,57 @@ async def extract_tasks(email_id: int, db: Session = Depends(get_db)):
 
     db.commit()
     return {"extracted": len(tasks_created), "tasks": tasks_created}
+
+@router.post("/extract/calendar/{event_id}")
+async def extract_calendar_tasks(event_id: int, db: Session = Depends(get_db)):
+    """
+    AI task extraction for a specific calendar event.
+    """
+    from database.models import CalendarEvent
+    from agents.task_agent import task_agent
+    from services.notification_service import notification_service
+
+    event = db.query(CalendarEvent).filter(CalendarEvent.event_id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    agent_context = {
+        "type": "calendar",
+        "subject": event.title,
+        "sender": event.organizer or "System",
+        "body": event.description or "",
+        "location": event.location or "N/A",
+        "start_time": event.start_time.isoformat() if event.start_time else "N/A"
+    }
+
+    result = await task_agent.process(agent_context)
+    if result.get("status") != "success":
+        raise HTTPException(status_code=500, detail=result.get("error"))
+
+    tasks_created = []
+    for t_data in result["data"].get("tasks", []):
+        task = Task(
+            title=t_data["title"],
+            description=t_data["description"],
+            priority=t_data["priority"].lower(),
+            due_date=datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
+            original_due_date=datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
+            project_id=event.project_id,
+            created_from="calendar_event",
+            created_at=datetime.now()
+        )
+        db.add(task)
+        db.flush()
+        tasks_created.append({"task_id": task.task_id, "title": task.title})
+
+    if tasks_created:
+        notification_service.push_notification(
+            type="task",
+            title="Tasks Extracted",
+            message=f"Successfully extracted {len(tasks_created)} tasks from event: {event.title}",
+            priority="medium",
+            link="/tasks"
+        )
+
+    db.commit()
+    return {"extracted": len(tasks_created), "tasks": tasks_created}

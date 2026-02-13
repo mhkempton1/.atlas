@@ -25,7 +25,7 @@ export const Toast = ({ message, type = 'info', onClose, duration = 4000 }) => {
     };
 
     return (
-        <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-lg border ${styles[type]} shadow-lg animate-slide-in backdrop-blur-sm`}>
+        <div className={`fixed top-6 right-6 z-[2000] flex items-center gap-3 px-4 py-3 rounded-lg border ${styles[type]} shadow-lg animate-slide-in backdrop-blur-sm`}>
             {icons[type]}
             <span className="text-sm font-medium">{message}</span>
             <button onClick={onClose} className="ml-2 opacity-60 hover:opacity-100">

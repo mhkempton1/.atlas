@@ -40,3 +40,6 @@ class GmailProvider(CommunicationProvider):
 
     def sync_calendar(self) -> Dict[str, Any]:
         return self.service.sync_calendar()
+
+    def create_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        return self.service.create_event(event_data)

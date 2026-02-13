@@ -524,6 +524,45 @@ class GoogleService:
             db.flush()
             return True
 
+    def create_event(self, event_data: dict) -> dict:
+        """Create an event in the primary Google Calendar."""
+        if not self.calendar_service:
+            self.authenticate()
+            if not self.calendar_service: raise Exception("Calendar service unavailable")
+
+        # Format for Google API
+        attendees = []
+        import json
+        try:
+            raw_attendees = event_data.get('attendees', '[]')
+            if isinstance(raw_attendees, str):
+                attendee_list = json.loads(raw_attendees)
+            else:
+                attendee_list = raw_attendees
+            attendees = [{'email': a} if isinstance(a, str) else a for a in attendee_list]
+        except: pass
+
+        body = {
+            'summary': event_data['title'],
+            'location': event_data.get('location'),
+            'description': event_data.get('description'),
+            'start': {
+                'dateTime': event_data['start_time'].isoformat() if hasattr(event_data['start_time'], 'isoformat') else event_data['start_time'],
+                'timeZone': 'UTC',
+            },
+            'end': {
+                'dateTime': event_data['end_time'].isoformat() if hasattr(event_data['end_time'], 'isoformat') else event_data['end_time'],
+                'timeZone': 'UTC',
+            },
+            'attendees': attendees,
+        }
+
+        try:
+            event = self.calendar_service.events().insert(calendarId='primary', body=body).execute()
+            return event
+        except Exception as e:
+            raise Exception(f"Google Calendar event creation failed: {e}")
+
 # Singleton
 google_service = GoogleService()
 # Alias for backward compatibility

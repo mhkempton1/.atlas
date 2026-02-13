@@ -109,13 +109,22 @@ class CategoryUpdate(BaseModel):
 
 @router.put("/{email_id}/category")
 async def update_category(email_id: int, update: CategoryUpdate, db: Session = Depends(get_db)):
-    """Update local category for organization"""
+    """Update local category and sync to remote provider if available"""
     email = db.query(Email).filter(Email.email_id == email_id).first()
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")
 
     email.category = update.category
     db.commit()
+
+    # Sync to Provider (Gmail labels or IMAP folders)
+    if email.remote_id:
+        from services.communication_service import comm_service
+        try:
+            comm_service.move_to_label(email.remote_id, update.category)
+        except Exception as e:
+            # We don't fail the request if remote sync fails, but we should log it
+            print(f"Remote move failed for email {email_id}: {e}")
 
     return {"success": True, "category": email.category}
 

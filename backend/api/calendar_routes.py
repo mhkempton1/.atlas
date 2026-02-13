@@ -8,6 +8,15 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
+class CalendarEventCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    location: Optional[str] = None
+    start_time: datetime
+    end_time: datetime
+    all_day: bool = False
+    attendees: Optional[str] = "[]"
+
 @router.get("/events")
 async def get_events(
     days: int = Query(default=14, ge=1, le=90),
@@ -39,6 +48,42 @@ async def get_events(
         }
         for e in events
     ]
+
+@router.post("/events")
+async def create_event(
+    event: CalendarEventCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a new calendar event"""
+    from services.communication_service import comm_service
+    
+    # 1. Create in local DB
+    new_event = CalendarEvent(
+        title=event.title,
+        description=event.description,
+        location=event.location,
+        start_time=event.start_time,
+        end_time=event.end_time,
+        all_day=event.all_day,
+        attendees=event.attendees,
+        status="confirmed",
+        synced_at=datetime.now()
+    )
+    db.add(new_event)
+    db.commit()
+    db.refresh(new_event)
+    
+    # 2. Push to remote provider
+    try:
+        remote_result = comm_service.create_event(event.dict())
+        if remote_result and "id" in remote_result:
+            new_event.remote_event_id = remote_result["id"]
+            db.commit()
+    except Exception as e:
+        # We keep the local copy even if remote fail, but log it
+        print(f"Remote sync failed: {e}")
+        
+    return {"status": "success", "event_id": new_event.event_id}
 
 @router.get("/today")
 async def get_today_events(db: Session = Depends(get_db)):

@@ -93,6 +93,9 @@ router.include_router(reporting_router, prefix="/reporting", tags=["Reporting"])
 from api.foreman_routes import router as foreman_router
 router.include_router(foreman_router, prefix="/foreman", tags=["Foreman Protocol"])
 
+from api.notification_routes import router as notification_router
+router.include_router(notification_router, prefix="/notifications", tags=["Notifications"])
+
 @router.post("/chat")
 async def chat_assistant(request: dict):
     """
