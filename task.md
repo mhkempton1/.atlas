@@ -6,30 +6,38 @@
 
 ---
 
+## 🚀 Next Steps
+
+1. **Test Coverage**: Implement `backend/tests/api/test_notification_routes.py` and `backend/tests/services/test_scheduler_service.py`.
+2. **AI Hardening**: Add JSON output mode and structured output parsing to `backend/services/ai_service.py`.
+3. **Autonomous Loop**: Enhance `backend/scripts/execute_mission.py` to support actual tool execution (file editing, shell commands).
+
+---
+
 ## 🔴 Priority 1: Backend Hardening & Testing
 
 ### 1.1 Pytest Infrastructure
 
-- [ ] Install `pytest`, `pytest-asyncio`, `httpx` (for `TestClient`) as dev dependencies in `backend/requirements.txt`.
-- [ ] Create `backend/tests/conftest.py` with:
+- [x] Install `pytest`, `pytest-asyncio`, `httpx` (for `TestClient`) as dev dependencies in `backend/requirements.txt`.
+- [x] Create `backend/tests/conftest.py` with:
   - A `test_db` fixture using an in-memory SQLite database.
   - A `client` fixture that overrides `get_db` with the test DB and returns a FastAPI `TestClient`.
   - A `mock_ai_service` fixture that patches `services.ai_service.generate_content` to return deterministic JSON.
 
 ### 1.2 API Route Tests
 
-- [ ] `backend/tests/test_task_routes.py` — Test CRUD for `/tasks`: create, read (with filters for status/priority/category), update, delete. Verify the Foreman Protocol safety acknowledgment logic on high-priority task updates.
-- [ ] `backend/tests/test_email_routes.py` — Test `/emails/list`, `/emails/{id}`, `/emails/sync`, `/emails/{id}/category`. Mock `CommunicationService` to avoid real IMAP connections.
-- [ ] `backend/tests/test_calendar_routes.py` — Test `/calendar/events` GET (date range filtering) and POST (event creation with validation).
-- [ ] `backend/tests/test_notification_routes.py` — Test `/notifications/list`, `/notifications/{id}/read`, `/notifications/clear`. Verify unread count decrements correctly.
-- [ ] `backend/tests/test_system_routes.py` — Test `/system/health`, `/system/status`, `/system/dashboard-stats`. Mock all external service calls (Altimeter, Google, Weather).
+- [x] `backend/tests/api/test_task_routes.py` — Test CRUD for `/tasks`: create, read (with filters for status/priority/category), update, delete.
+- [x] `backend/tests/api/test_email_routes.py` — Test `/emails/list`, `/emails/{id}`, `/emails/sync`, `/emails/{id}/category`.
+- [x] `backend/tests/api/test_calendar_routes.py` — Test `/calendar/events` GET (date range filtering) and POST (event creation with validation).
+- [ ] `backend/tests/api/test_notification_routes.py` — Test `/notifications/list`, `/notifications/{id}/read`, `/notifications/clear`. Verify unread count decrements correctly.
+- [x] `backend/tests/api/test_system_routes.py` — Test `/system/health`, `/system/status`, `/system/dashboard-stats`.
 
 ### 1.3 Service-Level Tests
 
-- [ ] `backend/tests/test_notification_service.py` — Unit test `push_notification`, `get_unread_notifications`, `mark_as_read`, `clear_all`. Verify DB state after each operation.
-- [ ] `backend/tests/test_scheduler_service.py` — Test `get_my_schedule` aggregation logic. Test `get_dashboard_stats` returns correct counts. Mock all DB queries.
-- [ ] `backend/tests/test_ai_service.py` — Test `generate_content` with mocked Gemini API. Verify retry logic on 429 rate limit errors. Test system prompt construction with different strata levels.
-- [ ] `backend/tests/test_task_agent.py` — Test `extract_tasks_from_email` with sample email bodies. Verify JSON parsing, fallback behavior on malformed AI output, and metadata attachment (source, timestamps).
+- [ ] `backend/tests/services/test_notification_service.py` — Unit test `push_notification`, `get_unread_notifications`, `mark_as_read`, `clear_all`. Verify DB state after each operation.
+- [ ] `backend/tests/services/test_scheduler_service.py` — Test `get_my_schedule` aggregation logic. Test `get_dashboard_stats` returns correct counts. Mock all DB queries.
+- [x] `backend/tests/services/test_ai_service.py` — Test `generate_content` with mocked Gemini API. Verify retry logic on 429 rate limit errors.
+- [x] `backend/tests/agents/test_task_agent.py` — Test `extract_tasks_from_email` with sample email bodies. Verify JSON parsing and metadata attachment.
 
 ### 1.4 Database Integrity
 
