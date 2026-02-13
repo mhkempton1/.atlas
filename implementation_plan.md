@@ -98,3 +98,31 @@ Fix critical environment configuration issues and refactor service tests (`Searc
 - [x] Test environment isolated from production database.
 - [x] `test_google_service.py` and `test_search_service.py` passing.
 - [x] All API route tests (`test_scan_route`, `test_email_routes`, `test_calendar_routes`, `test_routes`, `test_system_routes`) are passing.
+
+# Implementation Plan - Notification & Scheduler Tests
+
+## Goal Description
+Implement comprehensive test coverage for Notification API routes and Scheduler Service (schedule aggregation, dashboard stats) to ensure reliability and catch regressions.
+
+## Proposed Changes
+
+### Tests
+#### [CREATE] `backend/tests/api/test_notification_routes.py`
+- Implemented tests for `/api/v1/notifications/list` (GET), `/api/v1/notifications/{id}/read` (PATCH), and `/api/v1/notifications/clear` (DELETE).
+- Patched `services.notification_service.SessionLocal` to ensure tests run against the isolated test database.
+
+#### [CREATE] `backend/tests/services/test_scheduler_service.py`
+- Implemented `test_get_my_schedule` to verify aggregation of Calendar Events, Tasks, and Altimeter Milestones.
+- Implemented `test_get_dashboard_stats` to verify system health metrics.
+- Patched `database.database.SessionLocal` to intercept internal service DB calls.
+- Mocked `services.altimeter_service.altimeter_service` and `services.document_control_service.document_control_service` to isolate the scheduler logic.
+
+## Verification Plan
+
+### Automated Tests
+- [x] Run `python -m pytest backend/tests/api/test_notification_routes.py`
+- [x] Run `python -m pytest backend/tests/services/test_scheduler_service.py`
+
+## Implemented
+- [x] Notification API tests passing.
+- [x] Scheduler Service tests passing.
