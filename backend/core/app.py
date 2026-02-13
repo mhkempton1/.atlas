@@ -13,7 +13,6 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("Atlas starting up...")
     from services.activity_service import activity_service
     activity_service.log_activity(
         type="system",
@@ -22,7 +21,6 @@ async def lifespan(app: FastAPI):
         details="System successfully initialized and recovered from previous fault."
     )
     scheduler_service.start()
-    print("Background email sync enabled (every 5 minutes)")
     yield
     # Shutdown
     scheduler_service.shutdown()
@@ -34,7 +32,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS
 # CORS
 app.add_middleware(
     CORSMiddleware,

@@ -1,7 +1,7 @@
 import os
 import json
 import secrets
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Dict, Any
 
 class Settings(BaseSettings):
@@ -57,8 +57,7 @@ class Settings(BaseSettings):
         5: ["*"] # Developer / Eyes Only
     }
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env")
 
     def load_secrets(self):
         # 1. Local project config
@@ -83,7 +82,7 @@ class Settings(BaseSettings):
                             if hasattr(self, key):
                                 setattr(self, key, value)
                 except Exception as e:
-                    print(f"Error loading secrets from {p}: {e}")
+                    pass
 
         # Security: If no secret key found after checking env and secrets, generate a secure random one
         if not self.JWT_SECRET_KEY or self.JWT_SECRET_KEY in ["your-secret-key-here", "insecure-fallback-development-only"]:

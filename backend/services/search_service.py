@@ -5,6 +5,10 @@ import os
 from core.config import settings
 
 class SearchService:
+    """
+    Service for semantic search using ChromaDB.
+    Indexes emails and knowledge documents for retrieval.
+    """
     def __init__(self):
         # Store in Atlas data directory, NOT Altimeter
         self.persist_path = os.path.join(settings.DATA_DIR, "databases", "vectors")
@@ -31,8 +35,6 @@ class SearchService:
                     model_name="all-MiniLM-L6-v2"
                 )
             except (ImportError, Exception) as e:
-                print(f"[SearchService] Warning: Embedding model load failed ({e}). Using fallback dummy embeddings.")
-
                 class DummyEmbedding:
                     def __call__(self, input):
                         # Returns a fixed size vector (384 is common for MiniLM)
@@ -50,11 +52,9 @@ class SearchService:
                 name="knowledge",
                 embedding_function=self._embedding_fn
             )
-            print("[SearchService] ChromaDB initialized successfully (Collections: emails, knowledge)")
             return True
         except BaseException as e:
             # Catching BaseException to handle pyo3/rust panics
-            print(f"[SearchService] ChromaDB initialization failed (Fatal): {e}")
             self._client = None
             self._email_collection = None
             self._knowledge_collection = None
@@ -89,7 +89,6 @@ class SearchService:
             )
             return True
         except Exception as e:
-            print(f"[SearchService] Error indexing email: {e}")
             return False
 
     def index_knowledge_batch(self, docs_data: List[Dict[str, Any]]) -> bool:
@@ -120,7 +119,6 @@ class SearchService:
             )
             return True
         except Exception as e:
-            print(f"[SearchService] Error batch indexing knowledge: {e}")
             return False
 
     def search(self, query: str, collection_name: str = "emails", n_results: int = 5) -> List[Dict[str, Any]]:
@@ -148,7 +146,6 @@ class SearchService:
             return formatted_results
             
         except Exception as e:
-            print(f"[SearchService] Error searching: {e}")
             return []
 
 search_service = SearchService()

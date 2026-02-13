@@ -7,6 +7,10 @@ from typing import Dict, List, Optional, Any
 from core.config import settings
 
 class AltimeterService:
+    """
+    Service for interacting with the Altimeter business logic database.
+    Provides project context, milestones, and active phases.
+    """
     def __init__(self, api_base_url: str = "http://127.0.0.1:4203"):
         self.api_base_url = api_base_url
         # Robust path resolution
@@ -31,7 +35,6 @@ class AltimeterService:
                 conn = sqlite3.connect(db_uri, uri=True, timeout=5)
             except Exception as e:
                 # Fallback if URI fails (though it shouldn't on supported versions)
-                print(f"[AltimeterService] Read-only connection failed, falling back to standard: {e}")
                 conn = sqlite3.connect(self.db_path, timeout=5)
         else:
             conn = sqlite3.connect(self.db_path, timeout=5)
@@ -118,7 +121,6 @@ class AltimeterService:
                 return dict(row)
             return None
         except Exception as e:
-            print(f"[AltimeterService] DB Query Error: {e}")
             return None
 
     def get_context_for_email(self, sender: str, subject: str, body: str = "") -> Dict[str, Any]:
@@ -157,7 +159,7 @@ class AltimeterService:
             if contact_info:
                 context["company_role"] = f"{contact_info.get('role', 'Contact')} at {contact_info.get('company', 'Unknown')}"
         except Exception as e:
-            print(f"[AltimeterService] Contact lookup failed: {e}")
+            pass
 
         # Get file context
         if context["project"]:
@@ -209,7 +211,6 @@ class AltimeterService:
             conn.close()
             return [dict(p) for p in projects]
         except Exception as e:
-            print(f"[AltimeterService] Project listing failed: {e}")
             return []
 
     def get_db_schema(self, strata_level: int = 1) -> str:
@@ -303,7 +304,6 @@ class AltimeterService:
                 })
             return res
         except Exception as e:
-            print(f"[AltimeterService] Milestone fetch failed: {e}")
             return []
 
     def get_active_phases(self) -> List[Dict[str, Any]]:
@@ -338,7 +338,6 @@ class AltimeterService:
                 })
             return res
         except Exception as e:
-            print(f"[AltimeterService] Active phase fetch failed: {e}")
             return []
 
     def _get_recent_activity_context(self, project_id: str) -> str:
@@ -380,7 +379,7 @@ class AltimeterService:
 
             conn.close()
         except Exception as e:
-            print(f"[AltimeterService] Activity lookup failed: {e}")
+            pass
             
         return "\n".join(lines) if lines else "No recent activity found."
 
@@ -417,7 +416,6 @@ class IntelligenceBridge:
                 "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
-            print(f"[IntelligenceBridge] Context fetch failed: {e}")
             return {
                 "query": query,
                 "status": "error",

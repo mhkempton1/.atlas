@@ -12,7 +12,6 @@ def run_background_scan(limit: int):
     from services.communication_service import comm_service
     from services.data_api import data_api
 
-    print(f"Starting background scan (limit={limit})...")
     try:
         # 1. Sync from Provider
         comm_service.sync_emails()
@@ -34,11 +33,10 @@ def run_background_scan(limit: int):
                     },
                     priority=10
                 )
-            print(f"Queued analysis for {len(emails)} emails.")
         finally:
             db.close()
     except Exception as e:
-        print(f"Background Scan Error: {e}")
+        pass
 
 @router.get("/labels")
 async def get_labels():
@@ -124,7 +122,7 @@ async def update_category(email_id: int, update: CategoryUpdate, db: Session = D
             comm_service.move_to_label(email.remote_id, update.category)
         except Exception as e:
             # We don't fail the request if remote sync fails, but we should log it
-            print(f"Remote move failed for email {email_id}: {e}")
+            pass
 
     return {"success": True, "category": email.category}
 

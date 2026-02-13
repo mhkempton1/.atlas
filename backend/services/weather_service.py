@@ -1,10 +1,13 @@
 import httpx
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 import time
-from datetime import timedelta
 
 class WeatherService:
+    """
+    Service for fetching weather data from Open-Meteo.
+    Includes caching and fallback generation.
+    """
     def __init__(self):
         self.DEFAULT_LAT = 37.0364
         self.DEFAULT_LON = -93.2974
@@ -41,7 +44,6 @@ class WeatherService:
         if cache_key in self._cache:
             cached_data, timestamp = self._cache[cache_key]
             if time.time() - timestamp < self.CACHE_TTL:
-                print(f"[WeatherService] Returning cached weather data for {location}")
                 return cached_data
 
         try:
@@ -81,8 +83,7 @@ class WeatherService:
                             "rain_chance": int(rains[i]) if (i < len(rains) and rains[i] is not None) else 0
                         })
                     except (IndexError, ValueError) as e:
-                        print(f"[WeatherService] Item error at index {i}: {e}")
-                print(f"[WeatherService] Successfully generated {len(forecast)} day forecast")
+                        pass
 
                 result = {
                     "location": location,
@@ -100,7 +101,6 @@ class WeatherService:
                 return result
                 
         except Exception as e:
-            print(f"[WeatherService] Error fetching weather: {e}")
             # Generate 7-day fallback forecast
             fallback_forecast = []
             for i in range(7):

@@ -275,7 +275,7 @@ const Dashboard = ({ onNavigate, globalHealth }) => {
                 const newLon = pos.coords.longitude;
                 setCoordinates({ lat: newLat, lon: newLon });
             }, (err) => {
-                console.log("Geolocation unavailable, using default Nixa sector.");
+
             }, { timeout: 3000 });
         }
     }, []);
