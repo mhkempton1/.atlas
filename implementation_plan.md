@@ -98,3 +98,30 @@ Fix critical environment configuration issues and refactor service tests (`Searc
 - [x] Test environment isolated from production database.
 - [x] `test_google_service.py` and `test_search_service.py` passing.
 - [x] All API route tests (`test_scan_route`, `test_email_routes`, `test_calendar_routes`, `test_routes`, `test_system_routes`) are passing.
+
+# Implementation Plan - Notification System Testing
+
+## Goal Description
+Implement comprehensive tests for the Notification system, covering both the `NotificationService` and the API routes (`/notifications/*`).
+
+## Proposed Changes
+
+### Tests
+
+#### [CREATE] `backend/tests/services/test_notification_service.py`
+- Implemented unit tests for `NotificationService`:
+    - `push_notification`: Verifies creation and persistence.
+    - `get_unread_notifications`: Verifies filtering and ordering.
+    - `mark_as_read`: Verifies status update.
+    - `clear_all`: Verifies deletion.
+
+#### [CREATE] `backend/tests/api/test_notification_routes.py`
+- Implemented API tests for `/notifications` endpoints:
+    - `GET /list`: Verifies retrieval and `unread_only` filtering.
+    - `PATCH /{id}/read`: Verifies marking as read.
+    - `DELETE /clear`: Verifies clearing all notifications.
+- Added `patch_session` fixture to resolve SQLite locking issues by sharing the connection between test fixture and service.
+
+## Implemented
+- [x] `backend/tests/services/test_notification_service.py` passing.
+- [x] `backend/tests/api/test_notification_routes.py` passing.
