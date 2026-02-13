@@ -4,7 +4,7 @@ from database.models import Notification
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from services.notification_service import notification_service
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 router = APIRouter()
@@ -19,8 +19,7 @@ class NotificationResponse(BaseModel):
     link: Optional[str] = None
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 @router.get("/list", response_model=List[NotificationResponse])
 async def get_notifications(unread_only: bool = True, db: Session = Depends(get_db)):

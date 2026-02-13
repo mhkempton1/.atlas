@@ -12,7 +12,7 @@ from services.activity_service import activity_service
 import email.utils
 from datetime import datetime, timedelta
 from database.database import get_db
-from database.models import Email, EmailAttachment, Contact, CalendarEvent
+from database.models import Email, EmailAttachment, CalendarEvent
 
 # Updated Scopes for Email + Calendar
 SCOPES = [
@@ -23,6 +23,10 @@ SCOPES = [
 ]
 
 class GoogleService:
+    """
+    Service for interacting with Google APIs (Gmail, Calendar).
+    Handles authentication and synchronization.
+    """
     def __init__(self):
         self.gmail_service = None
         self.calendar_service = None
@@ -58,7 +62,6 @@ class GoogleService:
                 creds = Credentials.from_authorized_user_file(token_path, SCOPES)
                 # Verify scopes match - force re-auth if scopes changed
                 if creds and not set(SCOPES).issubset(set(creds.scopes or [])):
-                    print("Scopes changed, re-authenticating...")
                     creds = None
             except Exception:
                 creds = None
@@ -69,16 +72,13 @@ class GoogleService:
                 try:
                     creds.refresh(Request())
                 except RefreshError:
-                    print("Token expired and refresh failed. Re-authenticating...")
                     creds = None
             
             if not creds:
                 if os.path.exists(creds_path):
                     flow = InstalledAppFlow.from_client_secrets_file(creds_path, SCOPES)
-                    print("Opening browser for authentication...")
                     creds = flow.run_local_server(port=0)
                 else:
-                    print(f"No credentials found. Searching: {possible_creds_paths}")
                     return
 
             # Save token
@@ -89,7 +89,7 @@ class GoogleService:
                 with open(save_path, 'w') as token:
                     token.write(creds.to_json())
             except Exception as e:
-                print(f"Failed to save token to {save_path}: {e}")
+                pass
 
         # Build Services
         self.gmail_service = build('gmail', 'v1', credentials=creds)
@@ -121,7 +121,7 @@ class GoogleService:
                     if self._store_email(message, db):
                         synced_count += 1
                 except Exception as e:
-                    print(f"Failed to sync email {msg_ref['id']}: {e}")
+                    pass
 
             db.commit()
             
@@ -204,7 +204,7 @@ class GoogleService:
                 "date": email.date_received.isoformat() if email.date_received else None
             })
         except Exception as e:
-            print(f"Failed to index email {email.message_id}: {e}")
+            pass
 
         return True
 
@@ -460,7 +460,6 @@ class GoogleService:
         except Exception as e:
             db.rollback()
             if "Calendar usage limits exceeded" in str(e) or "API has not been used" in str(e):
-                print(f"Calendar API warning: {e}")
                 return {'synced': 0, 'error': 'API_DISABLED'}
             raise Exception(f"Calendar sync failed: {e}")
 
