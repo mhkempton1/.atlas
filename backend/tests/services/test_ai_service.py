@@ -43,3 +43,23 @@ async def test_generate_content_api_error(ai_service_instance):
     
     result = await service.generate_content("Hello")
     assert "Error generating content" in result
+
+@pytest.mark.asyncio
+async def test_generate_content_json_mode(ai_service_instance):
+    service, mock_client_class = ai_service_instance
+    mock_client = mock_client_class.return_value
+
+    # Mock response
+    mock_response = MagicMock()
+    mock_response.text = '{"key": "value"}'
+    mock_client.models.generate_content.return_value = mock_response
+
+    result = await service.generate_content("Hello", json_mode=True)
+    assert result == '{"key": "value"}'
+
+    # Verify config passed
+    mock_client.models.generate_content.assert_called_with(
+        model='gemini-2.0-flash',
+        contents='Hello',
+        config={'response_mime_type': 'application/json'}
+    )

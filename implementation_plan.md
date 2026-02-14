@@ -103,6 +103,10 @@ Fix critical environment configuration issues and refactor service tests (`Searc
 
 ## Goal Description
 Implement comprehensive test coverage for Notification API routes and Scheduler Service (schedule aggregation, dashboard stats) to ensure reliability and catch regressions.
+# Implementation Plan - Notification System Testing
+
+## Goal Description
+Implement comprehensive tests for the Notification system, covering both the `NotificationService` and the API routes (`/notifications/*`).
 
 ## Proposed Changes
 
@@ -126,3 +130,21 @@ Implement comprehensive test coverage for Notification API routes and Scheduler 
 ## Implemented
 - [x] Notification API tests passing.
 - [x] Scheduler Service tests passing.
+
+#### [CREATE] `backend/tests/services/test_notification_service.py`
+- Implemented unit tests for `NotificationService`:
+    - `push_notification`: Verifies creation and persistence.
+    - `get_unread_notifications`: Verifies filtering and ordering.
+    - `mark_as_read`: Verifies status update.
+    - `clear_all`: Verifies deletion.
+
+#### [CREATE] `backend/tests/api/test_notification_routes.py`
+- Implemented API tests for `/notifications` endpoints:
+    - `GET /list`: Verifies retrieval and `unread_only` filtering.
+    - `PATCH /{id}/read`: Verifies marking as read.
+    - `DELETE /clear`: Verifies clearing all notifications.
+- Added `patch_session` fixture to resolve SQLite locking issues by sharing the connection between test fixture and service.
+
+## Implemented
+- [x] `backend/tests/services/test_notification_service.py` passing.
+- [x] `backend/tests/api/test_notification_routes.py` passing.
