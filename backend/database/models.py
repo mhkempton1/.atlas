@@ -169,3 +169,13 @@ class Notification(Base):
     link = Column(String, nullable=True) # Optional URL or internal module link
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     read_at = Column(DateTime(timezone=True), nullable=True)
+
+class Learning(Base):
+    __tablename__ = "learnings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String, index=True)
+    insight = Column(Text)
+    source = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

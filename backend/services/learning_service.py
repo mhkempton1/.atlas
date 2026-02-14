@@ -1,90 +1,70 @@
-import os
-import json
+from sqlalchemy.orm import Session
+from database.database import SessionLocal
+from database.models import Learning
 from datetime import datetime
 from typing import List, Dict, Any
-from core.config import settings
 
 class LearningService:
-    def __init__(self):
-        self.learning_path = os.path.join(settings.DATA_DIR, "learning_core.json")
-        self._ensure_file()
+    def get_recent_lessons(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Query the database for the most recent learned patterns.
+        Returns list of {topic, insight, source, created_at}.
+        """
+        db: Session = SessionLocal()
+        try:
+            lessons = db.query(Learning).order_by(Learning.created_at.desc()).limit(limit).all()
+            return [
+                {
+                    "topic": l.topic,
+                    "insight": l.insight,
+                    "source": l.source,
+                    "created_at": l.created_at.isoformat() if l.created_at else None
+                }
+                for l in lessons
+            ]
+        finally:
+            db.close()
 
-    def _ensure_file(self):
-        if not os.path.exists(self.learning_path):
-            with open(self.learning_path, 'w') as f:
-                json.dump({"lessons": [], "last_updated": None}, f)
+    def record_lesson(self, topic: str, insight: str, source: str):
+        """
+        Persist a new learning record to the database.
+        Deduplicate: if same topic+insight exists, update timestamp only.
+        """
+        db: Session = SessionLocal()
+        try:
+            existing = db.query(Learning).filter(
+                Learning.topic == topic,
+                Learning.insight == insight
+            ).first()
 
+            if existing:
+                # Update timestamp to bring it to top of recent list
+                existing.created_at = datetime.now()
+                # Also update updated_at if needed, though usually handled by model hook.
+                # But we explicitly want to "refresh" the lesson.
+                db.commit()
+            else:
+                new_lesson = Learning(
+                    topic=topic,
+                    insight=insight,
+                    source=source
+                )
+                db.add(new_lesson)
+                db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            db.close()
+
+    # Legacy/Helper for AI Service context injection, maintaining backward compatibility if needed
     def get_lessons(self) -> str:
-        """Retrieve aggregated lessons for context injection."""
-        try:
-            with open(self.learning_path, 'r') as f:
-                data = json.load(f)
+        """Retrieve aggregated lessons formatted for context injection."""
+        lessons = self.get_recent_lessons(limit=5)
+        if not lessons:
+            return "No historical lessons learned yet."
 
-            lessons = data.get("lessons", [])
-            if not lessons:
-                return "No historical lessons learned yet."
-
-            # Return most recent 5 lessons
-            recent = sorted(lessons, key=lambda x: x['date'], reverse=True)[:5]
-            return "\n".join([f"- {l['date']}: {l['lesson']}" for l in recent])
-        except Exception as e:
-            print(f"Error reading learning core: {e}")
-            return "Error retrieving lessons."
-
-    def save_lesson(self, lesson: str, context: str = "Self-Audit"):
-        """Save a new lesson to the core."""
-        try:
-            with open(self.learning_path, 'r') as f:
-                data = json.load(f)
-
-            data["lessons"].append({
-                "date": datetime.now().isoformat(),
-                "lesson": lesson,
-                "context": context
-            })
-            data["last_updated"] = datetime.now().isoformat()
-
-            with open(self.learning_path, 'w') as f:
-                json.dump(data, f, indent=2)
-
-            print(f"Lesson saved: {lesson}")
-        except Exception as e:
-            print(f"Error saving lesson: {e}")
-
-    def save_correction(self, source_prompt: str, corrected_output: str, user_comment: str = ""):
-        """
-        Active Learning: Save a specific correction (Diff) from the user.
-        """
-        lesson_text = f"Correction on '{source_prompt[:50]}...': User preferred '{corrected_output[:50]}...'"
-        if user_comment:
-            lesson_text += f" (Note: {user_comment})"
-
-        self.save_lesson(lesson_text, context="User-Feedback")
-
-    async def run_self_audit(self):
-        """
-        The Shadow Tester: Compares predictions vs reality.
-        For MVP, this mocks the comparison logic but establishes the pipeline.
-        """
-        from services.ai_service import ai_service
-
-        # 1. Fetch Yesterday's Prediction (Mocked for now as we just started)
-        prediction = "Predicted: Rough-in completion by 5 PM."
-
-        # 2. Fetch Actual Log (Mocked)
-        actual = "Actual: Rough-in completed at 6:30 PM due to missing conduit bender."
-
-        # 3. Generate Lesson
-        prompt = f"""
-        Analyze the discrepancy between prediction and reality.
-        {prediction}
-        {actual}
-
-        Output a single sentence 'Lesson Learned' for future improvement.
-        """
-
-        lesson = await ai_service.generate_content(prompt)
-        if lesson:
-            self.save_lesson(lesson.strip(), "Daily Self-Audit")
+        # Format similar to previous implementation for consistency
+        return "\n".join([f"- {l['created_at']}: [{l['topic']}] {l['insight']}" for l in lessons])
 
 learning_service = LearningService()

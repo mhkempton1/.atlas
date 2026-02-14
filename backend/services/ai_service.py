@@ -76,10 +76,14 @@ class GeminiService:
 
         # 2. Learning Core (Shadow Tester Feedback)
         try:
-            lessons = learning_service.get_lessons()
-            context_str += f"Lessons Learned:\n{lessons}\n"
+            recent_lessons = learning_service.get_recent_lessons(limit=5)
+            if recent_lessons:
+                lessons_str = "\n".join([f"- {l['created_at']}: [{l['topic']}] {l['insight']}" for l in recent_lessons])
+                context_str += f"Previous learnings:\n{lessons_str}\n"
+            else:
+                context_str += "Previous learnings: None\n"
         except Exception:
-            context_str += "Lessons Learned: Unavailable\n"
+            context_str += "Previous learnings: Unavailable\n"
 
         # 3. Active Projects
         try:
