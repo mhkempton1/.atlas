@@ -6,7 +6,7 @@ from agents.task_agent import TaskAgent
 def mock_ai_service():
     with patch("agents.task_agent.ai_service") as mock:
         mock.generate_content = AsyncMock()
-        mock.generate_content.return_value = '{"tasks": [{"title": "Review Proposal", "description": "Check the budget.", "priority": "High", "due_date": "2025-02-01", "confidence": 0.9}]}'
+        mock.generate_content.return_value = '{"tasks": [{"title": "Review Proposal", "description": "Check the budget.", "priority": "High", "due_date": "2025-02-01", "confidence": 0.9, "evidence": "Please review the attached proposal by Friday."}]}'
         yield mock
 
 @pytest.mark.asyncio
@@ -27,6 +27,8 @@ async def test_task_extraction(mock_ai_service):
     assert tasks[0]["title"] == "Review Proposal"
     assert tasks[0]["priority"] == "High"
     assert tasks[0]["source_id"] == "msg_123"
+    assert tasks[0]["confidence"] == 0.9
+    assert tasks[0]["evidence"] == "Please review the attached proposal by Friday."
     
 @pytest.mark.asyncio
 async def test_task_extraction_error(mock_ai_service):

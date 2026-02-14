@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from database.database import get_db
 from database.models import Task
 from sqlalchemy.orm import Session
@@ -212,12 +212,17 @@ async def delete_task(task_id: int, db: Session = Depends(get_db)):
     return {"success": True, "message": f"Task '{title}' deleted"}
 
 @router.post("/extract/{email_id}")
-async def extract_tasks(email_id: int, db: Session = Depends(get_db)):
+async def extract_tasks(
+    email_id: int,
+    min_confidence: float = Query(0.5, description="Minimum confidence score for extraction"),
+    db: Session = Depends(get_db)
+):
     """
     Manually trigger AI task extraction for a specific email.
 
     Args:
         email_id: The ID of the email to process.
+        min_confidence: Minimum confidence score to extract a task.
         db: Database session.
 
     Returns:
@@ -245,6 +250,9 @@ async def extract_tasks(email_id: int, db: Session = Depends(get_db)):
 
     tasks_created = []
     for t_data in result["data"].get("tasks", []):
+        if t_data.get("confidence", 0.0) < min_confidence:
+            continue
+
         task = Task(
             title=t_data["title"],
             description=t_data["description"],
@@ -257,13 +265,22 @@ async def extract_tasks(email_id: int, db: Session = Depends(get_db)):
         )
         db.add(task)
         db.flush()
-        tasks_created.append({"task_id": task.task_id, "title": task.title})
+        tasks_created.append({
+            "task_id": task.task_id,
+            "title": task.title,
+            "confidence": t_data.get("confidence"),
+            "evidence": t_data.get("evidence")
+        })
 
     db.commit()
     return {"extracted": len(tasks_created), "tasks": tasks_created}
 
 @router.post("/extract/calendar/{event_id}")
-async def extract_calendar_tasks(event_id: int, db: Session = Depends(get_db)):
+async def extract_calendar_tasks(
+    event_id: int,
+    min_confidence: float = Query(0.5, description="Minimum confidence score for extraction"),
+    db: Session = Depends(get_db)
+):
     """
     AI task extraction for a specific calendar event.
     """
@@ -290,6 +307,9 @@ async def extract_calendar_tasks(event_id: int, db: Session = Depends(get_db)):
 
     tasks_created = []
     for t_data in result["data"].get("tasks", []):
+        if t_data.get("confidence", 0.0) < min_confidence:
+            continue
+
         task = Task(
             title=t_data["title"],
             description=t_data["description"],
@@ -302,7 +322,12 @@ async def extract_calendar_tasks(event_id: int, db: Session = Depends(get_db)):
         )
         db.add(task)
         db.flush()
-        tasks_created.append({"task_id": task.task_id, "title": task.title})
+        tasks_created.append({
+            "task_id": task.task_id,
+            "title": task.title,
+            "confidence": t_data.get("confidence"),
+            "evidence": t_data.get("evidence")
+        })
 
     if tasks_created:
         notification_service.push_notification(
