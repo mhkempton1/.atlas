@@ -71,6 +71,14 @@ class Email(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     synced_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # New fields
+    gmail_id = Column(String, unique=True, index=True, nullable=True)
+    sender = Column(String, index=True, nullable=True)
+    recipients = Column(JSON, nullable=True)
+    is_unread = Column(Boolean, default=True)
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
 class EmailAttachment(Base):
     __tablename__ = "email_attachments"
 
@@ -80,6 +88,7 @@ class EmailAttachment(Base):
     file_size = Column(Integer, nullable=True)
     mime_type = Column(String, nullable=True)
     file_path = Column(String)
+    storage_path = Column(String, nullable=True)
     file_hash = Column(String, nullable=True)
     remote_attachment_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
