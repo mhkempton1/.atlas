@@ -1,10 +1,17 @@
 from typing import Optional
 import asyncio
+import json
+import time
+import datetime
+import os
 try:
     from google import genai
 except ImportError:
     genai = None
 from core.config import settings
+
+LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+LOG_FILE = os.path.join(LOG_DIR, "ai_audit_log.jsonl")
 
 class GeminiService:
     """
@@ -19,6 +26,40 @@ class GeminiService:
         else:
             self.client = None
             self.model_name = None
+
+    def _log_audit(self, prompt: str, response: str, model: str, tokens_used: Optional[int], latency_ms: float, status: str, error_message: Optional[str] = None):
+        """
+        Log AI audit entry.
+        """
+        if os.environ.get("TEST"):
+            return
+
+        try:
+            if not os.path.exists(LOG_DIR):
+                os.makedirs(LOG_DIR)
+
+            # Log rotation
+            if os.path.exists(LOG_FILE) and os.path.getsize(LOG_FILE) > 50 * 1024 * 1024:
+                rotated_file = LOG_FILE.replace(".jsonl", ".1.jsonl")
+                os.replace(LOG_FILE, rotated_file)
+
+            entry = {
+                "timestamp": datetime.datetime.now().isoformat(),
+                "prompt": prompt,
+                "response": response,
+                "model": model,
+                "tokens_used": tokens_used,
+                "latency_ms": latency_ms,
+                "status": status
+            }
+            if error_message:
+                entry["error_message"] = error_message
+
+            with open(LOG_FILE, "a") as f:
+                f.write(json.dumps(entry) + "\n")
+        except Exception as e:
+            # Fallback print if logging fails
+            print(f"Failed to write to AI audit log: {e}")
 
     def _build_context(self, user_strata: int) -> str:
         """
@@ -84,6 +125,8 @@ class GeminiService:
         if json_mode:
             config["response_mime_type"] = "application/json"
 
+        start_time = time.time()
+
         for attempt in range(max_retries + 1):
             try:
                 # The new SDK is synchronous by default, but we wrap it in async for the service interface
@@ -92,6 +135,21 @@ class GeminiService:
                     contents=final_prompt,
                     config=config
                 )
+
+                # Log success
+                tokens_used = None
+                if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                    tokens_used = response.usage_metadata.total_token_count
+
+                self._log_audit(
+                    prompt=final_prompt,
+                    response=response.text,
+                    model=self.model_name,
+                    tokens_used=tokens_used,
+                    latency_ms=(time.time() - start_time) * 1000,
+                    status="success"
+                )
+
                 return response.text
             except Exception as e:
                 error_msg = str(e)
@@ -102,9 +160,28 @@ class GeminiService:
                     await asyncio.sleep(wait_time)
                     continue
                 
+                latency_ms = (time.time() - start_time) * 1000
                 if is_rate_limit:
+                    self._log_audit(
+                        prompt=final_prompt,
+                        response="ERROR_RATE_LIMIT_EXCEEDED",
+                        model=self.model_name,
+                        tokens_used=None,
+                        latency_ms=latency_ms,
+                        status="error",
+                        error_message="Rate limit exceeded"
+                    )
                     return "ERROR_RATE_LIMIT_EXCEEDED"
                 
+                self._log_audit(
+                    prompt=final_prompt,
+                    response=f"Error generating content: {error_msg}",
+                    model=self.model_name,
+                    tokens_used=None,
+                    latency_ms=latency_ms,
+                    status="error",
+                    error_message=error_msg
+                )
                 return f"Error generating content: {error_msg}"
 
 # Singleton instance
