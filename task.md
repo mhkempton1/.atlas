@@ -8,7 +8,7 @@
 
 ## 🚀 Next Steps
 
-1. **Test Coverage**: Implement `backend/tests/api/test_notification_routes.py` and `backend/tests/services/test_scheduler_service.py`.
+1. **Test Coverage**: (Done) Implemented `backend/tests/api/test_notification_routes.py` and `backend/tests/services/test_scheduler_service.py`.
 2. **AI Hardening**: Add JSON output mode and structured output parsing to `backend/services/ai_service.py`.
 3. **Autonomous Loop**: Enhance `backend/scripts/execute_mission.py` to support actual tool execution (file editing, shell commands).
 
@@ -34,8 +34,8 @@
 
 ### 1.3 Service-Level Tests
 
-- [ ] `backend/tests/services/test_notification_service.py` — Unit test `push_notification`, `get_unread_notifications`, `mark_as_read`, `clear_all`. Verify DB state after each operation.
-- [ ] `backend/tests/services/test_scheduler_service.py` — Test `get_my_schedule` aggregation logic. Test `get_dashboard_stats` returns correct counts. Mock all DB queries.
+- [x] `backend/tests/services/test_notification_service.py` — Unit test `push_notification`, `get_unread_notifications`, `mark_as_read`, `clear_all`. Verify DB state after each operation.
+- [x] `backend/tests/services/test_scheduler_service.py` — Test `get_my_schedule` aggregation logic. Test `get_dashboard_stats` returns correct counts. Mock all DB queries.
 - [x] `backend/tests/services/test_ai_service.py` — Test `generate_content` with mocked Gemini API. Verify retry logic on 429 rate limit errors.
 - [x] `backend/tests/agents/test_task_agent.py` — Test `extract_tasks_from_email` with sample email bodies. Verify JSON parsing and metadata attachment.
 

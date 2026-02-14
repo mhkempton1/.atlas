@@ -51,9 +51,31 @@ def test_control_is_protected(client):
     """
     /system/control/... should be protected (403 for external).
     """
+    # By default, TestClient is local (allowed). We need to simulate external access.
+    # We can override the dependency to force a failure, proving the route uses the dependency.
+    from core.security import verify_local_request
+
+    async def force_fail():
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    client.app.dependency_overrides[verify_local_request] = force_fail
+
     response = client.post("/system/control/boot-silent")
     assert response.status_code == 403
     assert "Access denied" in response.json()["detail"]
+
+    # Cleanup
+    client.app.dependency_overrides = {}
+
+def test_control_allowed_locally(client):
+    """
+    /system/control/... should be allowed for local requests.
+    """
+    # Mock subprocess to avoid actual execution
+    with patch("subprocess.Popen") as mock_popen:
+        response = client.post("/system/control/boot-silent")
+        assert response.status_code == 200
+        assert response.json()["success"] is True
 
 @pytest.mark.asyncio
 async def test_verify_local_request_logic():
