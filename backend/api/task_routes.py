@@ -6,6 +6,7 @@ from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel
 from services.activity_service import activity_service
+from services.task_persistence_service import task_persistence_service
 
 router = APIRouter()
 
@@ -253,18 +254,19 @@ async def extract_tasks(
         if t_data.get("confidence", 0.0) < min_confidence:
             continue
 
-        task = Task(
-            title=t_data["title"],
-            description=t_data["description"],
-            priority=t_data["priority"].lower(),
-            due_date=datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
-            original_due_date=datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
-            project_id=context.get("project", {}).get("number") if context.get("project") else None,
-            email_id=email_id,
-            created_from="email"
-        )
-        db.add(task)
-        db.flush()
+        task_data_dict = {
+            "title": t_data["title"],
+            "description": t_data["description"],
+            "priority": t_data["priority"].lower(),
+            "due_date": datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
+            "original_due_date": datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
+            "project_id": context.get("project", {}).get("number") if context.get("project") else None,
+            "email_id": email_id,
+            "created_from": "email",
+            "source": "atlas_extracted"
+        }
+        task = task_persistence_service.persist_task_to_database(task_data_dict, db)
+
         tasks_created.append({
             "task_id": task.task_id,
             "title": task.title,
@@ -272,7 +274,7 @@ async def extract_tasks(
             "evidence": t_data.get("evidence")
         })
 
-    db.commit()
+    # db.commit() # Handled by service
     return {"extracted": len(tasks_created), "tasks": tasks_created}
 
 @router.post("/extract/calendar/{event_id}")
@@ -310,18 +312,20 @@ async def extract_calendar_tasks(
         if t_data.get("confidence", 0.0) < min_confidence:
             continue
 
-        task = Task(
-            title=t_data["title"],
-            description=t_data["description"],
-            priority=t_data["priority"].lower(),
-            due_date=datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
-            original_due_date=datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
-            project_id=event.project_id,
-            created_from="calendar_event",
-            created_at=datetime.now()
-        )
-        db.add(task)
-        db.flush()
+        task_data_dict = {
+            "title": t_data["title"],
+            "description": t_data["description"],
+            "priority": t_data["priority"].lower(),
+            "due_date": datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
+            "original_due_date": datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
+            "project_id": event.project_id,
+            "created_from": "calendar_event",
+            "source": "atlas_extracted",
+            "created_at": datetime.now()
+        }
+
+        task = task_persistence_service.persist_task_to_database(task_data_dict, db)
+
         tasks_created.append({
             "task_id": task.task_id,
             "title": task.title,
@@ -338,5 +342,5 @@ async def extract_calendar_tasks(
             link="/tasks"
         )
 
-    db.commit()
+    # db.commit() # Handled by service
     return {"extracted": len(tasks_created), "tasks": tasks_created}
