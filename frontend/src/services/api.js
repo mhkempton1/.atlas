@@ -188,6 +188,11 @@ export const SYSTEM_API = {
         return response.data;
     },
 
+    getProjectContext: async (projectId) => {
+        const response = await api.get(`/projects/${projectId}/context`);
+        return response.data;
+    },
+
     // Email Actions
     getEmail: async (emailId) => {
         const response = await api.get(`/email/${emailId}`);

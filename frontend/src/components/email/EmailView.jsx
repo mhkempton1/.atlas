@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Star, Reply, Forward, Trash2, Paperclip, Archive, MailOpen, Send, X, Loader2, Sparkles, CheckSquare, Tag, Brain, Wand2, ClipboardCheck } from 'lucide-react';
+import { ArrowLeft, Star, Reply, Forward, Trash2, Paperclip, Archive, MailOpen, Send, X, Loader2, Sparkles, CheckSquare, Tag, Brain, Wand2, ClipboardCheck, Briefcase, User, Users } from 'lucide-react';
 import { Menu } from '@headlessui/react';
 import { SYSTEM_API } from '../../services/api';
 import { useToast } from '../../hooks/useToast';
@@ -14,6 +14,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
     const [sending, setSending] = useState(false);
     const [extracting, setExtracting] = useState(false);
     const [drafting, setDrafting] = useState(false);
+    const [projectContext, setProjectContext] = useState(null);
 
     const CATEGORIES = ['work', 'personal', 'urgent', 'todo', 'finance', 'archive', 'drafts'];
 
@@ -25,7 +26,15 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
                 })
                 .catch(err => console.error("Failed to mark email as read:", err));
         }
-    }, [email?.email_id, email?.is_read, onEmailAction]);
+
+        // Fetch Project Context
+        setProjectContext(null);
+        if (email?.project_id) {
+            SYSTEM_API.getProjectContext(email.project_id)
+                .then(data => setProjectContext(data))
+                .catch(err => console.error("Failed to fetch project context:", err));
+        }
+    }, [email?.email_id, email?.is_read, email?.project_id, onEmailAction]);
 
     if (!email) return <div className="h-full flex items-center justify-center text-text-muted">Select an email to read</div>;
 
@@ -222,28 +231,96 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
                 </div>
             </div>
 
-            {/* Content */}
-            <div className="content flex-1 overflow-auto p-6 bg-transparent">
-                <div className="prose prose-invert max-w-none">
-                    {email.body_html ? (
-                        <div dangerouslySetInnerHTML={{ __html: email.body_html }} />
-                    ) : (
-                        <div className="whitespace-pre-wrap font-sans text-text-bright">{email.body_text}</div>
+            {/* Content & Sidebar Wrapper */}
+            <div className="flex-1 flex overflow-hidden">
+                <div className="content flex-1 overflow-auto p-6 bg-transparent">
+                    <div className="prose prose-invert max-w-none">
+                        {email.body_html ? (
+                            <div dangerouslySetInnerHTML={{ __html: email.body_html }} />
+                        ) : (
+                            <div className="whitespace-pre-wrap font-sans text-text-bright">{email.body_text}</div>
+                        )}
+                    </div>
+
+                    {email.attachments && email.attachments.length > 0 && (
+                        <div className="attachments mt-8 border-t border-border pt-4">
+                            <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                                <Paperclip className="w-4 h-4" /> Attachments
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                                {email.attachments.map(att => (
+                                    <div key={att.id} className="p-2 bg-surface-dark border border-border rounded flex items-center gap-2 text-sm">
+                                        <span>{att.filename}</span>
+                                        <span className="text-xs text-text-muted">({Math.round(att.size / 1024)}KB)</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     )}
                 </div>
 
-                {email.attachments && email.attachments.length > 0 && (
-                    <div className="attachments mt-8 border-t border-border pt-4">
-                        <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                            <Paperclip className="w-4 h-4" /> Attachments
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                            {email.attachments.map(att => (
-                                <div key={att.id} className="p-2 bg-surface-dark border border-border rounded flex items-center gap-2 text-sm">
-                                    <span>{att.filename}</span>
-                                    <span className="text-xs text-text-muted">({Math.round(att.size / 1024)}KB)</span>
+                {/* Project Context Sidebar */}
+                {projectContext && (
+                    <div className="w-80 border-l border-white/10 bg-black/20 p-4 overflow-y-auto hidden lg:block">
+                        <div className="rounded-xl bg-slate-900/50 border border-purple-500/30 p-4 shadow-lg">
+                            <div className="flex items-center gap-2 mb-3 text-purple-400">
+                                <Briefcase className="w-4 h-4" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Project Context</span>
+                            </div>
+
+                            <h3 className="text-base font-bold text-white leading-tight mb-1">{projectContext.name}</h3>
+                            <div className="text-xs text-gray-400 font-mono mb-3">{projectContext.project_id}</div>
+
+                            <div className="flex items-center gap-2 mb-4">
+                                <StatusBadge status={projectContext.status} />
+                                <span className="text-xs text-gray-400">| {projectContext.percent_complete}% Complete</span>
+                            </div>
+
+                            <div className="space-y-3 mb-4">
+                                <div className="flex items-center gap-3 text-sm text-gray-300">
+                                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-white/10">
+                                        <User className="w-4 h-4 text-gray-500" />
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] uppercase text-gray-500 font-bold">Manager</div>
+                                        <div className="text-xs">{projectContext.pm}</div>
+                                    </div>
                                 </div>
-                            ))}
+                                <div className="flex items-center gap-3 text-sm text-gray-300">
+                                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-white/10">
+                                        <Users className="w-4 h-4 text-gray-500" />
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] uppercase text-gray-500 font-bold">Foreman</div>
+                                        <div className="text-xs">{projectContext.foreman}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="border-t border-white/10 pt-3 mb-4">
+                                <div className="text-[10px] font-bold text-gray-400 uppercase mb-2 flex justify-between">
+                                    <span>Outstanding Items</span>
+                                    <span className="text-purple-400">{projectContext.tasks.critical + projectContext.tasks.high + projectContext.tasks.medium + projectContext.tasks.low} Total</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="bg-red-500/10 border border-red-500/20 rounded p-2 text-center">
+                                        <div className="text-lg font-bold text-red-400">{projectContext.tasks.critical}</div>
+                                        <div className="text-[8px] uppercase text-red-400/70 font-bold">Crit</div>
+                                    </div>
+                                    <div className="bg-orange-500/10 border border-orange-500/20 rounded p-2 text-center">
+                                        <div className="text-lg font-bold text-orange-400">{projectContext.tasks.high}</div>
+                                        <div className="text-[8px] uppercase text-orange-400/70 font-bold">High</div>
+                                    </div>
+                                    <div className="bg-blue-500/10 border border-blue-500/20 rounded p-2 text-center">
+                                        <div className="text-lg font-bold text-blue-400">{projectContext.tasks.medium}</div>
+                                        <div className="text-[8px] uppercase text-blue-400/70 font-bold">Med</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <a href="#" className="flex items-center justify-center w-full py-2 bg-purple-600/10 hover:bg-purple-600/20 text-purple-300 text-xs font-bold rounded border border-purple-500/30 transition-all group">
+                                View in Altimeter <span className="ml-1 group-hover:translate-x-1 transition-transform">→</span>
+                            </a>
                         </div>
                     </div>
                 )}
