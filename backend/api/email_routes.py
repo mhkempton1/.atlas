@@ -97,6 +97,7 @@ class EmailResponse(BaseModel):
     is_read: bool
     is_starred: bool
     remote_id: Optional[str] = None
+    thread_id: Optional[str] = None
     provider_type: Optional[str] = "google"
     has_attachments: bool = False
     
