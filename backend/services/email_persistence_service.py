@@ -146,6 +146,19 @@ def persist_email_to_database(email_data, db: Session):
                 print(f"Error updating contacts for email {new_email.email_id}: {e}")
                 # Don't fail the email persistence if contact update fails
 
+            # Generate Embedding (Sync)
+            try:
+                from services.embedding_service import embedding_service
+                embedding_service.generate_email_embedding({
+                    "body": new_email.body_text or new_email.body_html,
+                    "subject": new_email.subject,
+                    "sender": new_email.from_address,
+                    "date": new_email.date_received.isoformat() if new_email.date_received else "",
+                    "message_id": new_email.message_id
+                })
+            except Exception as e:
+                print(f"Error generating embedding for email {new_email.email_id}: {e}")
+
             return {"success": True, "email_id": new_email.email_id, "action": "created"}
         except Exception as e:
             db.rollback()

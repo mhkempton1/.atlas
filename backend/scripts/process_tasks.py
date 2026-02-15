@@ -45,7 +45,8 @@ async def process_task(task):
                     print(f"  -> Updated Email Category: {category_update}")
 
                 # Index for Search
-                search_service.index_email({
+                from services.embedding_service import embedding_service
+                embedding_service.generate_email_embedding({
                     "subject": email_obj.subject,
                     "sender": email_obj.from_address,
                     "body": email_obj.body_text or email_obj.body_html,

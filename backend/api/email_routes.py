@@ -169,6 +169,15 @@ async def search_emails(
     results = search_emails_local(q, filter_options, db, limit=limit, offset=offset)
     return results
 
+@router.get("/semantic-search")
+async def semantic_search(q: str, top_k: int = 10):
+    """
+    Semantic search for emails using vector embeddings.
+    """
+    from services.embedding_service import embedding_service
+    results = embedding_service.semantic_search_emails(q, top_k)
+    return results
+
 @router.get("/{email_id}", response_model=EmailResponse)
 async def get_email(email_id: int, db: Session = Depends(get_db)):
     """Get single email with full body"""
