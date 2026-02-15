@@ -265,6 +265,11 @@ export const SYSTEM_API = {
         return response.data;
     },
 
+    searchContacts: async (query) => {
+        const response = await api.get(`/contacts/search?q=${encodeURIComponent(query)}`);
+        return response.data;
+    },
+
     // Calendar
     getCalendarEvents: async (days = 14) => {
         const response = await api.get(`/calendar/events?days=${days}`);
