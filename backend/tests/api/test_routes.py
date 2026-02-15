@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock, AsyncMock, patch
 
 def test_generate_draft_endpoint(client, mock_draft_agent):
     response = client.post("/api/v1/agents/draft", json={
@@ -14,7 +14,10 @@ def test_generate_draft_endpoint(client, mock_draft_agent):
     assert data["draft_text"] == "API Mocked Draft"
     assert data["status"] == "generated"
 
-def test_send_email_endpoint(client, mock_google_service):
+@patch("services.communication_service.comm_service")
+def test_send_email_endpoint(mock_comm, client):
+    mock_comm.send_email.return_value = {"success": True, "message_id": "mock_id"}
+
     response = client.post("/api/v1/agents/send-email", json={
         "recipient": "test@example.com",
         "subject": "Subject",
@@ -23,7 +26,7 @@ def test_send_email_endpoint(client, mock_google_service):
     
     assert response.status_code == 200
     assert response.json()["success"] is True
-    mock_google_service.send_email.assert_called_once()
+    mock_comm.send_email.assert_called_once()
 
 def test_get_knowledge_docs(client):
     with MagicMock() as mock_ks:

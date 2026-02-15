@@ -5,8 +5,6 @@ import {
   BookOpen,
   Settings,
   Menu,
-  X,
-  User,
   LogOut,
   ShieldCheck,
   FolderGit2,
@@ -14,12 +12,9 @@ import {
   Activity,
   Network,
   History as HistoryIcon,
-  Navigation
 } from 'lucide-react';
-import EmailScanner from './components/EmailScanner';
 import SystemHealthView from './components/dashboard/SystemHealthView';
 import SchedulerView from './components/dashboard/SchedulerView';
-import ComposeDraft from './components/email/ComposeDraft';
 import EmailModule from './components/email/EmailModule';
 import KnowledgeDashboard from './components/knowledge/KnowledgeDashboard';
 import Dashboard from './components/dashboard/Dashboard';
@@ -34,12 +29,11 @@ import ReportsDashboard from './components/reporting/ReportsDashboard';
 import CommandBar from './components/shared/CommandBar';
 import SystemStatusView from './components/system/SystemStatusView';
 import { SYSTEM_API } from './services/api';
-
-// ... imports
+import NotificationCenter from './components/system/NotificationCenter';
 
 const MODULES = [
   { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard, minStrata: 1 },
-  { id: 'procedures', label: 'The Library', icon: BookOpen, minStrata: 1 }, // Consolidated Knowledge & SOPs
+  { id: 'procedures', label: 'The Library', icon: BookOpen, minStrata: 1 },
   { id: 'docs', label: 'Document Control', icon: FolderGit2, minStrata: 3 },
   { id: 'email', label: 'Email Control', icon: Mail, minStrata: 1 },
   { id: 'tasks', label: 'Mission Tasks', icon: ShieldCheck, minStrata: 1 },
@@ -79,6 +73,36 @@ function App() {
 
   // Global State for Ubiquity
   const [globalHealth, setGlobalHealth] = useState(() => JSON.parse(localStorage.getItem('system_health')) || { status: 'online', health_percentage: 100 });
+  const [notifications, setNotifications] = useState([]);
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  const fetchNotifications = async () => {
+    try {
+      const data = await SYSTEM_API.getNotifications(false);
+      setNotifications(data);
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    }
+  };
+
+  const handleMarkRead = async (id) => {
+    try {
+      await SYSTEM_API.markNotificationRead(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    } catch (err) {
+      console.error("Failed to mark as read:", err);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!window.confirm("Clear all notifications?")) return;
+    try {
+      await SYSTEM_API.clearNotifications();
+      setNotifications([]);
+    } catch (err) {
+      console.error("Failed to clear notifications:", err);
+    }
+  };
 
   // Preload and Sync Data
   useEffect(() => {
@@ -88,6 +112,7 @@ function App() {
         setGlobalHealth(health);
         localStorage.setItem('system_health', JSON.stringify(health));
 
+        fetchNotifications();
         // Warm up stats/weather in background
         SYSTEM_API.getDashboardStats().catch(() => null);
       } catch {
@@ -96,8 +121,8 @@ function App() {
     };
     syncData();
 
-    // Polling every 60s for health
-    const interval = setInterval(syncData, 60000);
+    // Polling every 30s for notifications/health
+    const interval = setInterval(syncData, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -111,7 +136,6 @@ function App() {
     url.searchParams.set('module', moduleId);
 
     // Clear other params except module initially, unless specified
-    // Actually better to just set provided params
     Object.keys(params).forEach(key => url.searchParams.set(key, params[key]));
 
     window.history.pushState({ moduleId, params }, "", url.toString());
@@ -141,7 +165,18 @@ function App() {
       }
     };
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+
+    const handleAppNavigate = (e) => {
+      if (e.detail && e.detail.moduleId) {
+        navigateTo(e.detail.moduleId, e.detail.params || {});
+      }
+    };
+    window.addEventListener('app-navigate', handleAppNavigate);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('app-navigate', handleAppNavigate);
+    };
   }, []);
 
   // Filter Modules by Access
@@ -205,16 +240,30 @@ function App() {
             onClick={() => navigateTo('system_status')}
             className="px-4 py-2 rounded-xl border transition-all flex items-center gap-2 font-mono text-sm font-bold uppercase tracking-wider hover:scale-105"
             style={{
-              borderColor: `rgb(${Math.round(252 + (16 - 252) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(211 + (185 - 211) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(77 + (129 - 77) * ((globalHealth?.health_percentage || 0) / 100))})`,
-              color: `rgb(${Math.round(252 + (16 - 252) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(211 + (185 - 211) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(77 + (129 - 77) * ((globalHealth?.health_percentage || 0) / 100))})`,
+              borderColor: `rgb(${Math.round(252 + (16 - 252) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(211 + (185 - 211) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(77 + (139 - 77) * ((globalHealth?.health_percentage || 0) / 100))})`,
+              color: `rgb(${Math.round(252 + (16 - 252) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(211 + (185 - 211) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(77 + (139 - 77) * ((globalHealth?.health_percentage || 0) / 100))})`,
               backgroundColor: `rgba(${Math.round(252 + (16 - 252) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(211 + (185 - 211) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(77 + (129 - 77) * ((globalHealth?.health_percentage || 0) / 100))}, 0.1)`
             }}
           >
             <Activity className="w-4 h-4" />
             ONLINE [{globalHealth?.health_percentage || 0}%]
           </button>
-          <div className="user-badge" onClick={() => navigateTo('config')}>
-            <div className="badge-initials">MK</div>
+
+          <NotificationCenter
+            notifications={notifications}
+            onMarkRead={handleMarkRead}
+            onClearAll={handleClearAll}
+          />
+
+          <div className="user-badge relative group" onClick={() => navigateTo('config')}>
+            <div className="badge-initials relative">
+              MK
+              {unreadCount > 0 && (
+                <span className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-black group-hover:scale-110 transition-transform">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </div>
             <div className="badge-details">
               <span className="user-name">{currentUser.name}</span>
               <span className="user-role">{currentUser.role} (Strata {currentUser.strata})</span>

@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 const API_URL = '/api/v1';
-const ALTIMETER_API_URL = 'http://127.0.0.1:4203/api/v1';
 
 const api = axios.create({
     baseURL: API_URL,
@@ -282,6 +281,11 @@ export const SYSTEM_API = {
         return response.data;
     },
 
+    createCalendarEvent: async (eventData) => {
+        const response = await api.post('/calendar/events', eventData);
+        return response.data;
+    },
+
     // Task CRUD
     getTasks: async (filters = {}) => {
         const params = new URLSearchParams();
@@ -340,6 +344,26 @@ export const SYSTEM_API = {
 
     updateTaskStatus: async (taskId, status, safetyAck = false) => {
         const response = await api.put(`/tasks/${taskId}`, { status, safety_ack: safetyAck });
+        return response.data;
+    },
+
+    // --- Notifications ---
+    getNotifications: async (unreadOnly = true) => {
+        const response = await api.get(`/notifications/list${unreadOnly ? '?unread_only=true' : ''}`);
+        return response.data;
+    },
+    markNotificationRead: async (id) => {
+        const response = await api.patch(`/notifications/${id}/read`);
+        return response.data;
+    },
+    clearNotifications: async () => {
+        const response = await api.delete('/notifications/clear');
+        return response.data;
+    },
+
+    // --- Calendar Task Extraction ---
+    extractCalendarTasks: async (eventId) => {
+        const response = await api.post(`/tasks/extract/calendar/${eventId}`);
         return response.data;
     }
 };

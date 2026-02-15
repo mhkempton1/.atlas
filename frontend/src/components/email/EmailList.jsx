@@ -4,11 +4,26 @@ import api, { SYSTEM_API } from '../../services/api';
 import { PageHeader, Spinner, EmptyState, Section, StatusBadge } from '../shared/UIComponents';
 import { useToast } from '../../hooks/useToast';
 
+const getEmailItemStyle = (is_read, expanded) => {
+    const base = "border-b border-white/5 transition-all";
+    const bg = expanded ? 'bg-white/10' : 'hover:bg-white/5';
+    const border = !is_read ? 'bg-purple-500/5 border-l-4 border-l-purple-500' : 'border-l-4 border-l-transparent';
+    return `${base} ${bg} ${border}`;
+};
+
+const getCategoryBadgeStyle = (category) => {
+    switch (category) {
+        case 'urgent': return 'bg-red-500/10 text-red-400 border-red-500/20';
+        case 'work': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        case 'personal': return 'bg-green-500/10 text-green-400 border-green-500/20';
+        default: return 'bg-white/10 text-white/70 border-white/5';
+    }
+};
+
 const EmailItem = ({ email, onClick, expanded, onAction }) => {
     return (
         <div
-            className={`border-b border-white/5 transition-all ${expanded ? 'bg-white/10' : 'hover:bg-white/5'
-                } ${!email.is_read ? 'bg-purple-500/5 border-l-4 border-l-purple-500' : 'border-l-4 border-l-transparent'}`}
+            className={`${getEmailItemStyle(email.is_read, expanded)} group relative`}
         >
             <div
                 className="p-4 cursor-pointer flex items-start gap-4"
@@ -16,7 +31,7 @@ const EmailItem = ({ email, onClick, expanded, onAction }) => {
             >
                 <div className={`mt-1 w-2 h-2 rounded-full ${!email.is_read ? 'bg-purple-500' : 'bg-transparent'}`} />
 
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 transition-all group-hover:pr-20">
                     <div className="flex justify-between items-start mb-1">
                         <span className={`text-sm font-medium ${!email.is_read ? 'text-white' : 'text-gray-400'}`}>
                             {email.from_name || email.from_address}
@@ -28,11 +43,7 @@ const EmailItem = ({ email, onClick, expanded, onAction }) => {
 
                     <h4 className={`text-sm mb-1 truncate ${!email.is_read ? 'text-gray-200 font-medium' : 'text-gray-500'}`}>
                         {email.category && (
-                            <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase mr-2 border ${email.category === 'urgent' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                email.category === 'work' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                                    email.category === 'personal' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                        'bg-white/10 text-white/70 border-white/5'
-                                }`}>
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase mr-2 border ${getCategoryBadgeStyle(email.category)}`}>
                                 {email.category}
                             </span>
                         )}
@@ -48,6 +59,26 @@ const EmailItem = ({ email, onClick, expanded, onAction }) => {
 
                 {email.has_attachments && <Paperclip className="w-4 h-4 text-gray-500" />}
             </div>
+
+            {/* Quick Hover Actions */}
+            {!expanded && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                        onClick={(e) => onAction(e, 'archive', email)}
+                        className="p-2 rounded-lg bg-slate-900/80 border border-white/5 text-gray-400 hover:text-white hover:border-white/20 shadow-xl backdrop-blur-md"
+                        title="Archive"
+                    >
+                        <Archive className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={(e) => onAction(e, 'delete', email)}
+                        className="p-2 rounded-lg bg-red-950/20 border border-red-500/10 text-gray-500 hover:text-red-400 hover:border-red-500/30 shadow-xl backdrop-blur-md"
+                        title="Delete"
+                    >
+                        <Trash className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
 
             {/* EXPANDED VIEW */}
             {expanded && (
@@ -118,13 +149,13 @@ const EmailList = ({ onSelectEmail }) => {
     const loadEmails = useCallback(async () => {
         try {
             setLoading(true);
-            let url = '/email/list?limit=50';
+            const params = { limit: 50 };
             if (activeCategory === 'UNREAD') {
-                url += '&is_read=false';
+                params.is_read = false;
             } else if (activeCategory && activeCategory !== 'All') {
-                url += `&category=${activeCategory}`;
+                params.category = activeCategory;
             }
-            const res = await api.get(url);
+            const res = await api.get('/email/list', { params });
             setEmails(res.data);
 
             // Also update total unread from stats
@@ -234,8 +265,8 @@ const EmailList = ({ onSelectEmail }) => {
     if (loading && emails.length === 0) return <Spinner label="Loading Inbox..." />;
 
     return (
-        <div className="h-full flex flex-col bg-white/[0.02] rounded-xl overflow-hidden border border-white/5 backdrop-blur-xl shadow-2xl">
-            <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+        <div className="h-full flex flex-col bg-white/5 rounded-xl overflow-hidden border border-white/5 backdrop-blur-xl shadow-2xl">
+            <div className="p-4 border-b border-white/5 bg-white/5">
                 <PageHeader
                     icon={Mail}
                     title="Inbox"

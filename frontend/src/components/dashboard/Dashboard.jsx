@@ -42,25 +42,8 @@ const TelemetryBar = React.memo(({ healthDetails, weather, coordinates }) => {
     const isHealthy = healthDetails?.status === 'online' || healthPercentage >= 90;
 
     return (
-        <div className="w-full flex items-center justify-between px-8 py-2 border-b border-white/5 bg-white/[0.01] backdrop-blur-md text-[10px] font-mono tracking-[0.25em] text-white/40 mb-1">
+        <div className="w-full flex items-center justify-end px-8 py-2 border-b border-white/5 bg-white/[0.01] backdrop-blur-md text-[10px] font-mono tracking-[0.25em] text-white/40 mb-1">
             <div className="flex items-center gap-16">
-                <div className="flex items-center gap-4">
-                    <div className={`w-2 h-2 rounded-full ${isHealthy ? 'bg-cyan-500 animate-pulse' : 'bg-amber-500'}`} />
-                    <span className="text-white/70 uppercase">System Status ::</span>
-                    <span className={`${isHealthy ? 'text-cyan-400' : 'text-amber-400'} font-black`}>{isHealthy ? `NOMINAL (${healthPercentage || 100}%)` : `DEGRADED (${healthPercentage || 85}%)`}</span>
-
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="opacity-40 uppercase">Sector Location ::</span>
-                    <span className="text-white/60">{Math.abs(lat).toFixed(2)}° {lat >= 0 ? 'N' : 'S'} / {Math.abs(lon).toFixed(2)}° {lon >= 0 ? 'E' : 'W'}</span>
-                </div>
-            </div>
-
-            <div className="flex items-center gap-16">
-                <div className="flex items-center gap-2">
-                    <span className="opacity-40 uppercase">Subsystem Flux ::</span>
-                    <span className="text-cyan-400/80">98.4% STABLE</span>
-                </div>
                 <div className="flex items-center gap-2">
                     <span className="opacity-40 uppercase">Local Temporal Sync ::</span>
                     <span className="text-white/60">{weather?.updated_at || '--:--:--'}</span>
@@ -292,7 +275,7 @@ const Dashboard = ({ onNavigate, globalHealth }) => {
                 const newLon = pos.coords.longitude;
                 setCoordinates({ lat: newLat, lon: newLon });
             }, (err) => {
-                console.log("Geolocation unavailable, using default Nixa sector.");
+
             }, { timeout: 3000 });
         }
     }, []);

@@ -1,11 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import EmailList from './EmailList';
 import EmailView from './EmailView';
+import QuickCompose from './QuickCompose';
 
 const EmailModule = () => {
     const [selectedEmail, setSelectedEmail] = useState(null);
     const [viewMode, setViewMode] = useState('list');
     const [refreshKey, setRefreshKey] = useState(0);
+    const [showCompose, setShowCompose] = useState(false);
 
     const handleSelectEmail = (email) => {
         setSelectedEmail(email);
@@ -29,7 +31,14 @@ const EmailModule = () => {
 
     return (
         <div className="email-module h-[calc(100vh-100px)] flex gap-4">
-            <div className={`${viewMode === 'view' ? 'hidden md:block' : 'block'} w-full md:w-1/3 h-full`}>
+            <div className={`${viewMode === 'view' ? 'hidden md:block' : 'block'} w-full md:w-1/3 h-full flex flex-col gap-4`}>
+                <button
+                    onClick={() => setShowCompose(true)}
+                    className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg border border-purple-400/20 shadow-lg shadow-purple-900/20 transition-all flex items-center justify-center gap-2 group"
+                >
+                    <Mail className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                    New Transmission
+                </button>
                 <EmailList key={refreshKey} onSelectEmail={handleSelectEmail} />
             </div>
 
@@ -48,6 +57,13 @@ const EmailModule = () => {
                     </div>
                 )}
             </div>
+
+            {showCompose && (
+                <QuickCompose
+                    onClose={() => setShowCompose(false)}
+                    onSent={() => setRefreshKey(k => k + 1)}
+                />
+            )}
         </div>
     );
 };

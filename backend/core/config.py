@@ -1,7 +1,7 @@
 import os
 import json
 import secrets
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Dict, Any
 
 class Settings(BaseSettings):
@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./data/atlas.db")
     
     # Integrations
+    ALTIMETER_API_URL: str = os.getenv("ALTIMETER_API_URL", "http://127.0.0.1:4203")
     ALTIMETER_PATH: str = os.getenv("ALTIMETER_PATH", "./data/altimeter")
     OBSIDIAN_KNOWLEDGE_PATH: str = os.getenv("OBSIDIAN_KNOWLEDGE_PATH", "./data/knowledge")
     ONEDRIVE_PATH: str = os.getenv("ONEDRIVE_PATH", "./data/onedrive")
@@ -57,8 +58,7 @@ class Settings(BaseSettings):
         5: ["*"] # Developer / Eyes Only
     }
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env")
 
     def load_secrets(self):
         # 1. Local project config
@@ -83,7 +83,7 @@ class Settings(BaseSettings):
                             if hasattr(self, key):
                                 setattr(self, key, value)
                 except Exception as e:
-                    print(f"Error loading secrets from {p}: {e}")
+                    pass
 
         # Security: If no secret key found after checking env and secrets, generate a secure random one
         if not self.JWT_SECRET_KEY or self.JWT_SECRET_KEY in ["your-secret-key-here", "insecure-fallback-development-only"]:

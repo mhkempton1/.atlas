@@ -138,6 +138,17 @@ async def get_health_status() -> Dict[str, Any]:
     health_percentage = round((healthy_count / len(subsystems)) * 100)
     overall_status = "online" if health_percentage >= 90 else "degraded"
     
+    # Push notification for health degradation
+    if overall_status == "degraded":
+        from services.notification_service import notification_service
+        notification_service.push_notification(
+            type="health",
+            title="System Degradation Alert",
+            message=f"System health dropped to {health_percentage}%. Check System Status for details.",
+            priority="high",
+            link="/system_status"
+        )
+    
     # Calculate uptime
     uptime_seconds = int(time.time() - _server_start_time)
     uptime_hours = uptime_seconds // 3600

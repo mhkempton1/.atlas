@@ -23,20 +23,24 @@ class TaskAgent(BaseAgent):
         # Construct Prompt
         prompt = f"""
         You are an AI Task extraction assistant for a Construction Project Manager.
-        Analyze the following email and extract actionable tasks.
+        Analyze the following {context.get('type', 'email')} and extract actionable tasks.
         
-        Email Context:
-        From: {sender}
-        Subject: {subject}
-        Body:
+        Context Source: {context.get('type', 'Unknown')}
+        Subject/Title: {subject}
+        From/Organizer: {sender}
+        Content:
         {body}
         
         Instructions:
         1. Identify clear, actionable tasks.
         2. Assign a priority (High, Medium, Low).
-        3. Infer a due date if mentioned (use YYYY-MM-DD format), otherwise null.
+        3. Infer a due date if mentioned (use YYYY-MM-DD format). If no year is specified, assume 2026.
         4. Extract a concise title and detailed description.
-        5. Return the result as a STRICT JSON object with a key "tasks" containing a list of task objects.
+        5. Assign a "confidence" score (0.0-1.0) indicating certainty of extraction.
+        6. Extract "evidence": the exact sentence from the source that generated the task.
+        7. Deduplication rule: "Do not create a task if one with a similar title already exists".
+        8. For Calendar events, consider location ({context.get('location', 'N/A')}) and timing ({context.get('start_time', 'N/A')}).
+        9. Return the result as a STRICT JSON object with a key "tasks" containing a list of task objects.
         
         JSON Schema:
         {{
@@ -46,13 +50,14 @@ class TaskAgent(BaseAgent):
                     "description": "Detailed explanation...",
                     "priority": "High|Medium|Low",
                     "due_date": "YYYY-MM-DD" or null,
-                    "confidence": 0.0-1.0
+                    "confidence": 0.0-1.0,
+                    "evidence": "Exact sentence from source..."
                 }}
             ]
         }}
         
         If no tasks are found, return {{"tasks": []}}.
-        Do not include markdown formatting (```json). Just the raw JSON string.
+        Do not include markdown formatting. Just the raw JSON string.
         """
         
         try:

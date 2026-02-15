@@ -156,7 +156,7 @@ class TestIMAPProviderMethods(unittest.TestCase):
         mock_smtp_instance = MockSMTPProvider.return_value
         mock_smtp_instance.send_email.return_value = {"success": True}
 
-        provider = IMAPProvider()
+        provider = IMAPProvider(sender=mock_smtp_instance)
         # Ensure provider has connection (mocked) logic or bypass _connect if needed
         # _connect creates IMAP4_SSL, which is mocked
 

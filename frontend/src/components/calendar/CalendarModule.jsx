@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { SYSTEM_API } from '../../services/api';
 import { PageHeader, Section, Spinner, EmptyState, StatusBadge } from '../shared/UIComponents';
 import { useToast } from '../../hooks/useToast';
-import { Calendar, Clock, MapPin, Users, RefreshCw, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, RefreshCw, ChevronRight, CheckSquare } from 'lucide-react';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
+import EventCompose from './EventCompose';
 
 const CalendarModule = () => {
     const [events, setEvents] = useState([]);
@@ -69,6 +70,31 @@ const CalendarModule = () => {
         return new Date(isoString).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     };
 
+    const [showCompose, setShowCompose] = useState(false);
+
+    const handleSaveEvent = async (eventData) => {
+        try {
+            await SYSTEM_API.createCalendarEvent(eventData);
+            addToast("Mission event logged successfully", "success");
+            loadEvents();
+        } catch (error) {
+            console.error("Failed to create event", error);
+            addToast("Failed to create mission event", "error");
+            throw error;
+        }
+    };
+
+    const handleExtractTasks = async (eventId) => {
+        try {
+            addToast("Extracting mission tasks...", "info");
+            const result = await SYSTEM_API.extractCalendarTasks(eventId);
+            addToast(`Successfully extracted ${result.extracted} tasks`, "success");
+        } catch (error) {
+            console.error("Extraction failed", error);
+            addToast("Task extraction failed", "error");
+        }
+    };
+
     return (
         <div className="h-full flex flex-col space-y-6 animate-fade-in p-6">
             <PageHeader
@@ -77,6 +103,14 @@ const CalendarModule = () => {
                 icon={Calendar}
                 actions={
                     <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setShowCompose(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-purple-900/20 transition-all"
+                        >
+                            <Calendar className="w-4 h-4" />
+                            Log Mission
+                        </button>
+                        <div className="h-6 w-px bg-white/10 mx-1" />
                         <div className="flex bg-slate-800 rounded-lg p-1 border border-white/10">
                             {[7, 14, 30].map(d => (
                                 <button
@@ -100,6 +134,13 @@ const CalendarModule = () => {
                     </div>
                 }
             />
+
+            {showCompose && (
+                <EventCompose
+                    onClose={() => setShowCompose(false)}
+                    onSave={handleSaveEvent}
+                />
+            )}
 
             <div className="flex-1 overflow-y-auto space-y-8 pr-2 custom-scrollbar">
                 {isLoading ? (
@@ -173,8 +214,7 @@ const CalendarModule = () => {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        // Placeholder for task creation logic
-                                                        addToast("Task creation from event coming soon", "info");
+                                                        handleExtractTasks(event.event_id);
                                                     }}
                                                     className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 px-2 py-1 rounded hover:bg-emerald-500/10 transition-colors"
                                                 >

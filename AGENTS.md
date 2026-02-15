@@ -35,15 +35,16 @@ Jules is scheduled to run every night at midnight via [nightly-jules.yml](file:/
 ## 🛠️ Current Missions for Jules
 
 ### 🟢 Completed (Last 24h)
-1. **IMAP Base Sync**: Implemented robust `IMAPProvider` with UID search and date filtering.
-2. **SMTP Send**: Implemented `SMTPProvider` for sending emails.
-3. **Intelligence Bridge**: Enriched `process_tasks.py` with `altimeter_service` context and milestone extraction.
+1. **Core Test Infrastructure**: Established `conftest.py` with DB isolation and service mocks (`ai_service`, `google_service`).
+2. **API Route Coverage**: Implemented tests for Tasks, Emails, Calendar, and System routes.
+3. **Frontend Wiring**: Connected Dashboard, Email, and Task components to the backend with robust error handling.
+4. **Documentation Recovery**: Restored `JULES_RUNBOOKS.md` and operational guides.
 
 ### 🟡 Active Priorities (Next 24h)
-1. **IMAP Interactivity**: Implement `reply`, `archive`, `trash`, and `mark_unread` in `IMAPProvider`.
-2. **Documentation Recovery**: Re-create `JULES_RUNBOOKS.md` to document the strategy.
-3. **Frontend Wiring**: Ensure the UI (e.g., "Reply" button) triggers the new backend provider methods.
-4. **Autonomous Loop**: Enhance `execute_mission.py` to support file writing or more complex actions beyond printing.
+1. **Autonomous Loop (Phase 2)**: Upgrade `execute_mission.py` to support tool execution and file system modifications.
+2. **AI Service Hardening**: Implement JSON mode, structured outputs, and robust retry logic in `ai_service.py`.
+3. **Test Coverage Expansion**: Add missing tests for Notification and Scheduler services.
+4. **Database Integrity**: Implement schema validation and missing migrations.
 
 ## 🛑 Critical Constraints
 

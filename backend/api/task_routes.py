@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from database.database import get_db
 from database.models import Task
 from sqlalchemy.orm import Session
@@ -10,6 +10,7 @@ from services.activity_service import activity_service
 router = APIRouter()
 
 class TaskCreate(BaseModel):
+    """Schema for creating a new task."""
     title: str
     description: Optional[str] = None
     status: str = "todo"
@@ -20,6 +21,7 @@ class TaskCreate(BaseModel):
     estimated_hours: Optional[float] = None
 
 class TaskUpdate(BaseModel):
+    """Schema for updating an existing task."""
     title: Optional[str] = None
     description: Optional[str] = None
     status: Optional[str] = None
@@ -39,7 +41,18 @@ async def get_tasks(
     category: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """Get tasks with optional filtering"""
+    """
+    Get tasks with optional filtering.
+
+    Args:
+        status: Filter by task status.
+        priority: Filter by task priority.
+        category: Filter by task category.
+        db: Database session.
+
+    Returns:
+        A list of tasks matching the criteria.
+    """
     query = db.query(Task)
 
     if status:
@@ -51,8 +64,6 @@ async def get_tasks(
 
     # Active tasks first, then by priority, then by due date
     try:
-        from sqlalchemy import case
-        
         # Sort by status (asc), then due_date (nulls last)
         # In SQLite/SQLAlchemy, we can use nullslast() if the engine supports it, 
         # but a common robust way is using a case statement or just simple asc()
@@ -60,8 +71,7 @@ async def get_tasks(
             Task.status.asc(),
             Task.due_date.asc()
         ).all()
-    except Exception as e:
-        print(f"Error fetching tasks: {e}")
+    except Exception:
         tasks = query.all()
 
     return [
@@ -85,7 +95,16 @@ async def get_tasks(
 
 @router.post("/create")
 async def create_task(request: TaskCreate, db: Session = Depends(get_db)):
-    """Create a new task"""
+    """
+    Create a new task.
+
+    Args:
+        request: The task creation data.
+        db: Database session.
+
+    Returns:
+        The created task summary.
+    """
     task = Task(
         title=request.title,
         description=request.description,
@@ -114,7 +133,17 @@ async def create_task(request: TaskCreate, db: Session = Depends(get_db)):
 
 @router.put("/{task_id}")
 async def update_task(task_id: int, request: TaskUpdate, db: Session = Depends(get_db)):
-    """Update an existing task"""
+    """
+    Update an existing task.
+
+    Args:
+        task_id: The ID of the task to update.
+        request: The update data.
+        db: Database session.
+
+    Returns:
+        The updated task summary.
+    """
     task = db.query(Task).filter(Task.task_id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -156,7 +185,16 @@ async def update_task(task_id: int, request: TaskUpdate, db: Session = Depends(g
 
 @router.delete("/{task_id}")
 async def delete_task(task_id: int, db: Session = Depends(get_db)):
-    """Delete a task"""
+    """
+    Delete a task.
+
+    Args:
+        task_id: The ID of the task to delete.
+        db: Database session.
+
+    Returns:
+        Success message.
+    """
     task = db.query(Task).filter(Task.task_id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -172,9 +210,24 @@ async def delete_task(task_id: int, db: Session = Depends(get_db)):
     )
 
     return {"success": True, "message": f"Task '{title}' deleted"}
+
 @router.post("/extract/{email_id}")
-async def extract_tasks(email_id: int, db: Session = Depends(get_db)):
-    """Manually trigger AI task extraction for a specific email"""
+async def extract_tasks(
+    email_id: int,
+    min_confidence: float = Query(0.5, description="Minimum confidence score for extraction"),
+    db: Session = Depends(get_db)
+):
+    """
+    Manually trigger AI task extraction for a specific email.
+
+    Args:
+        email_id: The ID of the email to process.
+        min_confidence: Minimum confidence score to extract a task.
+        db: Database session.
+
+    Returns:
+        Result of the extraction process.
+    """
     from database.models import Email
     from agents.task_agent import task_agent
     from services.altimeter_service import altimeter_service
@@ -197,6 +250,9 @@ async def extract_tasks(email_id: int, db: Session = Depends(get_db)):
 
     tasks_created = []
     for t_data in result["data"].get("tasks", []):
+        if t_data.get("confidence", 0.0) < min_confidence:
+            continue
+
         task = Task(
             title=t_data["title"],
             description=t_data["description"],
@@ -209,7 +265,78 @@ async def extract_tasks(email_id: int, db: Session = Depends(get_db)):
         )
         db.add(task)
         db.flush()
-        tasks_created.append({"task_id": task.task_id, "title": task.title})
+        tasks_created.append({
+            "task_id": task.task_id,
+            "title": task.title,
+            "confidence": t_data.get("confidence"),
+            "evidence": t_data.get("evidence")
+        })
+
+    db.commit()
+    return {"extracted": len(tasks_created), "tasks": tasks_created}
+
+@router.post("/extract/calendar/{event_id}")
+async def extract_calendar_tasks(
+    event_id: int,
+    min_confidence: float = Query(0.5, description="Minimum confidence score for extraction"),
+    db: Session = Depends(get_db)
+):
+    """
+    AI task extraction for a specific calendar event.
+    """
+    from database.models import CalendarEvent
+    from agents.task_agent import task_agent
+    from services.notification_service import notification_service
+
+    event = db.query(CalendarEvent).filter(CalendarEvent.event_id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    agent_context = {
+        "type": "calendar",
+        "subject": event.title,
+        "sender": event.organizer or "System",
+        "body": event.description or "",
+        "location": event.location or "N/A",
+        "start_time": event.start_time.isoformat() if event.start_time else "N/A"
+    }
+
+    result = await task_agent.process(agent_context)
+    if result.get("status") != "success":
+        raise HTTPException(status_code=500, detail=result.get("error"))
+
+    tasks_created = []
+    for t_data in result["data"].get("tasks", []):
+        if t_data.get("confidence", 0.0) < min_confidence:
+            continue
+
+        task = Task(
+            title=t_data["title"],
+            description=t_data["description"],
+            priority=t_data["priority"].lower(),
+            due_date=datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
+            original_due_date=datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
+            project_id=event.project_id,
+            created_from="calendar_event",
+            created_at=datetime.now()
+        )
+        db.add(task)
+        db.flush()
+        tasks_created.append({
+            "task_id": task.task_id,
+            "title": task.title,
+            "confidence": t_data.get("confidence"),
+            "evidence": t_data.get("evidence")
+        })
+
+    if tasks_created:
+        notification_service.push_notification(
+            type="task",
+            title="Tasks Extracted",
+            message=f"Successfully extracted {len(tasks_created)} tasks from event: {event.title}",
+            priority="medium",
+            link="/tasks"
+        )
 
     db.commit()
     return {"extracted": len(tasks_created), "tasks": tasks_created}

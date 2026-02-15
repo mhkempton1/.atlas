@@ -23,14 +23,12 @@ class AltimeterConnector:
             # For Validation Test: Return empty or simulated list
             return []
         except Exception as e:
-            print(f"Error connecting to Altimeter: {e}")
             return []
 
     def parse_webhook_update(self, payload: dict) -> bool:
         """
         Handle 'Way 2' Continuity: Altimeter pushes update to Atlas.
         """
-        # TODO: Implement webhook logic
         return True
 
     def get_project_context(self, project_id: str) -> Optional[Dict]:

@@ -71,6 +71,14 @@ class Email(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     synced_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # New fields
+    gmail_id = Column(String, unique=True, index=True, nullable=True)
+    sender = Column(String, index=True, nullable=True)
+    recipients = Column(JSON, nullable=True)
+    is_unread = Column(Boolean, default=True)
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
 class EmailAttachment(Base):
     __tablename__ = "email_attachments"
 
@@ -80,6 +88,7 @@ class EmailAttachment(Base):
     file_size = Column(Integer, nullable=True)
     mime_type = Column(String, nullable=True)
     file_path = Column(String)
+    storage_path = Column(String, nullable=True)
     file_hash = Column(String, nullable=True)
     remote_attachment_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -154,5 +163,28 @@ class DocumentComment(Base):
     is_resolved = Column(Boolean, default=False)
     resolved_by = Column(String, nullable=True)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    type = Column(String, index=True) # e.g., "task", "system", "calendar", "health"
+    title = Column(String)
+    message = Column(Text)
+    priority = Column(String, default="medium") # low, medium, high, critical
+    is_read = Column(Boolean, default=False, index=True)
+    link = Column(String, nullable=True) # Optional URL or internal module link
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    read_at = Column(DateTime(timezone=True), nullable=True)
+
+class Learning(Base):
+    __tablename__ = "learnings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String, index=True)
+    insight = Column(Text)
+    source = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

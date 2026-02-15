@@ -49,6 +49,12 @@ class CommunicationService:
     def get_labels(self) -> List[Dict[str, Any]]:
         return self.active_provider.get_labels()
 
+    def create_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a calendar event using the active provider."""
+        if not hasattr(self.active_provider, 'create_event'):
+            return {"error": f"Provider {self.active_provider_name} does not support event creation"}
+        return self.active_provider.create_event(event_data)
+
     def sync_calendar(self) -> Dict[str, Any]:
         return self.active_provider.sync_calendar()
 
