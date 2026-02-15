@@ -196,8 +196,8 @@ class GoogleService:
                     
         # Index in Vector DB
         try:
-            from services.search_service import search_service
-            search_service.index_email({
+            from services.embedding_service import embedding_service
+            embedding_service.generate_email_embedding({
                 "subject": email.subject,
                 "sender": email.from_address,
                 "body": email.body_text or email.body_html,
