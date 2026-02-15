@@ -213,6 +213,28 @@ class AltimeterService:
         except Exception as e:
             return []
 
+    def get_customers(self) -> List[Dict[str, Any]]:
+        """Fetch all customers from Altimeter DB."""
+        try:
+            conn = self._get_db_conn()
+            rows = conn.execute("SELECT * FROM customers").fetchall()
+            conn.close()
+            return [dict(r) for r in rows]
+        except Exception as e:
+            # Fallback for dev/test environments without DB
+            return []
+
+    def get_vendors(self) -> List[Dict[str, Any]]:
+        """Fetch all vendors from Altimeter DB."""
+        try:
+            conn = self._get_db_conn()
+            rows = conn.execute("SELECT * FROM vendors").fetchall()
+            conn.close()
+            return [dict(r) for r in rows]
+        except Exception as e:
+            # Fallback
+            return []
+
     def get_db_schema(self, strata_level: int = 1) -> str:
         """
         Returns a read-only schema representation filtered by Strata Level.
