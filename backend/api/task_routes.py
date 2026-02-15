@@ -7,6 +7,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from services.activity_service import activity_service
 from services.task_persistence_service import task_persistence_service
+from services.task_sync_service import task_sync_service
 
 router = APIRouter()
 
@@ -211,6 +212,23 @@ async def delete_task(task_id: int, db: Session = Depends(get_db)):
     )
 
     return {"success": True, "message": f"Task '{title}' deleted"}
+
+@router.post("/{task_id}/sync-to-altimeter")
+async def sync_task_to_altimeter_endpoint(
+    task_id: int,
+    project_id: Optional[str] = Query(None, description="Optional Project ID to associate with if not present on task"),
+    db: Session = Depends(get_db)
+):
+    """
+    Sync a task to Altimeter.
+    """
+    try:
+        result = task_sync_service.create_altimeter_task_from_atlas(task_id, project_id, db)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/extract/{email_id}")
 async def extract_tasks(

@@ -383,6 +383,60 @@ class AltimeterService:
             
         return "\n".join(lines) if lines else "No recent activity found."
 
+    def sync_task_to_altimeter(self, task_data: Dict[str, Any]) -> str:
+        """
+        Syncs a task to the Altimeter database.
+        Inserts a new record into the 'tasks' table.
+        """
+        conn = self._get_db_conn() # defaults to readonly=False
+        try:
+            # Map Priority
+            priority_map = {"low": 1, "medium": 2, "high": 3}
+            atlas_priority = str(task_data.get("priority", "medium")).lower()
+            alt_priority = priority_map.get(atlas_priority, 2)
+
+            # Map Status
+            # Atlas: todo, in_progress, done, etc.
+            # Altimeter: Open, In Progress, Completed
+            status_map = {
+                "todo": "Open",
+                "open": "Open",
+                "in_progress": "In Progress",
+                "done": "Completed",
+                "completed": "Completed",
+                "cancelled": "Cancelled"
+            }
+            atlas_status = str(task_data.get("status", "open")).lower()
+            alt_status = status_map.get(atlas_status, "Open")
+
+            # Format due_date if it is a datetime object
+            due_date = task_data.get("due_date")
+            if isinstance(due_date, datetime):
+                due_date = due_date.isoformat()
+
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO tasks (
+                    project_id, name, description, priority, status, due_date
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                task_data.get("project_id"),
+                task_data.get("title"), # Mapping title to name
+                task_data.get("description"),
+                alt_priority,
+                alt_status,
+                due_date
+            ))
+
+            new_id = cursor.lastrowid
+            conn.commit()
+            return str(new_id)
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            conn.close()
+
 class IntelligenceBridge:
     """
     Standardized interface for Altimeter to request AI context from Atlas.

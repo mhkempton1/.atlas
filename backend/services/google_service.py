@@ -212,22 +212,6 @@ class GoogleService:
             'attachments': attachments,
             'labels': message.get('labelIds', [])
         }
-                    self._download_attachment(part, email.email_id, message['id'], db)
-                    
-        # Index in Vector DB
-        try:
-            from services.embedding_service import embedding_service
-            embedding_service.generate_email_embedding({
-                "subject": email.subject,
-                "sender": email.from_address,
-                "body": email.body_text or email.body_html,
-                "message_id": email.message_id,
-                "date": email.date_received.isoformat() if email.date_received else None
-            })
-        except Exception as e:
-            pass
-
-        return True
 
     def _extract_body(self, payload):
         # ... (Same helper)

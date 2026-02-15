@@ -217,3 +217,15 @@ class SyncHistory(Base):
     errors = Column(JSON, nullable=True) # List of error messages or details
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
+
+class TaskSyncLog(Base):
+    __tablename__ = "task_sync_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    atlas_task_id = Column(Integer, ForeignKey("tasks.task_id"), index=True)
+    altimeter_task_id = Column(String, index=True)
+    sync_direction = Column(String) # 'atlas_to_altimeter', 'altimeter_to_atlas'
+    synced_fields = Column(JSON)
+    synced_at = Column(DateTime(timezone=True), server_default=func.now())
+    conflict = Column(Boolean, default=False)
+    conflict_resolution = Column(String, nullable=True)
