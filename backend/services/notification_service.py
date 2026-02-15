@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from database.database import SessionLocal
 from database.models import Notification
@@ -17,6 +17,17 @@ class NotificationService:
         """Create and persist a new notification."""
         db = SessionLocal()
         try:
+            # Check for duplicate (same type + title within last 5 minutes)
+            cutoff_time = datetime.now() - timedelta(minutes=5)
+            existing = db.query(Notification).filter(
+                Notification.type == type,
+                Notification.title == title,
+                Notification.created_at >= cutoff_time
+            ).first()
+
+            if existing:
+                return existing
+
             notification = Notification(
                 type=type,
                 title=title,

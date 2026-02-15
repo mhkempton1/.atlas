@@ -6,11 +6,13 @@ import time
 
 # Track server start time
 _server_start_time = time.time()
+_last_degradation_notification_time = 0
 
 async def get_health_status() -> Dict[str, Any]:
     """
     Unified health check for Atlas and Altimeter with detailed diagnostics.
     """
+    global _last_degradation_notification_time
     from services.scheduler_service import scheduler_service
     from services.altimeter_service import altimeter_service
     
@@ -140,14 +142,16 @@ async def get_health_status() -> Dict[str, Any]:
     
     # Push notification for health degradation
     if overall_status == "degraded":
-        from services.notification_service import notification_service
-        notification_service.push_notification(
-            type="health",
-            title="System Degradation Alert",
-            message=f"System health dropped to {health_percentage}%. Check System Status for details.",
-            priority="high",
-            link="/system_status"
-        )
+        if time.time() - _last_degradation_notification_time > 300: # 5 minute cooldown
+            from services.notification_service import notification_service
+            notification_service.push_notification(
+                type="health",
+                title="System Degradation Alert",
+                message=f"System health dropped to {health_percentage}%. Check System Status for details.",
+                priority="high",
+                link="/system_status"
+            )
+            _last_degradation_notification_time = time.time()
     
     # Calculate uptime
     uptime_seconds = int(time.time() - _server_start_time)

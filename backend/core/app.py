@@ -1,6 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
+import uuid
+import logging
+from datetime import datetime
+import traceback
 
 # Initialize database
 from database.database import engine, Base
@@ -31,6 +36,25 @@ app = FastAPI(
     description="Atlas Personal AI Assistant Backend",
     lifespan=lifespan
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    correlation_id = str(uuid.uuid4())
+    error_msg = str(exc)
+
+    # Log the full traceback with correlation_id
+    logging.error(f"Global Exception [CID: {correlation_id}]: {error_msg}")
+    logging.error(traceback.format_exc())
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal Server Error",
+            "message": error_msg,
+            "correlation_id": correlation_id,
+            "timestamp": datetime.now().isoformat()
+        }
+    )
 
 # CORS
 app.add_middleware(
