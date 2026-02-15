@@ -126,6 +126,49 @@ async def update_category(email_id: int, update: CategoryUpdate, db: Session = D
 
     return {"success": True, "category": email.category}
 
+@router.get("/search", response_model=List[EmailResponse])
+async def search_emails(
+    q: Optional[str] = None,
+    from_addr: Optional[str] = Query(None, alias="from"),
+    to_addr: Optional[str] = Query(None, alias="to"),
+    date_start: Optional[str] = None,
+    date_end: Optional[str] = None,
+    subject_only: bool = False,
+    body_only: bool = False,
+    labels: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    """
+    Search emails with text query and filters.
+    """
+    from services.email_persistence_service import search_emails_local
+
+    d_range = {}
+    if date_start:
+        try:
+            d_range['start'] = datetime.fromisoformat(date_start.replace('Z', '+00:00'))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date_start format. Use ISO 8601.")
+    if date_end:
+        try:
+            d_range['end'] = datetime.fromisoformat(date_end.replace('Z', '+00:00'))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date_end format. Use ISO 8601.")
+
+    filter_options = {
+        "from_addr": from_addr,
+        "to_addr": to_addr,
+        "subject_only": subject_only,
+        "body_only": body_only,
+        "labels": labels,
+        "date_range": d_range
+    }
+
+    results = search_emails_local(q, filter_options, db, limit=limit, offset=offset)
+    return results
+
 @router.get("/{email_id}", response_model=EmailResponse)
 async def get_email(email_id: int, db: Session = Depends(get_db)):
     """Get single email with full body"""
