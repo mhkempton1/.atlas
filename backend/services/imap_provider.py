@@ -27,6 +27,7 @@ class IMAPProvider(CommunicationProvider):
         self.port = settings.IMAP_PORT
         self.user = settings.IMAP_USER
         self.password = settings.IMAP_PASSWORD
+        self.sender = sender
 
     def _connect(self):
         """Connect to the IMAP server."""
