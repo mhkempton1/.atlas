@@ -199,3 +199,15 @@ class Learning(Base):
     source = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class SyncHistory(Base):
+    __tablename__ = "sync_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sync_type = Column(String, index=True) # e.g., 'email', 'calendar'
+    status = Column(String) # 'started', 'success', 'partial', 'failed'
+    items_synced = Column(Integer, default=0)
+    error_count = Column(Integer, default=0)
+    errors = Column(JSON, nullable=True) # List of error messages or details
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)

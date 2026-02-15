@@ -13,6 +13,7 @@ import email.utils
 from datetime import datetime, timedelta
 from database.database import get_db
 from database.models import Email, EmailAttachment, CalendarEvent
+from services.email_persistence_service import persist_email_to_database
 
 # Updated Scopes for Email + Calendar
 SCOPES = [
@@ -104,27 +105,37 @@ class GoogleService:
         from database.database import SessionLocal
         db = SessionLocal()
         
-        # Logic same as before...
         if last_sync_timestamp:
             query = f"after:{int(last_sync_timestamp.timestamp())}"
         else:
             query = "newer_than:30d"
 
+        synced_count = 0
+        errors = []
+        status = "success"
+
         try:
             results = self.gmail_service.users().messages().list(userId='me', q=query, maxResults=100).execute()
             messages = results.get('messages', [])
-            synced_count = 0
 
             for msg_ref in messages:
                 try:
                     message = self.gmail_service.users().messages().get(userId='me', id=msg_ref['id'], format='full').execute()
-                    if self._store_email(message, db):
-                        synced_count += 1
-                except Exception as e:
-                    pass
 
-            db.commit()
-            
+                    email_data = self._extract_email_data(message)
+                    result = persist_email_to_database(email_data, db)
+
+                    if result["success"]:
+                        if result["action"] == "created": # Only count new emails
+                            synced_count += 1
+                    else:
+                        errors.append(f"Failed to persist {msg_ref['id']}: {result.get('error')}")
+                except Exception as e:
+                    errors.append(f"Failed to process {msg_ref['id']}: {str(e)}")
+
+            if errors:
+                status = "partial" if synced_count > 0 else "failed"
+
             if synced_count > 0:
                 activity_service.log_activity(
                     type="email",
@@ -133,26 +144,25 @@ class GoogleService:
                     details=f"Synced {synced_count} emails from Gmail API."
                 )
                 
-            return {'synced': synced_count, 'timestamp': datetime.now()}
+            return {
+                'synced': synced_count,
+                'timestamp': datetime.now(),
+                'status': status,
+                'errors': errors
+            }
 
         except Exception as e:
-            db.rollback()
             raise Exception(f"Email sync failed: {e}")
         finally:
             db.close()
 
-    def _store_email(self, message, db):
+    def _extract_email_data(self, message):
+        """Extract email data from Gmail message for persistence."""
         payload = message.get('payload', {})
         headers = {h['name']: h['value'] for h in payload.get('headers', [])}
-
-        # Check duplicate by Remote ID or Message ID
+        remote_id = message['id']
         message_id = headers.get('Message-ID')
-        if db.query(Email).filter(
-            (Email.remote_id == message['id']) | 
-            ((Email.message_id == message_id) & (Email.message_id.isnot(None)))
-        ).first():
-            return False
-        
+
         body_text, body_html = self._extract_body(payload)
         
         # Real-time Classification via Altimeter
@@ -169,44 +179,38 @@ class GoogleService:
         elif context.get('is_daily_log'):
             category = 'daily_log'
 
-        email = Email(
-            message_id=message_id or f"atlas-{message['id']}",
-            remote_id=message['id'],
-            thread_id=message.get('threadId'),
-            provider_type='google',
-            from_address=headers.get('From'),
-            subject=headers.get('Subject'),
-            body_text=body_text, 
-            body_html=body_html,
-            snippet=message.get('snippet', '')[:200],
-            date_received=self._parse_date(headers.get('Date')),
-            is_read='UNREAD' not in message.get('labelIds', []),
-            synced_at=datetime.now(),
-            category=category 
-        )
-        db.add(email)
-        db.flush()
-        
-        # Attachments
+        attachments = []
         if 'parts' in payload:
             for part in payload['parts']:
                 if part.get('filename'):
-                    self._download_attachment(part, email.email_id, message['id'], db)
-                    
-        # Index in Vector DB
-        try:
-            from services.search_service import search_service
-            search_service.index_email({
-                "subject": email.subject,
-                "sender": email.from_address,
-                "body": email.body_text or email.body_html,
-                "message_id": email.message_id,
-                "date": email.date_received.isoformat() if email.date_received else None
-            })
-        except Exception as e:
-            pass
+                    # Download and get path
+                    att_path = self._download_attachment(part, remote_id)
+                    if att_path:
+                        attachments.append({
+                            'filename': part['filename'],
+                            'mime_type': part.get('mimeType'),
+                            'storage_path': att_path
+                        })
 
-        return True
+        return {
+            'gmail_id': remote_id,
+            'remote_id': remote_id,
+            'message_id': message_id or f"atlas-{remote_id}",
+            'thread_id': message.get('threadId'),
+            'provider_type': 'google',
+            'from_address': headers.get('From'),
+            'sender': headers.get('From'), # persist_email_to_database uses 'sender'
+            'subject': headers.get('Subject'),
+            'body_text': body_text,
+            'body_html': body_html,
+            'snippet': message.get('snippet', '')[:200],
+            'date_received': self._parse_date(headers.get('Date')),
+            'is_read': 'UNREAD' not in message.get('labelIds', []),
+            'is_unread': 'UNREAD' in message.get('labelIds', []),
+            'category': category,
+            'attachments': attachments,
+            'labels': message.get('labelIds', [])
+        }
 
     def _extract_body(self, payload):
         # ... (Same helper)
@@ -238,19 +242,20 @@ class GoogleService:
                      body_html += h
         return body_text, body_html
 
-    def _download_attachment(self, part, email_id, remote_id, db):
-        # ... (Same helper)
-        if not self.gmail_service: return
+    def _download_attachment(self, part, remote_id):
+        if not self.gmail_service: return None
         att_id = part['body'].get('attachmentId')
-        if not att_id: return
+        if not att_id: return None
         try:
             att = self.gmail_service.users().messages().attachments().get(userId='me', messageId=remote_id, id=att_id).execute()
             data = base64.urlsafe_b64decode(att['data'])
-            path = f"data/files/attachments/{email_id}/{part['filename']}"
+            # Use remote_id (Gmail ID) for path as email_id is not yet available
+            path = f"data/files/attachments/{remote_id}/{part['filename']}"
             os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
             with open(path, 'wb') as f: f.write(data)
-            db.add(EmailAttachment(email_id=email_id, filename=part['filename'], file_path=path))
-        except: pass
+            return path
+        except:
+            return None
 
     def _parse_date(self, date_str):
         if not date_str: return datetime.now()

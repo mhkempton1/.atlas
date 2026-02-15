@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi import APIRouter, Depends
 import requests
 from typing import Dict, List, Any
+from datetime import datetime
 from services.activity_service import activity_service
 from core.security import verify_local_request
 
@@ -83,6 +84,39 @@ async def get_system_logs():
     Fetch recent system activity logs (legacy /logs compatibility).
     """
     return activity_service.get_recent_activity(limit=50)
+
+@router.get("/sync-status")
+async def get_sync_status():
+    """
+    Get the status of the last sync operations.
+    """
+    from database.database import SessionLocal
+    from database.models import SyncHistory
+    from sqlalchemy import desc
+
+    db = SessionLocal()
+    try:
+        email_sync = db.query(SyncHistory).filter_by(sync_type='email').order_by(desc(SyncHistory.started_at)).first()
+        calendar_sync = db.query(SyncHistory).filter_by(sync_type='calendar').order_by(desc(SyncHistory.started_at)).first()
+
+        return {
+            "email": {
+                "status": email_sync.status if email_sync else "never_run",
+                "last_run": email_sync.started_at if email_sync else None,
+                "items_synced": email_sync.items_synced if email_sync else 0,
+                "error_count": email_sync.error_count if email_sync else 0,
+                "errors": email_sync.errors if email_sync else []
+            },
+            "calendar": {
+                 "status": calendar_sync.status if calendar_sync else "never_run",
+                 "last_run": calendar_sync.started_at if calendar_sync else None,
+                 "items_synced": calendar_sync.items_synced if calendar_sync else 0,
+                 "error_count": calendar_sync.error_count if calendar_sync else 0,
+                 "errors": calendar_sync.errors if calendar_sync else []
+            }
+        }
+    finally:
+        db.close()
 
 @router.get("/geo/status")
 async def get_geo_status():
