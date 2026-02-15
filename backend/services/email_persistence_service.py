@@ -3,6 +3,7 @@ from sqlalchemy import or_, and_, cast, String, desc
 from database.models import Email, EmailAttachment
 from datetime import datetime, timezone
 import json
+from services.contact_persistence_service import update_contact_from_email
 
 def persist_email_to_database(email_data, db: Session):
     """
@@ -130,6 +131,21 @@ def persist_email_to_database(email_data, db: Session):
 
             db.commit()
             db.refresh(new_email)
+
+            # Update contacts for new email
+            try:
+                update_contact_from_email(new_email.sender, db)
+                recipients = new_email.recipients or new_email.to_addresses
+                if recipients:
+                    if isinstance(recipients, list):
+                        for recipient in recipients:
+                            update_contact_from_email(recipient, db)
+                    elif isinstance(recipients, str):
+                         update_contact_from_email(recipients, db)
+            except Exception as e:
+                print(f"Error updating contacts for email {new_email.email_id}: {e}")
+                # Don't fail the email persistence if contact update fails
+
             return {"success": True, "email_id": new_email.email_id, "action": "created"}
         except Exception as e:
             db.rollback()

@@ -145,17 +145,20 @@ class CalendarEvent(Base):
 class Contact(Base):
     __tablename__ = "contacts"
 
-    contact_id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
+    id = Column(Integer, primary_key=True, index=True)
     email_address = Column(String, unique=True, index=True)
-    phone = Column(String, nullable=True)
+    name = Column(String, nullable=True)
     company = Column(String, nullable=True)
-    role = Column(String, nullable=True)
-    category = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    title = Column(String, nullable=True)
     altimeter_customer_id = Column(Integer, nullable=True)
     altimeter_vendor_id = Column(Integer, nullable=True)
+    relationship_type = Column(String, nullable=True) # enum: customer, vendor, subcontractor, team, personal
+    first_contact_date = Column(DateTime(timezone=True), nullable=True)
     last_contact_date = Column(DateTime(timezone=True), nullable=True)
     email_count = Column(Integer, default=0)
+    is_starred = Column(Boolean, default=False)
+    tags = Column(JSON, nullable=True)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
