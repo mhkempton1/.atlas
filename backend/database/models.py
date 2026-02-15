@@ -113,6 +113,14 @@ class Task(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
+    # New fields
+    source = Column(String, nullable=True) # atlas_extracted, altimeter_created, user_created
+    assigned_to = Column(String, nullable=True)
+    related_altimeter_task_id = Column(String, nullable=True)
+    is_recurring = Column(Boolean, default=False)
+    recurrence_pattern = Column(String, nullable=True)
+    tags = Column(JSON, nullable=True)
+
 class CalendarEvent(Base):
     __tablename__ = "calendar_events"
 
