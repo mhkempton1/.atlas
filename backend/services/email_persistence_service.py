@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_, cast, String, desc
 from database.models import Email, EmailAttachment
 from datetime import datetime, timezone
 import json
@@ -138,3 +139,89 @@ def _get_field(obj, field_name):
     if isinstance(obj, dict):
         return obj.get(field_name)
     return getattr(obj, field_name, None)
+
+def search_emails_local(query, filter_options, db: Session, limit: int = 20, offset: int = 0):
+    """
+    Search emails locally in the database.
+
+    Args:
+        query (str): Search string.
+        filter_options (dict): Filters like from_addr, to_addr, date_range, labels.
+        db (Session): Database session.
+        limit (int): Max results.
+        offset (int): Pagination offset.
+
+    Returns:
+        list: List of Email objects.
+    """
+    base_query = db.query(Email)
+
+    # 1. Text Search (Partial match)
+    if query:
+        search_term = f"%{query}%"
+        conditions = []
+
+        subject_only = filter_options.get('subject_only')
+        body_only = filter_options.get('body_only')
+
+        if subject_only:
+            conditions.append(Email.subject.ilike(search_term))
+        elif body_only:
+            conditions.append(Email.body_text.ilike(search_term))
+        else:
+            conditions.append(Email.subject.ilike(search_term))
+            conditions.append(Email.body_text.ilike(search_term))
+
+        base_query = base_query.filter(or_(*conditions))
+
+    # 2. Apply Filters
+    if filter_options:
+        # From Address
+        from_addr = filter_options.get('from_addr')
+        if from_addr:
+            term = f"%{from_addr}%"
+            base_query = base_query.filter(
+                or_(
+                    Email.from_address.ilike(term),
+                    Email.sender.ilike(term)
+                )
+            )
+
+        # To Address (JSON field)
+        to_addr = filter_options.get('to_addr')
+        if to_addr:
+            # Cast JSON to string for simple partial match
+            term = f"%{to_addr}%"
+            base_query = base_query.filter(
+                or_(
+                    cast(Email.to_addresses, String).ilike(term),
+                    cast(Email.recipients, String).ilike(term)
+                )
+            )
+
+        # Labels (JSON field)
+        label = filter_options.get('labels')
+        if label:
+            term = f"%{label}%"
+            base_query = base_query.filter(cast(Email.labels, String).ilike(term))
+
+        # Date Range
+        date_range = filter_options.get('date_range')
+        if date_range:
+            start = date_range.get('start')
+            end = date_range.get('end')
+            if start:
+                base_query = base_query.filter(Email.date_received >= start)
+            if end:
+                base_query = base_query.filter(Email.date_received <= end)
+
+    # 3. Sorting (Date Descending)
+    base_query = base_query.order_by(desc(Email.date_received))
+
+    # 4. Pagination
+    if limit:
+        base_query = base_query.limit(limit)
+    if offset:
+        base_query = base_query.offset(offset)
+
+    return base_query.all()
