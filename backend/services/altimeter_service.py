@@ -1,6 +1,8 @@
 import re
 import sqlite3
 import os
+import httpx
+import time
 from urllib.request import pathname2url
 from datetime import datetime
 from typing import Dict, List, Optional, Any
@@ -13,6 +15,7 @@ class AltimeterService:
     """
     def __init__(self, api_base_url: str = "http://127.0.0.1:4203"):
         self.api_base_url = api_base_url
+        self.project_context_cache = {}
         # Robust path resolution
         alt_path = settings.ALTIMETER_PATH
         if not alt_path or not os.path.exists(alt_path):
@@ -57,6 +60,41 @@ class AltimeterService:
             return {"status": "connected", "active_projects": count}
         except Exception as e:
             return {"status": "error", "details": str(e)}
+
+    def load_project_context(self, project_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Load project context from Altimeter API with caching.
+        """
+        # 1. Check Cache (2 hours TTL)
+        if project_id in self.project_context_cache:
+            entry = self.project_context_cache[project_id]
+            if time.time() - entry['timestamp'] < 7200:
+                return entry['data']
+
+        # 2. Call Altimeter API
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                response = client.get(
+                    f"{self.api_base_url}/api/context",
+                    params={"project_id": project_id}
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+
+                    # 3. Cache Result
+                    self.project_context_cache[project_id] = {
+                        "timestamp": time.time(),
+                        "data": data
+                    }
+                    return data
+                else:
+                    print(f"Altimeter API Error: {response.status_code} - {response.text}")
+                    return None
+
+        except Exception as e:
+            print(f"Altimeter Connection Error: {e}")
+            return None
 
     def parse_email_for_project(self, content: str, body: str = "") -> Dict[str, Any]:
         """Extracts Altimeter-specific metadata from email content (subject + body)."""

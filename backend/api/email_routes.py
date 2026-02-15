@@ -84,6 +84,7 @@ async def get_emails(
 
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
+from typing import Optional, List, Dict, Any
 
 class EmailResponse(BaseModel):
     email_id: int
@@ -99,6 +100,7 @@ class EmailResponse(BaseModel):
     remote_id: Optional[str] = None
     provider_type: Optional[str] = "google"
     has_attachments: bool = False
+    project_context: Optional[Dict[str, Any]] = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -193,7 +195,17 @@ async def get_email(email_id: int, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(email)
 
-    return email
+    # Convert to Pydantic model first
+    response = EmailResponse.model_validate(email)
+
+    # Load Project Context if detected
+    if email.project_id:
+        from services.altimeter_service import altimeter_service
+        context = altimeter_service.load_project_context(email.project_id)
+        if context:
+            response.project_context = context
+
+    return response
 
 @router.post("/{email_id}/star")
 async def toggle_star(email_id: int, db: Session = Depends(get_db)):
