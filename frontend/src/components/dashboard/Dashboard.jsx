@@ -13,6 +13,7 @@ import { motion as _motion, AnimatePresence } from 'framer-motion';
 import MissionIntelWidget from './MissionIntelWidget';
 import MissionBriefing from './MissionBriefing';
 import usePersistentState from '../../hooks/usePersistentState';
+import DailyDigestWidget from './DailyDigestWidget';
 
 const TelemetryBar = React.memo(({ healthDetails, weather, coordinates }) => {
     const lat = coordinates?.lat ?? 37.04;
@@ -412,6 +413,7 @@ const Dashboard = ({ onNavigate, globalHealth }) => {
 
                 <RecentNotifications />
                 <QuickActions />
+                <DailyDigestWidget onNavigate={onNavigate} />
 
                 {/* Primary Health Hub - Slimmed Scale */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-1 border border-white/10 bg-white/5 rounded-3xl overflow-hidden shadow-2xl">

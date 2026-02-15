@@ -7,6 +7,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from services.activity_service import activity_service
 from services.task_persistence_service import task_persistence_service
+from services.digest_service import digest_service
 
 router = APIRouter()
 
@@ -34,6 +35,14 @@ class TaskUpdate(BaseModel):
     actual_hours: Optional[float] = None
     # Foreman Protocol: Safety Acknowledgement
     safety_ack: Optional[bool] = False
+
+@router.get("/daily-digest")
+async def get_daily_digest(db: Session = Depends(get_db)):
+    """
+    Get a daily digest of tasks.
+    Returns lists of tasks due today, due this week, overdue, and completed yesterday.
+    """
+    return digest_service.generate_daily_digest(db)
 
 @router.get("/list")
 async def get_tasks(

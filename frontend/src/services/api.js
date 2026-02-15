@@ -292,6 +292,11 @@ export const SYSTEM_API = {
     },
 
     // Task CRUD
+    getDailyDigest: async () => {
+        const response = await api.get('/tasks/daily-digest');
+        return response.data;
+    },
+
     getTasks: async (filters = {}) => {
         const params = new URLSearchParams();
         if (filters.status) params.append('status', filters.status);
