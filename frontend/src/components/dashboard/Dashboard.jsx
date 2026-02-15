@@ -4,7 +4,7 @@ import {
     Server, ListTodo, Calendar, Zap, AlertTriangle, CheckCircle,
     BookOpen, Sun, Cloud, CloudRain, Wind, ChevronDown, ChevronUp,
     MessageSquare, Send, X, ExternalLink, ArrowDown, History as HistoryIcon,
-    CheckSquare, Menu, Shield
+    CheckSquare, Menu, Shield, RefreshCw
 } from 'lucide-react';
 import { SYSTEM_API } from '../../services/api';
 import { Spinner } from '../shared/UIComponents';
@@ -251,6 +251,105 @@ const ChatBot = React.memo(({ onNavigate }) => {
 });
 
 
+const RecentNotifications = () => {
+    const [notifications, setNotifications] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchNotifications = async () => {
+            try {
+                const data = await SYSTEM_API.getNotifications(true);
+                setNotifications(data.slice(0, 5));
+            } catch (err) {
+                console.error("Failed to load notifications", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchNotifications();
+    }, []);
+
+    if (loading) return null;
+    if (notifications.length === 0) return null;
+
+    return (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6 backdrop-blur-md animate-slide-in">
+            <div className="flex items-center gap-2 mb-3">
+                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                 <h3 className="text-xs font-mono uppercase tracking-widest text-white/50">Recent Alerts</h3>
+            </div>
+            <div className="space-y-2">
+                {notifications.map(n => (
+                    <div key={n.id} className="flex justify-between items-start p-3 bg-white/[0.02] border border-white/5 rounded-lg hover:bg-white/5 transition-colors">
+                        <div>
+                            <p className="text-sm text-white font-medium">{n.title}</p>
+                            <p className="text-xs text-white/40 mt-1">{n.message}</p>
+                        </div>
+                        <span className="text-[10px] font-mono text-cyan-500/60 ml-2 whitespace-nowrap">
+                            {new Date(n.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const QuickActions = () => {
+    const { addToast } = useToast();
+    const [loading, setLoading] = useState({ email: false, calendar: false, watchtower: false });
+
+    const handleAction = async (action, apiCall, successMsg) => {
+        setLoading(prev => ({ ...prev, [action]: true }));
+        try {
+            await apiCall();
+            addToast(successMsg, 'success');
+        } catch (error) {
+            console.error(`${action} failed`, error);
+            addToast(`Action Failed :: ${error.message || 'Unknown Error'}`, 'error');
+        } finally {
+            setLoading(prev => ({ ...prev, [action]: false }));
+        }
+    };
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <button
+                onClick={() => handleAction('email', SYSTEM_API.syncEmails, 'Email Sync Initiated')}
+                disabled={loading.email}
+                className="flex items-center justify-center gap-3 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+            >
+                <div className={`p-2 rounded-lg bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500/20 transition-colors ${loading.email ? 'animate-spin' : ''}`}>
+                    {loading.email ? <RefreshCw className="w-5 h-5" /> : <Mail className="w-5 h-5" />}
+                </div>
+                <span className="text-sm font-mono text-white/70 group-hover:text-white transition-colors">SYNC_EMAIL</span>
+            </button>
+
+            <button
+                onClick={() => handleAction('calendar', SYSTEM_API.syncCalendar, 'Calendar Sync Initiated')}
+                disabled={loading.calendar}
+                className="flex items-center justify-center gap-3 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+            >
+                <div className={`p-2 rounded-lg bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 transition-colors ${loading.calendar ? 'animate-spin' : ''}`}>
+                    {loading.calendar ? <RefreshCw className="w-5 h-5" /> : <Calendar className="w-5 h-5" />}
+                </div>
+                <span className="text-sm font-mono text-white/70 group-hover:text-white transition-colors">SYNC_CALENDAR</span>
+            </button>
+
+            <button
+                onClick={() => handleAction('watchtower', SYSTEM_API.runWatchtowerScan, 'Watchtower Scan Complete')}
+                disabled={loading.watchtower}
+                className="flex items-center justify-center gap-3 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+            >
+                <div className={`p-2 rounded-lg bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20 transition-colors ${loading.watchtower ? 'animate-pulse' : ''}`}>
+                    {loading.watchtower ? <Activity className="w-5 h-5" /> : <Shield className="w-5 h-5" />}
+                </div>
+                <span className="text-sm font-mono text-white/70 group-hover:text-white transition-colors">RUN_WATCHTOWER</span>
+            </button>
+        </div>
+    );
+};
+
 const Dashboard = ({ onNavigate, globalHealth }) => {
     const { toastElement } = useToast();
 
@@ -310,6 +409,9 @@ const Dashboard = ({ onNavigate, globalHealth }) => {
                         </div>
                     </div>
                 </div>
+
+                <RecentNotifications />
+                <QuickActions />
 
                 {/* Primary Health Hub - Slimmed Scale */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-1 border border-white/10 bg-white/5 rounded-3xl overflow-hidden shadow-2xl">
