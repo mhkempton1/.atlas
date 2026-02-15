@@ -124,23 +124,29 @@ class Task(Base):
 class CalendarEvent(Base):
     __tablename__ = "calendar_events"
 
-    event_id = Column(Integer, primary_key=True, index=True)
-    remote_event_id = Column(String, unique=True, index=True, nullable=True) # Unified field
-    provider_type = Column(String, default="google", index=True)
+    id = Column(Integer, primary_key=True, index=True)
+    google_calendar_id = Column(String, unique=True, index=True, nullable=True)
     calendar_id = Column(String, nullable=True)
     title = Column(String)
-    description = Column(Text)
-    location = Column(String)
+    description = Column(Text, nullable=True)
     start_time = Column(DateTime(timezone=True))
     end_time = Column(DateTime(timezone=True))
-    all_day = Column(Boolean, default=False)
+    location = Column(String, nullable=True)
     attendees = Column(JSON, nullable=True)
-    organizer = Column(String, nullable=True)
-    status = Column(String, default="confirmed")
+    is_all_day = Column(Boolean, default=False)
+    is_recurring = Column(Boolean, default=False)
+    recurrence_rule = Column(Text, nullable=True)
     project_id = Column(String, nullable=True)
+    related_email_id = Column(Integer, ForeignKey("emails.email_id"), nullable=True)
+    is_declined = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Additional fields to maintain compatibility and usefulness
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     synced_at = Column(DateTime(timezone=True), nullable=True)
+    organizer = Column(String, nullable=True)
+    status = Column(String, default="confirmed")
+    provider_type = Column(String, default="google", index=True)
 
 class Contact(Base):
     __tablename__ = "contacts"
