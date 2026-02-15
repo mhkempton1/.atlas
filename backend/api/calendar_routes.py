@@ -3,7 +3,7 @@ from database.database import get_db
 from database.models import CalendarEvent
 from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -115,4 +115,42 @@ async def trigger_calendar_sync():
     """Manually trigger a calendar sync from the active provider"""
     from services.communication_service import comm_service
     result = comm_service.sync_calendar()
+    return result
+
+@router.get("/conflicts")
+async def get_conflicts(
+    days: int = Query(default=7, ge=1, le=90),
+    db: Session = Depends(get_db)
+):
+    """
+    Get overlapping calendar events for the next N days.
+    """
+    from services.calendar_persistence_service import calendar_persistence_service
+
+    start_date = datetime.now(timezone.utc)
+    end_date = start_date + timedelta(days=days)
+
+    conflicts = calendar_persistence_service.get_conflicts(start_date, end_date, db)
+
+    result = []
+    for c in conflicts:
+        e1 = c["event_1"]
+        e2 = c["event_2"]
+        result.append({
+            "event_1": {
+                "id": e1.id,
+                "title": e1.title,
+                "start": e1.start_time.isoformat() if e1.start_time else None,
+                "end": e1.end_time.isoformat() if e1.end_time else None
+            },
+            "event_2": {
+                "id": e2.id,
+                "title": e2.title,
+                "start": e2.start_time.isoformat() if e2.start_time else None,
+                "end": e2.end_time.isoformat() if e2.end_time else None
+            },
+            "overlap_start": c["overlap_start"].isoformat() if c["overlap_start"] else None,
+            "overlap_end": c["overlap_end"].isoformat() if c["overlap_end"] else None
+        })
+
     return result

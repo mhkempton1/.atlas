@@ -38,6 +38,9 @@ def sync_calendar_job():
     """Background job to sync calendar every 15 minutes."""
     from services.communication_service import comm_service
     from services.notification_service import notification_service
+    from services.calendar_persistence_service import calendar_persistence_service
+    from database.database import SessionLocal
+    from datetime import timezone
     
     try:
         result = comm_service.sync_calendar()
@@ -48,6 +51,37 @@ def sync_calendar_job():
                 message=f"Synced {result['synced_count']} new events from Google Calendar.",
                 priority="low"
             )
+
+        # Conflict Detection (Today + 7 days)
+        db = SessionLocal()
+        try:
+            now = datetime.now(timezone.utc)
+            end_check = now + timedelta(days=7)
+
+            conflicts = calendar_persistence_service.get_conflicts(now, end_check, db)
+
+            if conflicts:
+                # Notify about the first one or a summary
+                first_conflict = conflicts[0]
+                e1 = first_conflict['event_1']
+                e2 = first_conflict['event_2']
+                # Determine display time (use local time if possible, or UTC)
+                # Since we don't have user timezone, we stick to what we have or just time.
+                overlap_time = first_conflict['overlap_start'].strftime("%H:%M")
+
+                msg = f"Double-booked at {overlap_time}: {e1.title} and {e2.title}"
+                if len(conflicts) > 1:
+                    msg += f" (+{len(conflicts)-1} other conflicts)"
+
+                notification_service.push_notification(
+                    type="calendar",
+                    title="Schedule Conflict Detected",
+                    message=msg,
+                    priority="high"
+                )
+        finally:
+            db.close()
+
     except Exception:
         pass
 
