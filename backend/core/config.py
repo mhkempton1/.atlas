@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     
     # Integrations
     ALTIMETER_API_URL: str = os.getenv("ALTIMETER_API_URL", "http://127.0.0.1:4203")
+    ALTIMETER_API_TOKEN: str = os.getenv("ALTIMETER_API_TOKEN", "")
     ALTIMETER_PATH: str = os.getenv("ALTIMETER_PATH", "./data/altimeter")
     OBSIDIAN_KNOWLEDGE_PATH: str = os.getenv("OBSIDIAN_KNOWLEDGE_PATH", "./data/knowledge")
     ONEDRIVE_PATH: str = os.getenv("ONEDRIVE_PATH", "./data/onedrive")
