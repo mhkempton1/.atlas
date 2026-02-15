@@ -10,10 +10,11 @@ from typing import List, Optional
 from core.config import settings
 from services.activity_service import activity_service
 import email.utils
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from database.database import get_db
 from database.models import Email, EmailAttachment, CalendarEvent
 from services.email_persistence_service import persist_email_to_database
+from services.calendar_persistence_service import calendar_persistence_service
 
 # Updated Scopes for Email + Calendar
 SCOPES = [
@@ -211,6 +212,22 @@ class GoogleService:
             'attachments': attachments,
             'labels': message.get('labelIds', [])
         }
+                    self._download_attachment(part, email.email_id, message['id'], db)
+                    
+        # Index in Vector DB
+        try:
+            from services.embedding_service import embedding_service
+            embedding_service.generate_email_embedding({
+                "subject": email.subject,
+                "sender": email.from_address,
+                "body": email.body_text or email.body_html,
+                "message_id": email.message_id,
+                "date": email.date_received.isoformat() if email.date_received else None
+            })
+        except Exception as e:
+            pass
+
+        return True
 
     def _extract_body(self, payload):
         # ... (Same helper)
@@ -436,7 +453,7 @@ class GoogleService:
         db = next(get_db())
         
         # Sync from now
-        now = datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
+        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z") # Ensure Z suffix for Google API
         
         try:
             events_result = self.calendar_service.events().list(
@@ -469,64 +486,32 @@ class GoogleService:
             raise Exception(f"Calendar sync failed: {e}")
 
     def _store_event(self, event, db):
-        remote_id = event['id']
-        existing = db.query(CalendarEvent).filter_by(remote_event_id=remote_id).first()
+        # Extract fields for persistence
+        start = event.get('start', {})
+        end = event.get('end', {})
         
-        # Parse times
-        start = event['start'].get('dateTime', event['start'].get('date'))
-        end = event['end'].get('dateTime', event['end'].get('date'))
+        start_time = start.get('dateTime', start.get('date'))
+        end_time = end.get('dateTime', end.get('date'))
+        is_all_day = 'dateTime' not in start
         
-        # Handle date-only (all day)
-        is_all_day = 'T' not in str(start) if start else False
+        event_data = {
+            "google_calendar_id": event['id'],
+            "title": event.get('summary'),
+            "description": event.get('description'),
+            "start_time": start_time,
+            "end_time": end_time,
+            "location": event.get('location'),
+            "is_all_day": is_all_day,
+            "status": event.get('status'),
+            "attendees": event.get('attendees'),
+            "organizer": event.get('organizer', {}).get('email'),
+            "calendar_id": "primary",
+            "is_recurring": 'recurringEventId' in event or 'recurrence' in event,
+            "recurrence_rule": "\n".join(event.get('recurrence', [])) if event.get('recurrence') else None
+        }
         
-        # Convert to datetime object if string
-        # Simple parser for ISO format needed if not using dateutil
-        # For now, storing as string might be safer if DB allows, but DB expects DateTime.
-        # We need a robust parser.
-        
-        def parse_iso(dt_str):
-            if not dt_str: return None
-            try:
-                # Remove Z and handle offsets if possible, or use simplified
-                if 'T' in dt_str:
-                    return datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
-                else: 
-                     return datetime.fromisoformat(dt_str) # Date only
-            except:
-                return datetime.now()
-
-        start_dt = parse_iso(start)
-        end_dt = parse_iso(end)
-
-        if existing:
-            # Update
-            existing.title = event.get('summary')
-            existing.description = event.get('description')
-            existing.location = event.get('location')
-            existing.start_time = start_dt
-            existing.end_time = end_dt
-            existing.status = event.get('status')
-            existing.synced_at = datetime.now()
-            return True
-        else:
-            # Create
-            new_event = CalendarEvent(
-                remote_event_id=remote_id,
-                provider_type='google',
-                calendar_id='primary',
-                title=event.get('summary'),
-                description=event.get('description'),
-                location=event.get('location'),
-                start_time=start_dt,
-                end_time=end_dt,
-                all_day=is_all_day,
-                status=event.get('status'),
-                organizer=event.get('organizer', {}).get('email'),
-                synced_at=datetime.now()
-            )
-            db.add(new_event)
-            db.flush()
-            return True
+        calendar_persistence_service.persist_calendar_event(event_data, db)
+        return True
 
     def create_event(self, event_data: dict) -> dict:
         """Create an event in the primary Google Calendar."""

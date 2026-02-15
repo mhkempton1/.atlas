@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 import asyncio
 import json
 import time
@@ -94,6 +94,27 @@ class GeminiService:
             pass
 
         return context_str
+
+    def get_embedding(self, text: str) -> Optional[List[float]]:
+        """
+        Generate vector embedding for text using Gemini API.
+        """
+        if not self.client:
+            return None
+
+        try:
+            # Using standard embedding model
+            response = self.client.models.embed_content(
+                model="text-embedding-004",
+                contents=text
+            )
+            # Response structure depends on SDK version, but usually has 'embeddings' list
+            if hasattr(response, 'embeddings') and response.embeddings:
+                return response.embeddings[0].values
+            return None
+        except Exception as e:
+            print(f"Error generating embedding: {e}")
+            return None
 
     async def generate_content(
         self,
