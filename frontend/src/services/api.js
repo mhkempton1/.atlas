@@ -230,6 +230,11 @@ export const SYSTEM_API = {
     },
 
     // Intelligent Email Features
+    syncEmails: async () => {
+        const response = await api.post('/email/sync');
+        return response.data;
+    },
+
     scanEmails: async (limit = 10) => {
         const response = await api.post(`/email/scan?limit=${limit}`);
         return response.data;
