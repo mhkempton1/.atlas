@@ -4,6 +4,8 @@ from database.models import Email, EmailAttachment
 from datetime import datetime, timezone
 import json
 from services.contact_persistence_service import update_contact_from_email
+from services.project_detection_service import project_detection_service
+from services.altimeter_service import altimeter_service
 
 def persist_email_to_database(email_data, db: Session):
     """
@@ -110,6 +112,36 @@ def persist_email_to_database(email_data, db: Session):
         new_email.has_attachments = _get_field(email_data, 'has_attachments') or False
         new_email.created_at = datetime.now(timezone.utc)
         new_email.synced_at = datetime.now(timezone.utc)
+
+        # Project Detection
+        try:
+            full_text = (new_email.subject or "") + "\n" + (new_email.body_text or new_email.body_html or "")
+            detected_numbers = project_detection_service.detect_project_number_in_email(full_text)
+
+            if detected_numbers:
+                matches = project_detection_service.match_detected_projects_to_altimeter(detected_numbers, altimeter_service)
+                if matches:
+                    # Set to first match
+                    new_email.project_id = matches[0]["number"]
+
+                    if len(matches) > 1:
+                        current_labels = new_email.labels or []
+                        if isinstance(current_labels, str):
+                            # Handle case where labels might be a string (though unlikely for JSON field)
+                            try:
+                                current_labels = json.loads(current_labels)
+                            except:
+                                current_labels = [current_labels]
+
+                        if not isinstance(current_labels, list):
+                             current_labels = []
+
+                        if "Multiple Projects Detected" not in current_labels:
+                            current_labels.append("Multiple Projects Detected")
+                        new_email.labels = current_labels
+        except Exception as e:
+            print(f"Error during project detection for email {new_email.message_id}: {e}")
+            # Do not fail email persistence
 
         try:
             db.add(new_email)
