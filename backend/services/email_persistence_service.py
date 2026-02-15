@@ -4,6 +4,7 @@ from database.models import Email, EmailAttachment
 from datetime import datetime, timezone
 import json
 from services.contact_persistence_service import update_contact_from_email
+from services.contact_unification_service import match_email_to_contact
 
 def persist_email_to_database(email_data, db: Session):
     """
@@ -134,7 +135,45 @@ def persist_email_to_database(email_data, db: Session):
 
             # Update contacts for new email
             try:
-                update_contact_from_email(new_email.sender, db)
+                # 1. Handle Sender (with Unification)
+                sender_contact = None
+                match_result = match_email_to_contact(new_email.sender, db)
+
+                if match_result:
+                    contact, is_tentative = match_result
+                    sender_contact = contact
+
+                    # Update stats manually
+                    contact.email_count = (contact.email_count or 0) + 1
+                    contact.last_contact_date = datetime.now(timezone.utc)
+                    db.add(contact)
+
+                    if is_tentative:
+                        # Add label
+                        current_labels = new_email.labels
+                        if current_labels is None:
+                            current_labels = []
+                        # Ensure list
+                        if not isinstance(current_labels, list):
+                            if isinstance(current_labels, str):
+                                current_labels = [current_labels]
+                            else:
+                                current_labels = []
+
+                        if "tentative-contact" not in current_labels:
+                            current_labels.append("tentative-contact")
+                            new_email.labels = current_labels
+                else:
+                    # No match found (exact or domain), auto-create new contact
+                    sender_contact = update_contact_from_email(new_email.sender, db)
+
+                # Link contact to email
+                if sender_contact:
+                    new_email.contact_id = sender_contact.id
+                    db.add(new_email)
+                    db.commit() # Save email updates (contact_id, labels) and contact stats
+
+                # 2. Handle Recipients (Standard logic)
                 recipients = new_email.recipients or new_email.to_addresses
                 if recipients:
                     if isinstance(recipients, list):
