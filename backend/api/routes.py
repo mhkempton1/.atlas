@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from agents.draft_agent import draft_agent
 
 router = APIRouter()
@@ -50,11 +50,13 @@ class SendEmailRequest(BaseModel):
     recipient: str
     subject: str
     body: str
+    cc: Optional[List[str]] = None
+    bcc: Optional[List[str]] = None
 
 @router.post("/agents/send-email")
 async def send_email_endpoint(request: SendEmailRequest):
     from services.communication_service import comm_service
-    result = comm_service.send_email(request.recipient, request.subject, request.body)
+    result = comm_service.send_email(request.recipient, request.subject, request.body, cc=request.cc, bcc=request.bcc)
     if not result.get("success"):
         raise HTTPException(status_code=500, detail=result.get("error"))
     return result

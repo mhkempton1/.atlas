@@ -51,11 +51,13 @@ export const SYSTEM_API = {
         return response.data;
     },
 
-    sendEmail: async (recipient, subject, body) => {
+    sendEmail: async (recipient, subject, body, cc = [], bcc = []) => {
         const response = await api.post('/agents/send-email', {
             recipient,
             subject,
-            body
+            body,
+            cc,
+            bcc
         });
         return response.data;
     },

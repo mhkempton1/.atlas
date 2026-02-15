@@ -14,6 +14,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
     const [sending, setSending] = useState(false);
     const [extracting, setExtracting] = useState(false);
     const [drafting, setDrafting] = useState(false);
+    const [extractedTasks, setExtractedTasks] = useState([]);
 
     const CATEGORIES = ['work', 'personal', 'urgent', 'todo', 'finance', 'archive', 'drafts'];
 
@@ -94,8 +95,9 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
         setExtracting(true);
         try {
             const result = await SYSTEM_API.extractTasksFromEmail(email.email_id);
-            if (result.tasks_found > 0) {
-                toast(`Extracted ${result.tasks_found} task${result.tasks_found > 1 ? 's' : ''} from this email`, "success");
+            if (result.tasks && result.tasks.length > 0) {
+                setExtractedTasks(result.tasks);
+                toast(`Extracted ${result.tasks.length} task${result.tasks.length > 1 ? 's' : ''} from this email`, "success");
             } else {
                 toast("No actionable tasks found in this email", "info");
             }
@@ -103,6 +105,21 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
             toast(`Task extraction failed: ${err.message}`, "error");
         } finally {
             setExtracting(false);
+        }
+    };
+
+    const handleApproveTask = (taskId) => {
+        setExtractedTasks(prev => prev.filter(t => t.task_id !== taskId));
+        toast("Task approved and added to queue", "success");
+    };
+
+    const handleRejectTask = async (taskId) => {
+        try {
+            await SYSTEM_API.deleteTask(taskId);
+            setExtractedTasks(prev => prev.filter(t => t.task_id !== taskId));
+            toast("Task rejected and removed", "info");
+        } catch (err) {
+            toast(`Failed to reject task: ${err.message}`, "error");
         }
     };
 
@@ -221,6 +238,51 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Extracted Tasks Review */}
+            {extractedTasks.length > 0 && (
+                <div className="p-4 bg-emerald-500/5 border-b border-emerald-500/20">
+                    <div className="flex items-center gap-2 mb-3 text-emerald-400 font-semibold text-sm">
+                        <Sparkles className="w-4 h-4" />
+                        <span>Suggested Tasks ({extractedTasks.length})</span>
+                    </div>
+                    <div className="space-y-2">
+                        {extractedTasks.map(task => (
+                            <div key={task.task_id} className="flex items-center justify-between bg-surface-dark p-3 rounded border border-white/5">
+                                <div className="flex-1">
+                                    <div className="text-sm font-medium text-white">{task.title}</div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                            {Math.round(task.confidence * 100)}% Confidence
+                                        </span>
+                                        {task.evidence && (
+                                            <span className="text-[10px] text-gray-500 truncate max-w-[200px]" title={task.evidence}>
+                                                "{task.evidence}"
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 ml-4">
+                                    <button
+                                        onClick={() => handleRejectTask(task.task_id)}
+                                        className="p-1.5 hover:bg-red-500/20 text-gray-500 hover:text-red-400 rounded transition-colors"
+                                        title="Reject"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleApproveTask(task.task_id)}
+                                        className="p-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded transition-colors"
+                                        title="Approve"
+                                    >
+                                        <CheckSquare className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Content */}
             <div className="content flex-1 overflow-auto p-6 bg-transparent">

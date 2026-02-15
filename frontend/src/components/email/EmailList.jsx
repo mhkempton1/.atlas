@@ -36,9 +36,17 @@ const EmailItem = ({ email, onClick, expanded, onAction }) => {
                         <span className={`text-sm font-medium ${!email.is_read ? 'text-white' : 'text-gray-400'}`}>
                             {email.from_name || email.from_address}
                         </span>
-                        <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                            {new Date(email.date_received).toLocaleDateString()}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            {email.has_tasks && (
+                                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-bold uppercase text-emerald-400">
+                                    <CheckSquare className="w-3 h-3" />
+                                    Task
+                                </span>
+                            )}
+                            <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                                {new Date(email.date_received).toLocaleDateString()}
+                            </span>
+                        </div>
                     </div>
 
                     <h4 className={`text-sm mb-1 truncate ${!email.is_read ? 'text-gray-200 font-medium' : 'text-gray-500'}`}>

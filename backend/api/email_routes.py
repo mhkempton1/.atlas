@@ -38,50 +38,6 @@ def run_background_scan(limit: int):
     except Exception as e:
         pass
 
-@router.get("/labels")
-async def get_labels():
-    """Get available Gmail labels/folders"""
-    from services.communication_service import comm_service
-    return comm_service.get_labels()
-
-@router.get("/stats")
-async def get_email_stats(db: Session = Depends(get_db)):
-    """Get email count statistics"""
-    total = db.query(Email).count()
-    unread = db.query(Email).filter(Email.is_read == False).count()
-    return {
-        "total_emails": total,
-        "unread_emails": unread
-    }
-
-@router.get("/list")
-async def get_emails(
-    category: Optional[str] = None,
-    is_read: Optional[bool] = None,
-    project_id: Optional[str] = None,
-    limit: int = 50,
-    offset: int = 0,
-    db: Session = Depends(get_db)
-):
-    """Get emails with filtering"""
-
-    query = db.query(Email)
-
-    if category:
-        query = query.filter(Email.category == category)
-    if is_read is not None:
-        query = query.filter(Email.is_read == is_read)
-    if project_id:
-        query = query.filter(Email.project_id == project_id)
-
-    # Most recent first
-    query = query.order_by(Email.date_received.desc())
-
-    # Pagination
-    emails = query.offset(offset).limit(limit).all()
-
-    return emails
-
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
@@ -99,8 +55,63 @@ class EmailResponse(BaseModel):
     remote_id: Optional[str] = None
     provider_type: Optional[str] = "google"
     has_attachments: bool = False
-    
+    has_tasks: bool = False
+
     model_config = ConfigDict(from_attributes=True)
+
+@router.get("/labels")
+async def get_labels():
+    """Get available Gmail labels/folders"""
+    from services.communication_service import comm_service
+    return comm_service.get_labels()
+
+@router.get("/stats")
+async def get_email_stats(db: Session = Depends(get_db)):
+    """Get email count statistics"""
+    total = db.query(Email).count()
+    unread = db.query(Email).filter(Email.is_read == False).count()
+    return {
+        "total_emails": total,
+        "unread_emails": unread
+    }
+
+@router.get("/list", response_model=List[EmailResponse])
+async def get_emails(
+    category: Optional[str] = None,
+    is_read: Optional[bool] = None,
+    project_id: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    """Get emails with filtering"""
+    from database.models import Task
+
+    query = db.query(Email)
+
+    if category:
+        query = query.filter(Email.category == category)
+    if is_read is not None:
+        query = query.filter(Email.is_read == is_read)
+    if project_id:
+        query = query.filter(Email.project_id == project_id)
+
+    # Most recent first
+    query = query.order_by(Email.date_received.desc())
+
+    # Pagination
+    emails = query.offset(offset).limit(limit).all()
+
+    # Enrich with task indicator
+    if emails:
+        email_ids = [e.email_id for e in emails]
+        task_email_ids = db.query(Task.email_id).filter(Task.email_id.in_(email_ids)).distinct().all()
+        ids_with_tasks = {t[0] for t in task_email_ids}
+
+        for email in emails:
+            email.has_tasks = email.email_id in ids_with_tasks
+
+    return emails
 
 class CategoryUpdate(BaseModel):
     category: str

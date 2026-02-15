@@ -4,6 +4,9 @@ import { SYSTEM_API } from '../../services/api';
 
 const QuickCompose = ({ onClose, onSent }) => {
     const [to, setTo] = useState('');
+    const [cc, setCc] = useState('');
+    const [bcc, setBcc] = useState('');
+    const [showCcBcc, setShowCcBcc] = useState(false);
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
     const [loading, setLoading] = useState(false);
@@ -14,7 +17,10 @@ const QuickCompose = ({ onClose, onSent }) => {
 
         setLoading(true);
         try {
-            await SYSTEM_API.sendEmail(to, subject, body);
+            const ccList = cc.split(',').map(e => e.trim()).filter(e => e);
+            const bccList = bcc.split(',').map(e => e.trim()).filter(e => e);
+
+            await SYSTEM_API.sendEmail(to, subject, body, ccList, bccList);
             if (onSent) onSent();
             onClose();
         } catch (error) {
@@ -41,7 +47,16 @@ const QuickCompose = ({ onClose, onSent }) => {
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div className="space-y-1">
-                        <label className="text-[10px] font-mono text-gray-500 uppercase tracking-widest ml-1">Recipient</label>
+                        <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-mono text-gray-500 uppercase tracking-widest ml-1">Recipient</label>
+                            <button
+                                type="button"
+                                onClick={() => setShowCcBcc(!showCcBcc)}
+                                className="text-[10px] font-mono text-purple-400 hover:text-purple-300 uppercase tracking-widest mr-1"
+                            >
+                                {showCcBcc ? 'Hide CC/BCC' : 'CC/BCC'}
+                            </button>
+                        </div>
                         <input
                             autoFocus
                             type="email"
@@ -52,6 +67,32 @@ const QuickCompose = ({ onClose, onSent }) => {
                             onChange={e => setTo(e.target.value)}
                         />
                     </div>
+
+                    {showCcBcc && (
+                        <div className="grid grid-cols-2 gap-4 animate-fade-in">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-mono text-gray-500 uppercase tracking-widest ml-1">CC</label>
+                                <input
+                                    type="text"
+                                    placeholder="observer@nexus.com"
+                                    className="w-full bg-transparent border-b border-white/10 py-2 outline-none focus:border-purple-500 text-white transition-colors"
+                                    value={cc}
+                                    onChange={e => setCc(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-mono text-gray-500 uppercase tracking-widest ml-1">BCC</label>
+                                <input
+                                    type="text"
+                                    placeholder="shadow@nexus.com"
+                                    className="w-full bg-transparent border-b border-white/10 py-2 outline-none focus:border-purple-500 text-white transition-colors"
+                                    value={bcc}
+                                    onChange={e => setBcc(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     <div className="space-y-1">
                         <label className="text-[10px] font-mono text-gray-500 uppercase tracking-widest ml-1">Subject</label>
                         <input
