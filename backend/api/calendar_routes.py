@@ -33,14 +33,14 @@ async def get_events(
 
     return [
         {
-            "event_id": e.event_id,
-            "remote_event_id": e.remote_event_id,
+            "event_id": e.id,
+            "remote_event_id": e.google_calendar_id,
             "title": e.title,
             "description": e.description,
             "location": e.location,
             "start_time": e.start_time.isoformat() if e.start_time else None,
             "end_time": e.end_time.isoformat() if e.end_time else None,
-            "all_day": e.all_day,
+            "all_day": e.is_all_day,
             "attendees": e.attendees,
             "organizer": e.organizer,
             "status": e.status,
@@ -64,7 +64,7 @@ async def create_event(
         location=event.location,
         start_time=event.start_time,
         end_time=event.end_time,
-        all_day=event.all_day,
+        is_all_day=event.all_day,
         attendees=event.attendees,
         status="confirmed",
         synced_at=datetime.now()
@@ -77,13 +77,13 @@ async def create_event(
     try:
         remote_result = comm_service.create_event(event.dict())
         if remote_result and "id" in remote_result:
-            new_event.remote_event_id = remote_result["id"]
+            new_event.google_calendar_id = remote_result["id"]
             db.commit()
     except Exception as e:
         # We keep the local copy even if remote fail, but log it
         print(f"Remote sync failed: {e}")
         
-    return {"status": "success", "event_id": new_event.event_id}
+    return {"status": "success", "event_id": new_event.id}
 
 @router.get("/today")
 async def get_today_events(db: Session = Depends(get_db)):
@@ -98,12 +98,12 @@ async def get_today_events(db: Session = Depends(get_db)):
 
     return [
         {
-            "event_id": e.event_id,
+            "event_id": e.id,
             "title": e.title,
             "location": e.location,
             "start_time": e.start_time.isoformat() if e.start_time else None,
             "end_time": e.end_time.isoformat() if e.end_time else None,
-            "all_day": e.all_day,
+            "all_day": e.is_all_day,
             "status": e.status,
             "attendees": e.attendees
         }
