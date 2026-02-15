@@ -114,4 +114,55 @@ class CalendarPersistenceService:
 
         return list(conflicting_events)
 
+    def get_conflicts(self, start_date: datetime, end_date: datetime, db: Session) -> List[Dict[str, Any]]:
+        """
+        Detects conflicting events (overlaps) within a date range.
+
+        Args:
+            start_date: The start of the range.
+            end_date: The end of the range.
+            db: The database session.
+
+        Returns:
+            A list of dictionaries, each containing 'event_1', 'event_2', and 'overlap_time'.
+        """
+        # Ensure aware
+        if start_date.tzinfo is None: start_date = start_date.replace(tzinfo=timezone.utc)
+        if end_date.tzinfo is None: end_date = end_date.replace(tzinfo=timezone.utc)
+
+        events = db.query(CalendarEvent).filter(
+            CalendarEvent.end_time > start_date,
+            CalendarEvent.start_time < end_date,
+            CalendarEvent.status == 'confirmed',
+            CalendarEvent.is_all_day == False,
+            CalendarEvent.is_declined == False
+        ).order_by(CalendarEvent.start_time).all()
+
+        conflicts = []
+        processed_pairs = set()
+
+        for i in range(len(events)):
+            for j in range(i + 1, len(events)):
+                e1 = events[i]
+                e2 = events[j]
+
+                # Check overlap: Start1 < End2 and Start2 < End1
+                if e1.start_time < e2.end_time and e2.start_time < e1.end_time:
+                    # Create a unique key for the pair to avoid duplicates if revisited
+                    pair_key = tuple(sorted([e1.id, e2.id]))
+                    if pair_key not in processed_pairs:
+                        processed_pairs.add(pair_key)
+
+                        overlap_start = max(e1.start_time, e2.start_time)
+                        overlap_end = min(e1.end_time, e2.end_time)
+
+                        conflicts.append({
+                            "event_1": e1,
+                            "event_2": e2,
+                            "overlap_start": overlap_start,
+                            "overlap_end": overlap_end
+                        })
+
+        return conflicts
+
 calendar_persistence_service = CalendarPersistenceService()
