@@ -127,6 +127,36 @@ def sync_calendar_job():
     except Exception:
         pass
 
+def sync_tasks_job():
+    """Background job to sync tasks from Altimeter for active projects."""
+    from services.task_sync_service import task_sync_service
+    from database.database import SessionLocal
+    from database.models import Task
+    from sqlalchemy import distinct
+
+    db = SessionLocal()
+    try:
+        # Get projects that have linked tasks
+        # We only sync projects that are already linked.
+        # Query distinct project_id from tasks where related_altimeter_task_id is not null
+        project_ids = db.query(distinct(Task.project_id)).filter(Task.related_altimeter_task_id != None).all()
+
+        # project_ids is a list of tuples like [('P-123',), ('P-456',)]
+
+        for p_row in project_ids:
+            project_id = p_row[0]
+            if project_id:
+                 try:
+                     task_sync_service.sync_tasks_from_altimeter(project_id, db)
+                 except Exception as e:
+                     # Log error per project but continue
+                     pass
+
+    except Exception as e:
+        pass
+    finally:
+        db.close()
+
 def watchtower_job():
     """
     The Watchtower: Proactive Risk Scanning.
@@ -162,6 +192,7 @@ def watchtower_job():
 # Schedule jobs
 scheduler.add_job(sync_emails_job, 'interval', minutes=5, id='email_sync', replace_existing=True)
 scheduler.add_job(sync_calendar_job, 'interval', minutes=15, id='calendar_sync', replace_existing=True)
+scheduler.add_job(sync_tasks_job, 'interval', minutes=15, id='task_sync', replace_existing=True)
 scheduler.add_job(watchtower_job, 'interval', minutes=60, id='watchtower', replace_existing=True)
 
 class SchedulerService:

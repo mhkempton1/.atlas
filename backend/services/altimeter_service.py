@@ -383,6 +383,36 @@ class AltimeterService:
             
         return "\n".join(lines) if lines else "No recent activity found."
 
+    def get_project_tasks(self, project_id: str) -> List[Dict[str, Any]]:
+        """Fetch tasks for a specific project from Altimeter DB."""
+        try:
+            conn = self._get_db_conn()
+            # Assuming 'tasks' table exists
+            # We select tasks where project_id matches
+            # And we need: id, name, status, updated_at
+            query = """
+                SELECT id, project_id, name, status, updated_at
+                FROM tasks
+                WHERE project_id = ? OR project_id = (SELECT id FROM projects WHERE altimeter_project_id = ?)
+            """
+
+            rows = conn.execute(query, (project_id, project_id)).fetchall()
+            conn.close()
+
+            tasks = []
+            for r in rows:
+                tasks.append({
+                    "id": str(r["id"]),
+                    "project_id": r["project_id"],
+                    "name": r["name"],
+                    "status": r["status"],
+                    "updated_at": r["updated_at"]
+                })
+            return tasks
+        except Exception as e:
+            # Table might not exist or other error
+            return []
+
 class IntelligenceBridge:
     """
     Standardized interface for Altimeter to request AI context from Atlas.
