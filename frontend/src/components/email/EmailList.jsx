@@ -4,10 +4,18 @@ import api, { SYSTEM_API } from '../../services/api';
 import { PageHeader, Spinner, EmptyState, Section, StatusBadge } from '../shared/UIComponents';
 import { useToast } from '../../hooks/useToast';
 
-const getEmailItemStyle = (is_read, expanded) => {
+const getEmailItemStyle = (email, expanded) => {
     const base = "border-b border-white/5 transition-all";
     const bg = expanded ? 'bg-white/10' : 'hover:bg-white/5';
-    const border = !is_read ? 'bg-purple-500/5 border-l-4 border-l-purple-500' : 'border-l-4 border-l-transparent';
+    let border = !email.is_read ? 'bg-purple-500/5 border-l-4 border-l-purple-500' : 'border-l-4 border-l-transparent';
+
+    // Sentiment based border/glow
+    if (email.sentiment_label === 'Negative' || email.sentiment_label === 'Frustrated') {
+        border += ' border-r-4 border-r-red-500/30';
+    } else if (email.sentiment_label === 'Positive') {
+        border += ' border-r-4 border-r-emerald-500/30';
+    }
+
     return `${base} ${bg} ${border}`;
 };
 
@@ -21,21 +29,37 @@ const getCategoryBadgeStyle = (category) => {
 };
 
 const EmailItem = ({ email, onClick, expanded, onAction }) => {
+    const isUrgent = email.urgency_score > 70;
+
     return (
         <div
-            className={`${getEmailItemStyle(email.is_read, expanded)} group relative`}
+            className={`${getEmailItemStyle(email, expanded)} group relative`}
         >
             <div
                 className="p-4 cursor-pointer flex items-start gap-4"
                 onClick={onClick}
             >
-                <div className={`mt-1 w-2 h-2 rounded-full ${!email.is_read ? 'bg-purple-500' : 'bg-transparent'}`} />
+                <div className="flex flex-col items-center gap-1.5 mt-1">
+                    <div className={`w-2 h-2 rounded-full ${!email.is_read ? 'bg-purple-500' : 'bg-transparent'}`} />
+                    {isUrgent && <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" title="High Urgency" />}
+                </div>
 
                 <div className="flex-1 min-w-0 transition-all group-hover:pr-20">
                     <div className="flex justify-between items-start mb-1">
-                        <span className={`text-sm font-medium ${!email.is_read ? 'text-white' : 'text-gray-400'}`}>
-                            {email.from_name || email.from_address}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className={`text-sm font-medium ${!email.is_read ? 'text-white' : 'text-gray-400'}`}>
+                                {email.from_name || email.from_address}
+                            </span>
+                            {email.sentiment_label && (
+                                <span className={`text-[8px] font-bold uppercase px-1 rounded ${email.sentiment_label === 'Positive' ? 'text-emerald-400 bg-emerald-400/10' :
+                                    email.sentiment_label === 'Negative' ? 'text-red-400 bg-red-400/10' :
+                                        email.sentiment_label === 'Frustrated' ? 'text-orange-400 bg-orange-400/10' :
+                                            'text-gray-400 bg-gray-400/10'
+                                    }`}>
+                                    {email.sentiment_label}
+                                </span>
+                            )}
+                        </div>
                         <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
                             {new Date(email.date_received).toLocaleDateString()}
                         </span>
@@ -144,7 +168,7 @@ const EmailList = ({ onSelectEmail }) => {
     const [activeCategory, setActiveCategory] = useState('All');
     const [totalUnread, setTotalUnread] = useState(0);
 
-    const CATEGORIES = ['All', 'UNREAD', 'work', 'personal', 'urgent', 'todo'];
+    const CATEGORIES = ['All', 'SMART', 'UNREAD', 'work', 'personal', 'urgent', 'todo'];
 
     const loadEmails = useCallback(async () => {
         try {
@@ -156,7 +180,19 @@ const EmailList = ({ onSelectEmail }) => {
                 params.category = activeCategory;
             }
             const res = await api.get('/email/list', { params });
-            setEmails(res.data);
+            let fetchedEmails = res.data;
+
+            if (activeCategory === 'SMART') {
+                // Sort by: urgency_score * 0.7 + sender_importance * 0.3
+                // Defaulting sender_importance to 50 if missing
+                fetchedEmails.sort((a, b) => {
+                    const scoreA = (a.urgency_score || 0) * 0.7 + (a.sender_importance || 50) * 0.3;
+                    const scoreB = (b.urgency_score || 0) * 0.7 + (b.sender_importance || 50) * 0.3;
+                    return scoreB - scoreA;
+                });
+            }
+
+            setEmails(fetchedEmails);
 
             // Also update total unread from stats
             const stats = await SYSTEM_API.getDashboardStats();

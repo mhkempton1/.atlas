@@ -2,13 +2,13 @@ from typing import Dict, Any
 from agents.base import BaseAgent
 from services.ai_service import ai_service
 from services.altimeter_service import altimeter_service
-from services.search_service import search_service
+from services.knowledge_service import knowledge_service
 import json
 
 class DraftAgent(BaseAgent):
     """
     Agent responsible for drafting email responses and content.
-    Now enhanced with "The Lens" - Altimeter Context.
+    Enhanced with Company Intelligence (Templates, Guidelines, Skills).
     """
     
     def __init__(self):
@@ -23,66 +23,59 @@ class DraftAgent(BaseAgent):
         body = context.get('body', '')
         instructions = context.get('instructions', 'Draft a professional response.')
         
-        # 1. Apply "The Lens": Get Context from Altimeter
-        # Who is this? What project is this? What is their role?
+        # 1. Altimeter Context (Project/Role)
         altimeter_context = altimeter_service.get_context_for_email(sender, subject)
-        
-        project_info = "Unknown Project"
+        project_info = "Unknown"
         if altimeter_context.get("project"):
             p = altimeter_context["project"]
-            project_info = f"{p.get('name')} (#{p.get('number')}) - Status: {p.get('status')}"
+            project_info = f"{p.get('name')} (#{p.get('number')})"
 
-        # 2. Apply "The Lens": Knowledge Search
-        # Check procedures/SOPs/Safety talks relevant to the query
-        knowledge_results = search_service.search(f"{subject} {body}", collection_name="knowledge", n_results=3)
-        knowledge_context_str = ""
-        if knowledge_results:
-            knowledge_context_str = "\nRELEVANT PROCEDURES & SOPS:\n"
-            for res in knowledge_results:
-                meta = res.get('metadata', {})
-                knowledge_context_str += f"- {meta.get('title')} ({meta.get('category')}): {res.get('content_snippet')}\n"
+        # 2. Knowledge Search (Templates/Guidelines/Skills)
+        knowledge_context = ""
+        try:
+            results = knowledge_service.search_all_knowledge(f"{subject} {body[:200]}", top_k=2)
+            
+            if results.get("templates"):
+                knowledge_context += "\nRECOMMENDED TEMPLATE:\n"
+                for res in results["templates"]:
+                    knowledge_context += f"Template: {res['metadata'].get('title')}\n{res.get('content_snippet', '')}\n"
+                    
+            if results.get("guidelines"):
+                knowledge_context += "\nMANAGEMENT GUIDELINES:\n"
+                for res in results["guidelines"]:
+                    knowledge_context += f"- {res['metadata'].get('title')}: {res.get('content_snippet', '')}\n"
+                    
+            if results.get("skills"):
+                knowledge_context += "\nTECHNICAL SKILLS/SOPS:\n"
+                for res in results["skills"]:
+                    knowledge_context += f"- {res['metadata'].get('title')}: {res.get('content_snippet', '')}\n"
+        except Exception as e:
+            print(f"[DraftAgent] Knowledge Search Error: {e}")
 
-        # 3. Construct the Prompt with "The Lens"
-        file_context_str = altimeter_context.get("file_context", "")
-        role_info = altimeter_context.get("company_role", "Unknown Role")
-
+        # 3. Construct Prompt
         prompt = f"""
-        You are Atlas, a personal AI assistant for a Construction Electrical Contractor (Davis Electric).
-        Your goal is to be the "Chief of Staff" - applying company context to every interaction.
+        You are Atlas, a personal AI assistant for Davis Electric.
+        Draft a response to the following email using company context and knowledge.
         
-        Incoming Email:
-        ----------------
-        From: {sender}
-        Subject: {subject}
-        Body: 
-        {body}
-        ----------------
-
-        PROJECT INTELLIGENCE (The Lens):
+        Email Context:
+        - From: {sender}
+        - Subject: {subject}
+        - Content: {body}
+        
         Project: {project_info}
-        Identified Sender Role: {role_info}
-
-        DEEP CONTEXT (Extracted from Project Files):
-        {file_context_str}
+        Sender Role: {altimeter_context.get('company_role', 'Unknown')}
         
-        {knowledge_context_str}
-
-        User Instructions: 
-        {instructions}
+        {knowledge_context}
         
-        GUIDELINES:
-        - Use the DEEP CONTEXT to answer specific questions about status, contacts, or scope.
-        - IMPORTANT: If RELEVANT PROCEDURES are provided, ensure the draft aligns with company SOPs and safety protocols.
-        - If the context lists a "Customer Contact" and the sender matches, treat them as the Client.
-        - If the context lists "Outstanding Items", check if the email relates, and mention them if relevant.
-        - Tone: Professional, Competent, Proactive. We don't just answer; we solve.
+        User Instructions: {instructions}
         
-        Task:
-        1. Draft the email response.
-        2. If applicable, add a separate "Internal Note" to the user about things they should check (e.g., "Check budget code X", "Notify Project Manager Y").
+        IMPORTANT:
+        - If a TEMPLATE is provided, use its structure/tone.
+        - If GUIDELINES are provided, adhere to the management rules.
+        - If SKILLS/SOPS are provided, ensure technical accuracy.
+        - Tone: Professional, Competent, Proactive.
         """
         
-        # 3. Generate Content
         generated_content = await ai_service.generate_content(prompt)
         
         return {

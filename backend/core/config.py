@@ -31,7 +31,10 @@ class Settings(BaseSettings):
     ALTIMETER_API_URL: str = os.getenv("ALTIMETER_API_URL", "http://127.0.0.1:4203")
     ALTIMETER_PATH: str = os.getenv("ALTIMETER_PATH", "./data/altimeter")
     OBSIDIAN_KNOWLEDGE_PATH: str = os.getenv("OBSIDIAN_KNOWLEDGE_PATH", "./data/knowledge")
-    ONEDRIVE_PATH: str = os.getenv("ONEDRIVE_PATH", "./data/onedrive")
+    ONEDRIVE_ROOT_PATH: str = os.getenv("ONEDRIVE_ROOT_PATH", r"C:\Users\mhkem\OneDrive\Documents\Davis Projects OneDrive")
+    ONEDRIVE_SKILLS_PATH: str = os.getenv("ONEDRIVE_SKILLS_PATH", "SKILLS/LOCKED")
+    ONEDRIVE_GUIDELINES_PATH: str = os.getenv("ONEDRIVE_GUIDELINES_PATH", "GUIDELINES")
+    ONEDRIVE_TEMPLATES_PATH: str = os.getenv("ONEDRIVE_TEMPLATES_PATH", "TEMPLATES")
     
     # Communication Protocols
     COMMUNICATION_PROVIDER: str = "google" # "google", "imap"

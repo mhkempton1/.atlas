@@ -52,6 +52,19 @@ class SearchService:
                 name="knowledge",
                 embedding_function=self._embedding_fn
             )
+            # Dedicated collections for Phase 4
+            self._skills_collection = self._client.get_or_create_collection(
+                name="skills",
+                embedding_function=self._embedding_fn
+            )
+            self._guidelines_collection = self._client.get_or_create_collection(
+                name="guidelines",
+                embedding_function=self._embedding_fn
+            )
+            self._templates_collection = self._client.get_or_create_collection(
+                name="templates",
+                embedding_function=self._embedding_fn
+            )
             return True
         except BaseException as e:
             # Catching BaseException to handle pyo3/rust panics
@@ -69,6 +82,21 @@ class SearchService:
     def knowledge_collection(self):
         self._ensure_initialized()
         return self._knowledge_collection
+
+    @property
+    def skills_collection(self):
+        self._ensure_initialized()
+        return self._skills_collection
+
+    @property
+    def guidelines_collection(self):
+        self._ensure_initialized()
+        return self._guidelines_collection
+
+    @property
+    def templates_collection(self):
+        self._ensure_initialized()
+        return self._templates_collection
 
     def index_email(self, email_data: Dict[str, Any]) -> bool:
         """Add or update an email in the vector index."""
@@ -125,7 +153,17 @@ class SearchService:
         """Semantic search for a specific collection."""
         if not self._ensure_initialized(): return []
         try:
-            col = self.email_collection if collection_name == "emails" else self.knowledge_collection
+            if collection_name == "emails":
+                col = self.email_collection
+            elif collection_name == "skills":
+                col = self.skills_collection
+            elif collection_name == "guidelines":
+                col = self.guidelines_collection
+            elif collection_name == "templates":
+                col = self.templates_collection
+            else:
+                col = self.knowledge_collection
+
             results = col.query(
                 query_texts=[query],
                 n_results=n_results
