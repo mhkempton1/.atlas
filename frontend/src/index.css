@@ -29,6 +29,14 @@
   /* Fainter borders */
   --border-focus: rgba(0, 242, 255, 0.4);
 
+  /* --- Stitch Spacing System --- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
   --nav-height: 60px;
   /* Fixed height for global navigation */
 }
@@ -126,7 +134,7 @@ h4 {
   backdrop-filter: blur(20px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
-  padding: 0.75rem;
+  padding: var(--space-2);
   /* Tightened */
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
