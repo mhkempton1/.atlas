@@ -83,7 +83,7 @@ const CommandBar = ({ isOpen, onClose, onNavigate, modules }) => {
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] px-4 sm:px-6 md:px-8">
+            <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[10vh] px-4 sm:px-6 md:px-8">
                 <_motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -98,13 +98,13 @@ const CommandBar = ({ isOpen, onClose, onNavigate, modules }) => {
                     exit={{ opacity: 0, scale: 0.95, y: -20, filter: 'blur(10px)' }}
                     className="bg-white/[0.02] backdrop-blur-2xl border border-white/10 w-full max-w-2xl rounded-2xl shadow-[0_0_50px_-12px_rgba(168,85,247,0.3)] overflow-hidden flex flex-col max-h-[80vh]"
                 >
-                    <div className="flex items-center gap-3 p-4 border-b border-white/5 bg-white/[0.02]">
-                        <Command className="w-5 h-5 text-purple-400" />
+                    <div className="flex items-center gap-3 p-3 border-b border-white/5 bg-white/[0.02]">
+                        <Command className="w-4 h-4 text-purple-400" />
                         <input
                             ref={inputRef}
                             type="text"
                             placeholder="Type a command or search documents..."
-                            className="flex-1 bg-transparent border-none text-white focus:outline-none placeholder:text-slate-500 text-lg"
+                            className="flex-1 bg-transparent border-none text-white focus:outline-none placeholder:text-slate-500 text-base"
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             onKeyDown={handleKeyDown}
@@ -123,11 +123,11 @@ const CommandBar = ({ isOpen, onClose, onNavigate, modules }) => {
                                     <div
                                         key={mod.id}
                                         onClick={() => { onNavigate(mod.id); onClose(); }}
-                                        className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${selectedIndex === idx ? 'bg-purple-600/20 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+                                        className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-all ${selectedIndex === idx ? 'bg-purple-600/20 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
                                     >
                                         <div className="flex items-center gap-3">
                                             <mod.icon className={`w-4 h-4 ${selectedIndex === idx ? 'text-purple-400' : 'text-slate-500'}`} />
-                                            <span className="text-sm font-medium">{mod.label}</span>
+                                            <span className="text-xs font-medium">{mod.label}</span>
                                         </div>
                                         {selectedIndex === idx && <ArrowRight className="w-4 h-4 text-purple-400 animate-pulse" />}
                                     </div>
@@ -148,14 +148,14 @@ const CommandBar = ({ isOpen, onClose, onNavigate, modules }) => {
                                         <div
                                             key={res.id}
                                             onClick={() => { onNavigate('procedures', { path: res.metadata.path }); onClose(); }}
-                                            className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${selectedIndex === globalIdx ? 'bg-purple-600/20 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+                                            className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-all ${selectedIndex === globalIdx ? 'bg-purple-600/20 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
                                         >
                                             <div className="flex items-center gap-3 overflow-hidden">
                                                 <div className="p-1.5 rounded-md bg-white/5">
                                                     <FileText className="w-3.5 h-3.5 text-blue-400" />
                                                 </div>
                                                 <div className="overflow-hidden">
-                                                    <div className="text-sm font-medium truncate">{res.metadata.title}</div>
+                                                    <div className="text-xs font-medium truncate">{res.metadata.title}</div>
                                                     <div className="text-[10px] text-slate-600 truncate">{res.content_snippet}</div>
                                                 </div>
                                             </div>
@@ -167,7 +167,7 @@ const CommandBar = ({ isOpen, onClose, onNavigate, modules }) => {
                         )}
 
                         {query && filteredModules.length === 0 && results.length === 0 && !isLoading && (
-                            <div className="p-8 text-center text-slate-600 italic text-sm">
+                            <div className="p-8 text-center text-slate-600 italic text-xs">
                                 No commands or documents found for "{query}"
                             </div>
                         )}
