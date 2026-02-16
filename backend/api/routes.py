@@ -96,6 +96,12 @@ router.include_router(foreman_router, prefix="/foreman", tags=["Foreman Protocol
 from api.notification_routes import router as notification_router
 router.include_router(notification_router, prefix="/notifications", tags=["Notifications"])
 
+from api.altimeter_webhooks import router as altimeter_webhook_router
+router.include_router(altimeter_webhook_router, prefix="/webhooks", tags=["Webhooks"])
+
+from api.sync_routes import router as sync_router
+router.include_router(sync_router, prefix="/sync", tags=["Sync"])
+
 from api.dashboard_routes import router as dashboard_router
 router.include_router(dashboard_router, prefix="/dashboard", tags=["Dashboard"])
 

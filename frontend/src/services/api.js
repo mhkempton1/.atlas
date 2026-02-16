@@ -362,6 +362,16 @@ export const SYSTEM_API = {
     },
 
     // --- Calendar Task Extraction ---
+    // Sync Conflict Resolution
+    getConflictDetails: async (entityType, entityId) => {
+        const response = await api.get(`/sync/conflict/${entityType}/${entityId}`);
+        return response.data;
+    },
+    resolveConflict: async (entityType, entityId, strategy) => {
+        const response = await api.post(`/sync/resolve/${entityType}/${entityId}`, { strategy });
+        return response.data;
+    },
+
     extractCalendarTasks: async (eventId) => {
         const response = await api.post(`/tasks/extract/calendar/${eventId}`);
         return response.data;
