@@ -8,36 +8,81 @@ from core.config import settings
 scheduler = BackgroundScheduler()
 
 def sync_emails_job():
-    """Background job to sync emails every 5 minutes."""
+    """Background job to sync emails with retry and persistence."""
     from services.communication_service import comm_service
-    from database.database import get_db
-    from database.models import Email
+    from services.notification_service import notification_service
+    from database.database import SessionLocal
+    from database.models import Email, SyncHistory
+    import time
+
+    db = SessionLocal()
     
-    # We need to handle DB session internally if not using dependency
+    # Create Sync History
+    history = SyncHistory(
+        sync_type='email',
+        status='started',
+        started_at=datetime.now()
+    )
     try:
-        db = next(get_db())
+        db.add(history)
+        db.commit()
+        db.refresh(history)
 
         # Get last sync
-        last_email = db.query(Email).order_by(Email.synced_at.desc()).first()
-        last_sync = last_email.synced_at if last_email else None
+        last_email = db.query(Email).order_by(Email.date_received.desc()).first()
+        last_sync = last_email.date_received if last_email else None
 
-        # Sync
-        try:
-            comm_service.sync_emails(last_sync)
-            
-            # FUTURE: Extract tasks from new emails here
-            # extract_tasks_from_new_emails(db)
+        # Sync with Retry
+        retries = 5
+        result = None
+        last_error = None
 
-        except Exception:
-            pass
+        for attempt in range(retries):
+            try:
+                result = comm_service.sync_emails(last_sync)
+                if result.get('status') == 'error':
+                     raise Exception(result.get('errors', ['Unknown error'])[0])
+                break
+            except Exception as e:
+                last_error = e
+                if attempt < retries - 1:
+                    time.sleep(2 ** attempt)
+                else:
+                    raise e
+
+        # Update History on Success/Partial
+        history.status = result.get('status', 'success')
+        history.items_synced = result.get('synced', 0)
+        history.errors = result.get('errors', [])
+        history.error_count = len(result.get('errors', []))
+        history.completed_at = datetime.now()
+        db.commit()
+
+    except Exception as e:
+        # Update History on Failure
+        if history:
+            history.status = 'failed'
+            history.errors = [str(e)]
+            history.error_count = 1
+            history.completed_at = datetime.now()
+            db.commit()
             
-    except Exception:
-        pass
+        notification_service.push_notification(
+            type="system",
+            title="Email Sync Failed",
+            message=f"Sync failed: {str(e)}",
+            priority="high"
+        )
+    finally:
+        db.close()
 
 def sync_calendar_job():
     """Background job to sync calendar every 15 minutes."""
     from services.communication_service import comm_service
     from services.notification_service import notification_service
+    from services.calendar_persistence_service import calendar_persistence_service
+    from database.database import SessionLocal
+    from datetime import timezone
     
     try:
         result = comm_service.sync_calendar()
@@ -48,6 +93,37 @@ def sync_calendar_job():
                 message=f"Synced {result['synced_count']} new events from Google Calendar.",
                 priority="low"
             )
+
+        # Conflict Detection (Today + 7 days)
+        db = SessionLocal()
+        try:
+            now = datetime.now(timezone.utc)
+            end_check = now + timedelta(days=7)
+
+            conflicts = calendar_persistence_service.get_conflicts(now, end_check, db)
+
+            if conflicts:
+                # Notify about the first one or a summary
+                first_conflict = conflicts[0]
+                e1 = first_conflict['event_1']
+                e2 = first_conflict['event_2']
+                # Determine display time (use local time if possible, or UTC)
+                # Since we don't have user timezone, we stick to what we have or just time.
+                overlap_time = first_conflict['overlap_start'].strftime("%H:%M")
+
+                msg = f"Double-booked at {overlap_time}: {e1.title} and {e2.title}"
+                if len(conflicts) > 1:
+                    msg += f" (+{len(conflicts)-1} other conflicts)"
+
+                notification_service.push_notification(
+                    type="calendar",
+                    title="Schedule Conflict Detected",
+                    message=msg,
+                    priority="high"
+                )
+        finally:
+            db.close()
+
     except Exception:
         pass
 

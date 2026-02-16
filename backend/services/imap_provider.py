@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Any
 from core.config import settings
 from database.database import SessionLocal
 from database.models import Email, EmailAttachment
+from services.email_persistence_service import persist_email_to_database
 
 class IMAPProvider(CommunicationProvider):
     """
@@ -27,6 +28,7 @@ class IMAPProvider(CommunicationProvider):
         self.port = settings.IMAP_PORT
         self.user = settings.IMAP_USER
         self.password = settings.IMAP_PASSWORD
+        self.sender = sender
 
     def _connect(self):
         """Connect to the IMAP server."""
@@ -45,10 +47,13 @@ class IMAPProvider(CommunicationProvider):
             A dictionary containing sync statistics.
         """
         if not self.host or not self.user:
-            return {"synced": 0, "status": "not_configured"}
+            return {"synced": 0, "status": "not_configured", "errors": []}
 
         db = SessionLocal()
         synced_count = 0
+        errors = []
+        status_msg = "success"
+
         try:
             mail = self._connect()
             mail.select("INBOX")
@@ -61,17 +66,14 @@ class IMAPProvider(CommunicationProvider):
             # Use UID search for robustness
             status, messages = mail.uid('search', None, search_criteria)
             if status != 'OK':
-                return {"synced": 0, "status": "search_failed"}
+                return {"synced": 0, "status": "search_failed", "errors": ["UID search failed"]}
 
             uids = messages[0].split()
 
-            # Process newer emails first (if possible, though logic iterates all)
-            # Optimization: Check if UID exists in DB before fetching
-            
             for uid in uids:
                 uid_str = uid.decode()
 
-                # Fast check existence
+                # Fast check existence to skip fetch if possible
                 exists = db.query(Email).filter(
                     Email.remote_id == uid_str,
                     Email.provider_type == 'imap'
@@ -79,35 +81,51 @@ class IMAPProvider(CommunicationProvider):
                 if exists:
                     continue
 
-                status, data = mail.uid('fetch', uid, '(RFC822)')
-                if status != 'OK': continue
+                fetch_status, data = mail.uid('fetch', uid, '(RFC822)')
+                if fetch_status != 'OK':
+                    errors.append(f"Failed to fetch UID {uid_str}")
+                    continue
 
                 raw_email = data[0][1]
                 msg = email.message_from_bytes(raw_email)
                 
-                if self._store_imap_email(msg, uid_str, db):
-                    synced_count += 1
+                email_data = self._extract_imap_email_data(msg, uid_str)
+                result = persist_email_to_database(email_data, db)
 
-            db.commit()
+                if result["success"]:
+                     if result["action"] == "created":
+                        synced_count += 1
+                else:
+                    errors.append(f"Failed to persist UID {uid_str}: {result.get('error')}")
+
             mail.logout()
-            return {"synced": synced_count, "status": "success"}
+
+            if errors:
+                status_msg = "partial" if synced_count > 0 else "failed"
+
+            return {
+                "synced": synced_count,
+                "status": status_msg,
+                "errors": errors,
+                "timestamp": datetime.now()
+            }
         except Exception as e:
-            db.rollback()
-            return {"synced": 0, "status": "error", "error": str(e)}
+            return {
+                "synced": synced_count,
+                "status": "error",
+                "errors": [str(e)],
+                "timestamp": datetime.now()
+            }
         finally:
             db.close()
 
-    def _store_imap_email(self, msg, imap_uid, db):
-        """Store a single email in the database."""
+    def _extract_imap_email_data(self, msg, imap_uid):
+        """Extract data from IMAP email message for persistence."""
         # 1. Parse Headers
         subject = self._decode_mime_header(msg['Subject'])
         from_raw = msg.get('From')
         message_id = msg.get('Message-ID')
         date_str = msg.get('Date')
-
-        # Check duplicate by Message-ID (if UID check passed but message exists)
-        if message_id and db.query(Email).filter(Email.message_id == message_id).first():
-            return False
 
         # Parse Date
         date_received = datetime.now()
@@ -121,25 +139,8 @@ class IMAPProvider(CommunicationProvider):
         # 2. Extract Body
         body_text, body_html = self._extract_body_from_msg(msg)
 
-        # 3. Save to DB
-        email_obj = Email(
-            message_id=message_id or f"imap-{imap_uid}",
-            remote_id=imap_uid,
-            provider_type='imap',
-            from_address=from_raw,
-            subject=subject,
-            body_text=body_text,
-            body_html=body_html,
-            snippet=body_text[:200] if body_text else "",
-            date_received=date_received,
-            is_read=False,
-            synced_at=datetime.now(),
-            category=None # Categorization happens in background task
-        )
-        db.add(email_obj)
-        db.flush()
-
-        # 5. Handle Attachments (Metadata Only)
+        # 3. Attachments (Metadata Only)
+        attachments = []
         if msg.is_multipart():
             for part in msg.walk():
                 if part.get_content_maintype() == 'multipart': continue
@@ -148,20 +149,33 @@ class IMAPProvider(CommunicationProvider):
                 filename = part.get_filename()
                 if filename:
                     filename = self._decode_mime_header(filename)
-                    # Skip saving content, capture metadata
                     payload = part.get_payload(decode=True)
                     file_size = len(payload) if payload else 0
 
-                    att = EmailAttachment(
-                        email_id=email_obj.email_id,
-                        filename=filename,
-                        file_size=file_size,
-                        mime_type=part.get_content_type(),
-                        file_path="skipped_in_imap_phase"
-                    )
-                    db.add(att)
+                    attachments.append({
+                        'filename': filename,
+                        'file_size': file_size,
+                        'mime_type': part.get_content_type(),
+                        'storage_path': "skipped_in_imap_phase", # Placeholder
+                        'file_path': "skipped_in_imap_phase"
+                    })
 
-        return True
+        return {
+            'gmail_id': None, # IMAP doesn't have Gmail ID
+            'remote_id': imap_uid,
+            'message_id': message_id or f"imap-{imap_uid}",
+            'provider_type': 'imap',
+            'from_address': from_raw,
+            'sender': from_raw,
+            'subject': subject,
+            'body_text': body_text,
+            'body_html': body_html,
+            'snippet': body_text[:200] if body_text else "",
+            'date_received': date_received,
+            'is_read': False,
+            'is_unread': True,
+            'attachments': attachments
+        }
 
     def _decode_mime_header(self, header):
         """Decode MIME encoded headers."""

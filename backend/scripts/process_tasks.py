@@ -8,6 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__f
 
 from services.data_api import data_api
 from services.altimeter_service import altimeter_service
+from services.task_persistence_service import task_persistence_service
 from agents.task_agent import task_agent
 from agents.calendar_agent import calendar_agent
 from database.database import Base, engine, SessionLocal
@@ -44,7 +45,8 @@ async def process_task(task):
                     print(f"  -> Updated Email Category: {category_update}")
 
                 # Index for Search
-                search_service.index_email({
+                from services.embedding_service import embedding_service
+                embedding_service.generate_email_embedding({
                     "subject": email_obj.subject,
                     "sender": email_obj.from_address,
                     "body": email_obj.body_text or email_obj.body_html,
@@ -101,12 +103,19 @@ async def process_task(task):
                 "due_date": datetime.datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
                 "project_id": context.get("project", {}).get("number") if context.get("project") else None,
                 "email_id": email_id,
-                "created_from": provider_type
+                "created_from": provider_type,
+                "source": "atlas_extracted",
+                "assigned_to": None,
+                "status": "open"
             }
 
-            # Write via Data API
-            t_id = data_api.create_project_task(new_task_data)
-            print(f"  -> Created Task {t_id}")
+            # Write via Task Persistence Service
+            db_session = SessionLocal()
+            try:
+                task_obj = task_persistence_service.persist_task_to_database(new_task_data, db_session)
+                print(f"  -> Created Task {task_obj.task_id}")
+            finally:
+                db_session.close()
 
     # 3. Run Calendar Agent
     event_out = await calendar_agent.process(agent_context)

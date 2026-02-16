@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from database.database import get_db
 from database.models import Task
 from sqlalchemy.orm import Session
@@ -6,6 +6,7 @@ from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel
 from services.activity_service import activity_service
+from services.task_persistence_service import task_persistence_service
 
 router = APIRouter()
 
@@ -212,12 +213,17 @@ async def delete_task(task_id: int, db: Session = Depends(get_db)):
     return {"success": True, "message": f"Task '{title}' deleted"}
 
 @router.post("/extract/{email_id}")
-async def extract_tasks(email_id: int, db: Session = Depends(get_db)):
+async def extract_tasks(
+    email_id: int,
+    min_confidence: float = Query(0.5, description="Minimum confidence score for extraction"),
+    db: Session = Depends(get_db)
+):
     """
     Manually trigger AI task extraction for a specific email.
 
     Args:
         email_id: The ID of the email to process.
+        min_confidence: Minimum confidence score to extract a task.
         db: Database session.
 
     Returns:
@@ -245,25 +251,38 @@ async def extract_tasks(email_id: int, db: Session = Depends(get_db)):
 
     tasks_created = []
     for t_data in result["data"].get("tasks", []):
-        task = Task(
-            title=t_data["title"],
-            description=t_data["description"],
-            priority=t_data["priority"].lower(),
-            due_date=datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
-            original_due_date=datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
-            project_id=context.get("project", {}).get("number") if context.get("project") else None,
-            email_id=email_id,
-            created_from="email"
-        )
-        db.add(task)
-        db.flush()
-        tasks_created.append({"task_id": task.task_id, "title": task.title})
+        if t_data.get("confidence", 0.0) < min_confidence:
+            continue
 
-    db.commit()
+        task_data_dict = {
+            "title": t_data["title"],
+            "description": t_data["description"],
+            "priority": t_data["priority"].lower(),
+            "due_date": datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
+            "original_due_date": datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
+            "project_id": context.get("project", {}).get("number") if context.get("project") else None,
+            "email_id": email_id,
+            "created_from": "email",
+            "source": "atlas_extracted"
+        }
+        task = task_persistence_service.persist_task_to_database(task_data_dict, db)
+
+        tasks_created.append({
+            "task_id": task.task_id,
+            "title": task.title,
+            "confidence": t_data.get("confidence"),
+            "evidence": t_data.get("evidence")
+        })
+
+    # db.commit() # Handled by service
     return {"extracted": len(tasks_created), "tasks": tasks_created}
 
 @router.post("/extract/calendar/{event_id}")
-async def extract_calendar_tasks(event_id: int, db: Session = Depends(get_db)):
+async def extract_calendar_tasks(
+    event_id: int,
+    min_confidence: float = Query(0.5, description="Minimum confidence score for extraction"),
+    db: Session = Depends(get_db)
+):
     """
     AI task extraction for a specific calendar event.
     """
@@ -290,19 +309,29 @@ async def extract_calendar_tasks(event_id: int, db: Session = Depends(get_db)):
 
     tasks_created = []
     for t_data in result["data"].get("tasks", []):
-        task = Task(
-            title=t_data["title"],
-            description=t_data["description"],
-            priority=t_data["priority"].lower(),
-            due_date=datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
-            original_due_date=datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
-            project_id=event.project_id,
-            created_from="calendar_event",
-            created_at=datetime.now()
-        )
-        db.add(task)
-        db.flush()
-        tasks_created.append({"task_id": task.task_id, "title": task.title})
+        if t_data.get("confidence", 0.0) < min_confidence:
+            continue
+
+        task_data_dict = {
+            "title": t_data["title"],
+            "description": t_data["description"],
+            "priority": t_data["priority"].lower(),
+            "due_date": datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
+            "original_due_date": datetime.fromisoformat(t_data["due_date"]) if t_data.get("due_date") else None,
+            "project_id": event.project_id,
+            "created_from": "calendar_event",
+            "source": "atlas_extracted",
+            "created_at": datetime.now()
+        }
+
+        task = task_persistence_service.persist_task_to_database(task_data_dict, db)
+
+        tasks_created.append({
+            "task_id": task.task_id,
+            "title": task.title,
+            "confidence": t_data.get("confidence"),
+            "evidence": t_data.get("evidence")
+        })
 
     if tasks_created:
         notification_service.push_notification(
@@ -313,5 +342,5 @@ async def extract_calendar_tasks(event_id: int, db: Session = Depends(get_db)):
             link="/tasks"
         )
 
-    db.commit()
+    # db.commit() # Handled by service
     return {"extracted": len(tasks_created), "tasks": tasks_created}

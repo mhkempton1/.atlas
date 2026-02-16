@@ -84,7 +84,7 @@ const CommandBar = ({ isOpen, onClose, onNavigate, modules }) => {
     return (
         <AnimatePresence>
             <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] px-4 sm:px-6 md:px-8">
-                <motion.div
+                <_motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}

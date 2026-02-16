@@ -98,3 +98,88 @@ def test_update_email_category(client, sample_email):
 def test_update_category_nonexistent_real(client):
     response = client.put("/api/v1/email/99999/category", json={"category": "work"})
     assert response.status_code == 404
+
+def test_search_emails(client, db):
+    from database.models import Email
+    from datetime import datetime, timedelta, timezone
+
+    # 1. Setup Data
+    # Clear existing emails to avoid interference from other tests if DB isn't reset
+    # (Fixture 'db' usually provides a session, but let's be safe or just rely on unique content)
+
+    email1 = Email(
+        message_id="msg1", remote_id="r1", subject="Meeting Update",
+        body_text="The meeting is at 10am.", from_address="boss@company.com",
+        date_received=datetime.now(timezone.utc) - timedelta(days=1),
+        to_addresses=["me@company.com"], labels=["work"],
+        is_read=True
+    )
+    email2 = Email(
+        message_id="msg2", remote_id="r2", subject="Lunch?",
+        body_text="Want to go to lunch?", from_address="friend@gmail.com",
+        date_received=datetime.now(timezone.utc),
+        to_addresses=["me@company.com"], labels=["personal"],
+        is_read=False
+    )
+    email3 = Email(
+        message_id="msg3", remote_id="r3", subject="Project Update",
+        body_text="The project is delayed.", from_address="colleague@company.com",
+        date_received=datetime.now(timezone.utc) - timedelta(days=2),
+        to_addresses=["team@company.com"], labels=["work", "urgent"],
+        is_read=True
+    )
+    db.add_all([email1, email2, email3])
+    db.commit()
+
+    # 2. Test Text Search
+    response = client.get("/api/v1/email/search?q=meeting")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 1
+    found = any(e['subject'] == "Meeting Update" for e in data)
+    assert found
+
+    # Test Body Search
+    response = client.get("/api/v1/email/search?q=delayed")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 1
+    found = any(e['subject'] == "Project Update" for e in data)
+    assert found
+
+    # 3. Test Filters
+    # From
+    response = client.get("/api/v1/email/search?from=boss")
+    data = response.json()
+    found = any(e['from_address'] == "boss@company.com" for e in data)
+    assert found
+
+    # Labels
+    response = client.get("/api/v1/email/search?labels=urgent")
+    data = response.json()
+    found = any(e['subject'] == "Project Update" for e in data)
+    assert found
+
+    # Date Range (Only email2 is recent)
+    start = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
+    response = client.get("/api/v1/email/search", params={"date_start": start})
+    data = response.json()
+    # Should contain Lunch? but not others
+    subjects = [e['subject'] for e in data]
+    assert "Lunch?" in subjects
+    assert "Meeting Update" not in subjects
+
+    # 4. Test Empty
+    response = client.get("/api/v1/email/search?q=xyz123_nonexistent")
+    assert len(response.json()) == 0
+
+    # 5. Test Pagination
+    # We added 3 emails.
+    # Depending on what else is in DB, let's just check limit works
+    response = client.get("/api/v1/email/search?limit=1")
+    assert len(response.json()) == 1
+
+    # 6. Test Invalid Date
+    response = client.get("/api/v1/email/search?date_start=invalid-date")
+    assert response.status_code == 400
+    assert "Invalid date_start format" in response.json()["detail"]

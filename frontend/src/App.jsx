@@ -30,6 +30,7 @@ import CommandBar from './components/shared/CommandBar';
 import SystemStatusView from './components/system/SystemStatusView';
 import { SYSTEM_API } from './services/api';
 import NotificationCenter from './components/system/NotificationCenter';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const MODULES = [
   { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard, minStrata: 1 },
@@ -185,37 +186,91 @@ function App() {
   const renderContent = () => {
     switch (currentModule) {
       case 'dashboard':
-        return <Dashboard onNavigate={navigateTo} globalHealth={globalHealth} />;
+        return (
+          <ErrorBoundary name="Command Center">
+            <Dashboard onNavigate={navigateTo} globalHealth={globalHealth} />
+          </ErrorBoundary>
+        );
       case 'email':
         return (
-          <div className="max-w-7xl mx-auto h-full">
-            <EmailModule />
-          </div>
+          <ErrorBoundary name="Email Control">
+            <div className="max-w-7xl mx-auto h-full">
+              <EmailModule />
+            </div>
+          </ErrorBoundary>
         );
       case 'calendar_google':
-        return <CalendarModule />;
+        return (
+          <ErrorBoundary name="Calendar">
+            <CalendarModule />
+          </ErrorBoundary>
+        );
       case 'schedule':
-        return <SchedulerView />;
+        return (
+          <ErrorBoundary name="Dept Schedule">
+            <SchedulerView />
+          </ErrorBoundary>
+        );
       case 'tasks':
-        return <TaskList />;
+        return (
+          <ErrorBoundary name="Mission Tasks">
+            <TaskList />
+          </ErrorBoundary>
+        );
       case 'alt_tasks':
-        return <AltimeterTaskView />;
+        return (
+          <ErrorBoundary name="Altimeter Ops">
+            <AltimeterTaskView />
+          </ErrorBoundary>
+        );
       case 'history':
-        return <HistoryView />;
+        return (
+          <ErrorBoundary name="System Logs">
+            <HistoryView />
+          </ErrorBoundary>
+        );
       case 'sys_health':
-        return <SystemHealthView />;
+        return (
+          <ErrorBoundary name="System Health">
+            <SystemHealthView />
+          </ErrorBoundary>
+        );
       case 'config':
-        return <SystemConfig />;
+        return (
+          <ErrorBoundary name="System Config">
+            <SystemConfig />
+          </ErrorBoundary>
+        );
       case 'procedures':
-        return <KnowledgeDashboard />;
+        return (
+          <ErrorBoundary name="The Library">
+            <KnowledgeDashboard />
+          </ErrorBoundary>
+        );
       case 'docs':
-        return <DocumentControl />;
+        return (
+          <ErrorBoundary name="Document Control">
+            <DocumentControl />
+          </ErrorBoundary>
+        );
       case 'portcullis':
-        return <PortcullisView />;
+        return (
+          <ErrorBoundary name="Gatekeeper">
+            <PortcullisView />
+          </ErrorBoundary>
+        );
       case 'reports':
-        return <ReportsDashboard />;
+        return (
+          <ErrorBoundary name="System Reports">
+            <ReportsDashboard />
+          </ErrorBoundary>
+        );
       case 'system_status':
-        return <SystemStatusView onNavigate={navigateTo} />;
+        return (
+          <ErrorBoundary name="System Status">
+            <SystemStatusView onNavigate={navigateTo} />
+          </ErrorBoundary>
+        );
       default:
         return (
           <div className="flex flex-col items-center justify-center h-[60vh] text-text-muted">

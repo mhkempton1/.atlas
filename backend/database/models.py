@@ -71,6 +71,14 @@ class Email(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     synced_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # New fields
+    gmail_id = Column(String, unique=True, index=True, nullable=True)
+    sender = Column(String, index=True, nullable=True)
+    recipients = Column(JSON, nullable=True)
+    is_unread = Column(Boolean, default=True)
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
 class EmailAttachment(Base):
     __tablename__ = "email_attachments"
 
@@ -80,6 +88,7 @@ class EmailAttachment(Base):
     file_size = Column(Integer, nullable=True)
     mime_type = Column(String, nullable=True)
     file_path = Column(String)
+    storage_path = Column(String, nullable=True)
     file_hash = Column(String, nullable=True)
     remote_attachment_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -104,41 +113,58 @@ class Task(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
+    # New fields
+    source = Column(String, nullable=True) # atlas_extracted, altimeter_created, user_created
+    assigned_to = Column(String, nullable=True)
+    related_altimeter_task_id = Column(String, nullable=True)
+    is_recurring = Column(Boolean, default=False)
+    recurrence_pattern = Column(String, nullable=True)
+    tags = Column(JSON, nullable=True)
+
 class CalendarEvent(Base):
     __tablename__ = "calendar_events"
 
-    event_id = Column(Integer, primary_key=True, index=True)
-    remote_event_id = Column(String, unique=True, index=True, nullable=True) # Unified field
-    provider_type = Column(String, default="google", index=True)
+    id = Column(Integer, primary_key=True, index=True)
+    google_calendar_id = Column(String, unique=True, index=True, nullable=True)
     calendar_id = Column(String, nullable=True)
     title = Column(String)
-    description = Column(Text)
-    location = Column(String)
+    description = Column(Text, nullable=True)
     start_time = Column(DateTime(timezone=True))
     end_time = Column(DateTime(timezone=True))
-    all_day = Column(Boolean, default=False)
+    location = Column(String, nullable=True)
     attendees = Column(JSON, nullable=True)
-    organizer = Column(String, nullable=True)
-    status = Column(String, default="confirmed")
+    is_all_day = Column(Boolean, default=False)
+    is_recurring = Column(Boolean, default=False)
+    recurrence_rule = Column(Text, nullable=True)
     project_id = Column(String, nullable=True)
+    related_email_id = Column(Integer, ForeignKey("emails.email_id"), nullable=True)
+    is_declined = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Additional fields to maintain compatibility and usefulness
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     synced_at = Column(DateTime(timezone=True), nullable=True)
+    organizer = Column(String, nullable=True)
+    status = Column(String, default="confirmed")
+    provider_type = Column(String, default="google", index=True)
 
 class Contact(Base):
     __tablename__ = "contacts"
 
-    contact_id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
+    id = Column(Integer, primary_key=True, index=True)
     email_address = Column(String, unique=True, index=True)
-    phone = Column(String, nullable=True)
+    name = Column(String, nullable=True)
     company = Column(String, nullable=True)
-    role = Column(String, nullable=True)
-    category = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    title = Column(String, nullable=True)
     altimeter_customer_id = Column(Integer, nullable=True)
     altimeter_vendor_id = Column(Integer, nullable=True)
+    relationship_type = Column(String, nullable=True) # enum: customer, vendor, subcontractor, team, personal
+    first_contact_date = Column(DateTime(timezone=True), nullable=True)
     last_contact_date = Column(DateTime(timezone=True), nullable=True)
     email_count = Column(Integer, default=0)
+    is_starred = Column(Boolean, default=False)
+    tags = Column(JSON, nullable=True)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -169,3 +195,25 @@ class Notification(Base):
     link = Column(String, nullable=True) # Optional URL or internal module link
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     read_at = Column(DateTime(timezone=True), nullable=True)
+
+class Learning(Base):
+    __tablename__ = "learnings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String, index=True)
+    insight = Column(Text)
+    source = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class SyncHistory(Base):
+    __tablename__ = "sync_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sync_type = Column(String, index=True) # e.g., 'email', 'calendar'
+    status = Column(String) # 'started', 'success', 'partial', 'failed'
+    items_synced = Column(Integer, default=0)
+    error_count = Column(Integer, default=0)
+    errors = Column(JSON, nullable=True) # List of error messages or details
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
