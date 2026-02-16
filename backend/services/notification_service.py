@@ -67,5 +67,28 @@ class NotificationService:
         finally:
             db.close()
 
+    def push_smart_notification(self, data: Dict[str, Any]) -> Optional[Notification]:
+        """
+        Evaluate data (email/task) and push notification if criteria met.
+        """
+        urgency = data.get("urgency_score", 0)
+        sentiment = data.get("sentiment_label", "Neutral")
+        
+        priority = "medium"
+        if urgency > 85:
+            priority = "critical"
+        elif urgency > 60 or sentiment == "Frustrated":
+            priority = "high"
+        
+        if priority in ["high", "critical"]:
+            return self.push_notification(
+                type="intel",
+                title=f"Critical Intel: {data.get('subject', 'Action Required')}",
+                message=f"Sentiment: {sentiment}. Urgency: {urgency}/100.",
+                priority=priority,
+                link=data.get("link")
+            )
+        return None
+
 # Singleton instance
 notification_service = NotificationService()
