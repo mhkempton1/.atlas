@@ -1,41 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+from typing import List, Optional
+from datetime import datetime
+
 from database.database import get_db
 from database.models import Task
-from sqlalchemy.orm import Session
-from typing import Optional
-from datetime import datetime
-from pydantic import BaseModel
+from database.schemas import TaskCreate, TaskUpdate
 from services.activity_service import activity_service
 from services.task_persistence_service import task_persistence_service
+from services.altimeter_sync_service import altimeter_sync_service
 
 router = APIRouter()
 
-class TaskCreate(BaseModel):
-    """Schema for creating a new task."""
-    title: str
-    description: Optional[str] = None
-    status: str = "todo"
-    priority: str = "medium"
-    category: Optional[str] = "work"
-    project_id: Optional[str] = None
-    due_date: Optional[datetime] = None
-    estimated_hours: Optional[float] = None
-
-class TaskUpdate(BaseModel):
-    """Schema for updating an existing task."""
-    title: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[str] = None
-    priority: Optional[str] = None
-    category: Optional[str] = None
-    project_id: Optional[str] = None
-    due_date: Optional[datetime] = None
-    estimated_hours: Optional[float] = None
-    actual_hours: Optional[float] = None
-    # Foreman Protocol: Safety Acknowledgement
-    safety_ack: Optional[bool] = False
-
-@router.get("/list")
+@router.get("/", response_model=List[dict])
 async def get_tasks(
     status: Optional[str] = None,
     priority: Optional[str] = None,
@@ -43,12 +20,12 @@ async def get_tasks(
     db: Session = Depends(get_db)
 ):
     """
-    Get tasks with optional filtering.
+    Get all tasks, optionally filtered by status, priority, or category.
 
     Args:
-        status: Filter by task status.
-        priority: Filter by task priority.
-        category: Filter by task category.
+        status: Filter by status.
+        priority: Filter by priority.
+        category: Filter by category.
         db: Database session.
 
     Returns:
@@ -89,7 +66,8 @@ async def get_tasks(
             "actual_hours": t.actual_hours,
             "created_from": t.created_from,
             "created_at": t.created_at.isoformat() if t.created_at else None,
-            "completed_at": t.completed_at.isoformat() if t.completed_at else None
+            "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+            "sync_status": getattr(t, "sync_status", "synced")
         }
         for t in tasks
     ]
@@ -117,7 +95,8 @@ async def create_task(request: TaskCreate, db: Session = Depends(get_db)):
         original_due_date=request.due_date,
         estimated_hours=request.estimated_hours,
         created_from="manual",
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        sync_status="pending"
     )
     db.add(task)
     db.commit()
@@ -129,6 +108,9 @@ async def create_task(request: TaskCreate, db: Session = Depends(get_db)):
         target=task.title,
         details=f"Priority: {task.priority}, Status: {task.status}"
     )
+
+    # Trigger Sync
+    altimeter_sync_service.enqueue_task(db, task.task_id, "push")
 
     return {"task_id": task.task_id, "title": task.title, "status": task.status}
 
@@ -172,6 +154,9 @@ async def update_task(task_id: int, request: TaskUpdate, db: Session = Depends(g
     elif request.status and request.status != "done":
         task.completed_at = None
 
+    # Mark as pending sync
+    task.sync_status = "pending"
+
     db.commit()
     db.refresh(task)
 
@@ -181,6 +166,9 @@ async def update_task(task_id: int, request: TaskUpdate, db: Session = Depends(g
         target=task.title,
         details=f"Status: {old_status} → {task.status}" if request.status else "Fields updated"
     )
+
+    # Trigger Sync
+    altimeter_sync_service.enqueue_task(db, task.task_id, "push")
 
     return {"task_id": task.task_id, "title": task.title, "status": task.status}
 
@@ -201,6 +189,11 @@ async def delete_task(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
 
     title = task.title
+
+    # We delete immediately, so sync service can't find it to push 'delete'.
+    # If we want to sync deletes, we should soft delete or handle before hard delete.
+    # For now, skipping delete sync as per strict requirements "Create task... Update task"
+
     db.delete(task)
     db.commit()
 
@@ -263,9 +256,15 @@ async def extract_tasks(
             "project_id": context.get("project", {}).get("number") if context.get("project") else None,
             "email_id": email_id,
             "created_from": "email",
-            "source": "atlas_extracted"
+            "source": "atlas_extracted",
+            "sync_status": "pending" # Mark as pending sync
         }
+        # Note: task_persistence_service.persist_task_to_database might not handle sync_status if it filters fields.
+        # But we added sync fields to Task model, so we should check persistence service.
         task = task_persistence_service.persist_task_to_database(task_data_dict, db)
+
+        # Trigger Sync for extracted tasks
+        altimeter_sync_service.enqueue_task(db, task.task_id, "push")
 
         tasks_created.append({
             "task_id": task.task_id,
@@ -321,10 +320,14 @@ async def extract_calendar_tasks(
             "project_id": event.project_id,
             "created_from": "calendar_event",
             "source": "atlas_extracted",
-            "created_at": datetime.now()
+            "created_at": datetime.now(),
+            "sync_status": "pending"
         }
 
         task = task_persistence_service.persist_task_to_database(task_data_dict, db)
+
+        # Trigger Sync
+        altimeter_sync_service.enqueue_task(db, task.task_id, "push")
 
         tasks_created.append({
             "task_id": task.task_id,

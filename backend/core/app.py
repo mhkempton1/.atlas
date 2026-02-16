@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
+import asyncio
 
 # Initialize database
 from database.database import engine, Base
@@ -21,9 +22,17 @@ async def lifespan(app: FastAPI):
         details="System successfully initialized and recovered from previous fault."
     )
     scheduler_service.start()
+
+    # Start Sync Worker
+    from services.altimeter_sync_service import altimeter_sync_service
+    sync_worker_task = asyncio.create_task(altimeter_sync_service.start_worker())
+
     yield
     # Shutdown
     scheduler_service.shutdown()
+    altimeter_sync_service.stop_worker()
+    # Wait for sync worker to finish (optional but good practice)
+    # await sync_worker_task
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -56,11 +65,6 @@ async def health_check():
     return await get_health_status()
 
 from api.routes import router as api_router
-from api.task_routes import router as task_router
-from api.calendar_routes import router as calendar_router
-from api.search_routes import router as search_router
-from api.knowledge_routes import router as knowledge_router
-from api.weather_routes import router as weather_router
 
+# Include API Router
 app.include_router(api_router, prefix=settings.API_PREFIX)
-

@@ -121,6 +121,12 @@ class Task(Base):
     recurrence_pattern = Column(String, nullable=True)
     tags = Column(JSON, nullable=True)
 
+    # Sync fields
+    sync_status = Column(String, default="synced", index=True) # synced, pending, error, conflict
+    last_synced_at = Column(DateTime(timezone=True), nullable=True)
+    etag = Column(String, nullable=True) # For conflict detection
+    remote_id = Column(String, index=True, nullable=True) # Altimeter ID
+
 class CalendarEvent(Base):
     __tablename__ = "calendar_events"
 
@@ -217,3 +223,28 @@ class SyncHistory(Base):
     errors = Column(JSON, nullable=True) # List of error messages or details
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
+
+class SyncQueue(Base):
+    __tablename__ = "sync_queue"
+
+    id = Column(Integer, primary_key=True, index=True)
+    entity_type = Column(String, index=True) # e.g., "task"
+    entity_id = Column(Integer, index=True)
+    direction = Column(String, index=True) # "push" (Atlas->Altimeter) or "pull" (Altimeter->Atlas)
+    status = Column(String, default="pending", index=True) # pending, syncing, synced, error, conflict
+    retry_count = Column(Integer, default=0)
+    last_attempt = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class SyncActivityLog(Base):
+    __tablename__ = "sync_activity_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    entity_type = Column(String, index=True)
+    entity_id = Column(Integer, index=True)
+    direction = Column(String)
+    status = Column(String)
+    details = Column(Text, nullable=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())

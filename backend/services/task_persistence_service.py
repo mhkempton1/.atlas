@@ -17,7 +17,8 @@ class TaskPersistenceService:
             "estimated_hours", "actual_hours", "parent_task_id",
             "created_from", "created_at", "completed_at",
             "source", "assigned_to", "related_altimeter_task_id",
-            "is_recurring", "recurrence_pattern", "tags"
+            "is_recurring", "recurrence_pattern", "tags",
+            "sync_status", "last_synced_at", "etag", "remote_id"
         }
 
         filtered_data = {k: v for k, v in task_data.items() if k in valid_fields}
@@ -29,6 +30,8 @@ class TaskPersistenceService:
             filtered_data["priority"] = "medium"
         if "created_at" not in filtered_data:
             filtered_data["created_at"] = datetime.datetime.now(datetime.timezone.utc)
+        if "sync_status" not in filtered_data:
+            filtered_data["sync_status"] = "pending" # Default to pending sync for new tasks
 
         task = Task(**filtered_data)
         db.add(task)
@@ -52,6 +55,9 @@ class TaskPersistenceService:
             task.completed_at = datetime.datetime.now(datetime.timezone.utc)
         elif new_status not in ["completed", "done", "cancelled"] and old_status in ["completed", "done", "cancelled"]:
             task.completed_at = None
+
+        # Mark for sync
+        task.sync_status = "pending"
 
         db.commit()
         db.refresh(task)
