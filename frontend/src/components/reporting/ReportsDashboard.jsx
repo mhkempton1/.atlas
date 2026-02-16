@@ -29,14 +29,14 @@ const ReportsDashboard = () => {
     };
 
     return (
-        <div className="h-full flex flex-col space-y-6">
+        <div className="h-full flex flex-col space-y-4">
             <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500/20 rounded-lg">
-                    <Box className="w-6 h-6 text-indigo-400" />
+                <div className="p-1.5 bg-indigo-500/20 rounded-md">
+                    <Box className="w-5 h-5 text-indigo-400" />
                 </div>
                 <div>
-                    <h2 className="text-xl font-bold text-white">Atlas Reports</h2>
-                    <p className="text-sm text-white/40">Operational intelligence and status reporting</p>
+                    <h2 className="text-lg font-bold text-white">Atlas Reports</h2>
+                    <p className="text-xs text-white/40">Operational intelligence and status reporting</p>
                 </div>
             </div>
 
@@ -46,7 +46,7 @@ const ReportsDashboard = () => {
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-medium transition-all whitespace-nowrap ${activeTab === tab.id
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-t-lg font-medium transition-all whitespace-nowrap ${activeTab === tab.id
                             ? 'bg-white/10 text-white border-b-2 border-purple-500 backdrop-blur-md'
                             : 'text-slate-400 hover:text-white hover:bg-white/5'
                             }`}
@@ -57,7 +57,7 @@ const ReportsDashboard = () => {
                 ))}
             </div>
 
-            <div className="flex-1 bg-white/[0.02] backdrop-blur-xl rounded-b-xl rounded-tr-xl p-6 shadow-2xl border border-white/10 min-h-0 overflow-auto">
+            <div className="flex-1 bg-white/[0.02] backdrop-blur-xl rounded-b-lg rounded-tr-lg p-4 shadow-2xl border border-white/10 min-h-0 overflow-auto">
                 {renderContent()}
             </div>
         </div>

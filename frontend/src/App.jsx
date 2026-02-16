@@ -293,7 +293,7 @@ function App() {
         <div className="nav-controls">
           <button
             onClick={() => navigateTo('system_status')}
-            className="px-4 py-2 rounded-xl border transition-all flex items-center gap-2 font-mono text-sm font-bold uppercase tracking-wider hover:scale-105"
+            className="px-3 py-1.5 rounded-lg border transition-all flex items-center gap-2 font-mono text-sm font-bold uppercase tracking-wider hover:scale-105"
             style={{
               borderColor: `rgb(${Math.round(252 + (16 - 252) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(211 + (185 - 211) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(77 + (139 - 77) * ((globalHealth?.health_percentage || 0) / 100))})`,
               color: `rgb(${Math.round(252 + (16 - 252) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(211 + (185 - 211) * ((globalHealth?.health_percentage || 0) / 100))}, ${Math.round(77 + (139 - 77) * ((globalHealth?.health_percentage || 0) / 100))})`,
@@ -325,14 +325,14 @@ function App() {
             </div>
           </div>
           <div className="hamburger" onClick={toggleSidebar}>
-            <Menu className="w-6 h-6" />
+            <Menu className="w-5 h-5" />
           </div>
         </div>
       </nav>
 
       {/* --- Sidebar Overlay --- */}
       <div className={`sidebar-overlay ${isSidebarOpen ? 'open' : ''}`} onClick={toggleSidebar}>
-        <div className="menu-sidebar bg-black/60 backdrop-blur-3xl border-l border-white/10 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="menu-sidebar p-4 bg-black/60 backdrop-blur-3xl border-l border-white/10 shadow-2xl" onClick={e => e.stopPropagation()}>
           <div className="menu-header">SYSTEM NAVIGATION</div>
 
           <div className="flex-1">

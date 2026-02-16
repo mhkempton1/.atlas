@@ -73,7 +73,7 @@ export const Section = ({ title, count, children, className = '' }) => (
 // ── Empty State ─────────────────────────────────────────────────
 // Usage: <EmptyState icon={Inbox} title="No emails" message="Check back later" />
 export const EmptyState = ({ icon: Icon, title, message, description, action }) => (
-    <div className="flex flex-col items-center justify-center text-center py-12 px-8 rounded-xl bg-white/5 border border-white/5">
+    <div className="flex flex-col items-center justify-center text-center py-12 px-8 rounded-lg bg-white/5 border border-white/5">
         {Icon && (
             <div className="p-4 bg-primary/10 rounded-full mb-4 text-purple-400">
                 <Icon className="w-8 h-8" />
