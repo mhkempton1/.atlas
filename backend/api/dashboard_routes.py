@@ -1,16 +1,15 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from services.task_service import task_service
-from services.calendar_service import calendar_service
-from services.email_service import email_service
+from sqlalchemy.orm import Session
+from database.models import Task, Email, CalendarEvent
+from database.database import get_db
 from services.weather_service import weather_service
-from services.urgency_service import urgency_service
 
 router = APIRouter()
 
 @router.get("/my-day")
-async def get_my_day_summary():
+async def get_my_day_summary(db: Session = Depends(get_db)):
     """
     Unified 'My Day' executive summary.
     Aggregates tasks, high-priority emails, and schedule.
@@ -21,31 +20,58 @@ async def get_my_day_summary():
     
     try:
         # 1. Tasks: Due today or Overdue
-        all_tasks = task_service.list_tasks()
+        tasks_query = db.query(Task).filter(
+            Task.due_date <= today_str,
+            Task.status != 'completed'
+        ).order_by(Task.priority.desc(), Task.due_date).limit(10).all()
+
         my_tasks = [
-            t for t in all_tasks 
-            if t.get("due_date") and (t["due_date"] <= today_str) and not t.get("completed")
+            {
+                "task_id": t.task_id,
+                "title": t.title,
+                "description": t.description,
+                "priority": t.priority,
+                "status": t.status,
+                "due_date": t.due_date.isoformat() if t.due_date else None
+            }
+            for t in tasks_query
         ]
-        
+
         # 2. Urgent Emails (Score > 70)
-        all_emails = email_service.list_emails(limit=20)
+        emails_query = db.query(Email).filter(
+            Email.urgency_score > 70,
+            Email.is_read == False
+        ).order_by(Email.urgency_score.desc()).limit(10).all()
+
         urgent_emails = [
-            e for e in all_emails 
-            if (e.get("urgency_score") or 0) > 70 and not e.get("is_read")
+            {
+                "email_id": e.email_id,
+                "subject": e.subject,
+                "from_address": e.from_address or e.sender,
+                "from_name": e.from_address or e.sender,
+                "urgency_score": e.urgency_score,
+                "date_received": e.date_received.isoformat() if e.date_received else None
+            }
+            for e in emails_query
         ]
-        
+
         # 3. Calendar: Next 24 hours
-        events = calendar_service.list_events()
-        upcoming_events = []
-        for event in events:
-            start_time = event.get("start_time")
-            if start_time:
-                try:
-                    event_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-                    if now <= event_dt <= (now + timedelta(days=1)):
-                        upcoming_events.append(event)
-                except:
-                    pass
+        tomorrow = now + timedelta(days=1)
+        events_query = db.query(CalendarEvent).filter(
+            CalendarEvent.start_time >= now,
+            CalendarEvent.start_time <= tomorrow
+        ).order_by(CalendarEvent.start_time).limit(10).all()
+
+        upcoming_events = [
+            {
+                "event_id": e.event_id,
+                "summary": e.summary or e.title,
+                "title": e.title,
+                "start_time": e.start_time.isoformat() if e.start_time else None,
+                "location": e.location
+            }
+            for e in events_query
+        ]
         
         # 4. Weather Context
         weather = None
