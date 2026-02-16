@@ -25,7 +25,7 @@ const MyDayDashboard = () => {
     if (!data) return <div>Failed to load dashboard.</div>;
 
     return (
-        <div className="p-6 space-y-6 animate-fade-in pb-20">
+        <div className="p-4 space-y-4 animate-fade-in pb-16">
             <PageHeader
                 icon={Briefcase}
                 title="Mission Control"
@@ -34,11 +34,11 @@ const MyDayDashboard = () => {
 
             {/* Weather Alert */}
             {data.weather && (
-                <div className={`p-4 rounded-xl border flex items-center gap-4 ${data.weather.condition?.toLowerCase().includes('rain') || data.weather.condition?.toLowerCase().includes('storm')
+                <div className={`p-3 rounded-lg border flex items-center gap-4 ${data.weather.condition?.toLowerCase().includes('rain') || data.weather.condition?.toLowerCase().includes('storm')
                         ? 'bg-orange-500/10 border-orange-500/20 text-orange-400'
                         : 'bg-blue-500/10 border-blue-500/20 text-blue-400'
                     }`}>
-                    <CloudSun className="w-6 h-6" />
+                    <CloudSun className="w-5 h-5" />
                     <div>
                         <p className="text-sm font-bold">Weather Intel: {data.weather.condition} ({data.weather.temperature}°F)</p>
                         <p className="text-xs opacity-80">{data.weather.forecast || 'Check site safety protocols if conditions worsen.'}</p>
@@ -46,11 +46,11 @@ const MyDayDashboard = () => {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
                 {/* 1. Critical Actions (High Urgency Emails) */}
                 <Section title="Critical Intel" icon={AlertTriangle} badge={data.urgent_emails?.length}>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                         {data.urgent_emails?.length === 0 ? (
                             <p className="text-xs text-gray-500 italic">No critical emails requiring immediate action.</p>
                         ) : (
@@ -72,7 +72,7 @@ const MyDayDashboard = () => {
 
                 {/* 2. Outstanding Tasks (Due Today) */}
                 <Section title="Primary Objectives" icon={CheckSquare} badge={data.tasks?.length}>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                         {data.tasks?.length === 0 ? (
                             <p className="text-xs text-gray-500 italic">Zero objectives outstanding for today.</p>
                         ) : (
@@ -93,7 +93,7 @@ const MyDayDashboard = () => {
 
                 {/* 3. Schedule (Next 24h) */}
                 <Section title="Deployment Schedule" icon={Calendar} badge={data.upcoming_events?.length}>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                         {data.upcoming_events?.length === 0 ? (
                             <p className="text-xs text-gray-500 italic">Clear schedule for the next 24 hours.</p>
                         ) : (

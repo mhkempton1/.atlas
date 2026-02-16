@@ -25,7 +25,7 @@ export const Toast = ({ message, type = 'info', onClose, duration = 4000 }) => {
     };
 
     return (
-        <div className={`fixed top-6 right-6 z-[2000] flex items-center gap-3 px-4 py-3 rounded-lg border ${styles[type]} shadow-lg animate-slide-in backdrop-blur-sm`}>
+        <div className={`fixed top-6 right-6 z-[2000] flex items-center gap-3 px-3 py-2 rounded-lg border ${styles[type]} shadow-lg animate-slide-in backdrop-blur-sm`}>
             {icons[type]}
             <span className="text-sm font-medium">{message}</span>
             <button onClick={onClose} className="ml-2 opacity-60 hover:opacity-100">
@@ -39,7 +39,7 @@ export const Toast = ({ message, type = 'info', onClose, duration = 4000 }) => {
 // ── Page Header ─────────────────────────────────────────────────
 // Usage: <PageHeader icon={Mail} title="Inbox" subtitle="3 unread" />
 export const PageHeader = ({ icon: Icon, title, subtitle, children, actions }) => (
-    <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/5">
+    <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/5">
         <div className="flex items-center gap-3">
             {Icon && (
                 <div className="p-2 bg-primary/10 rounded-lg">
@@ -58,11 +58,11 @@ export const PageHeader = ({ icon: Icon, title, subtitle, children, actions }) =
 // ── Section Divider ─────────────────────────────────────────────
 // Usage: <Section title="Active Tasks" count={5}>...children...</Section>
 export const Section = ({ title, count, children, className = '' }) => (
-    <div className={`mb-6 ${className}`}>
+    <div className={`mb-4 ${className}`}>
         <div className="flex items-center gap-2 mb-3">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{title}</h3>
             {count !== undefined && (
-                <span className="text-[10px] bg-white/10 text-gray-400 px-2 py-0.5 rounded-full">{count}</span>
+                <span className="text-[10px] bg-white/10 text-gray-400 px-1.5 py-0.5 rounded-full">{count}</span>
             )}
             <div className="flex-1 h-px bg-white/5 ml-2" />
         </div>
@@ -73,14 +73,14 @@ export const Section = ({ title, count, children, className = '' }) => (
 // ── Empty State ─────────────────────────────────────────────────
 // Usage: <EmptyState icon={Inbox} title="No emails" message="Check back later" />
 export const EmptyState = ({ icon: Icon, title, message, description, action }) => (
-    <div className="flex flex-col items-center justify-center text-center py-16 px-8 rounded-xl bg-white/5 border border-white/5">
+    <div className="flex flex-col items-center justify-center text-center py-12 px-8 rounded-xl bg-white/5 border border-white/5">
         {Icon && (
             <div className="p-4 bg-primary/10 rounded-full mb-4 text-purple-400">
                 <Icon className="w-8 h-8" />
             </div>
         )}
         <h3 className="text-lg font-bold text-white mb-2">{title}</h3>
-        <p className="text-gray-400 text-sm max-w-xs mb-6">{message || description}</p>
+        <p className="text-gray-400 text-sm max-w-xs mb-4">{message || description}</p>
         {action && (
             typeof action === 'object' && action.onClick ? (
                 <button
@@ -97,7 +97,7 @@ export const EmptyState = ({ icon: Icon, title, message, description, action }) 
 // ── Loading Spinner ─────────────────────────────────────────────
 // Usage: <Spinner label="Loading emails..." />
 export const Spinner = ({ label }) => (
-    <div className="flex flex-col items-center justify-center py-16 gap-3">
+    <div className="flex flex-col items-center justify-center py-12 gap-3">
         <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
         {label && <p className="text-sm text-gray-400">{label}</p>}
     </div>
@@ -122,7 +122,7 @@ export const StatusBadge = ({ status, className = '' }) => {
     const style = styles[lowerStatus] || styles.active;
 
     return (
-        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${style} ${className}`}>
+        <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${style} ${className}`}>
             {status}
         </span>
     );
