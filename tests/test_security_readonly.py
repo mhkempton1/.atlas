@@ -3,11 +3,17 @@ import os
 import pytest
 import sqlite3
 import tempfile
+import importlib
 from unittest.mock import patch
 
 # Ensure backend is in path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../backend')))
 
+# Force reload of AltimeterService to clear mocks from other tests
+if 'services.altimeter_service' in sys.modules:
+    del sys.modules['services.altimeter_service']
+
+import services.altimeter_service
 from services.altimeter_service import AltimeterService
 
 class TestAltimeterSecurity:
@@ -32,6 +38,16 @@ class TestAltimeterSecurity:
         Verify that execute_read_only_query cannot modify the database
         even if the blacklist is bypassed.
         """
+        # Ensure clean import again if needed
+        if 'services.altimeter_service' in sys.modules:
+             # Check if it's a mock
+             if not hasattr(sys.modules['services.altimeter_service'], '__file__'):
+                 del sys.modules['services.altimeter_service']
+                 import services.altimeter_service
+                 importlib.reload(services.altimeter_service)
+
+        from services.altimeter_service import AltimeterService
+
         with patch("services.altimeter_service.settings") as mock_settings:
             mock_settings.ALTIMETER_PATH = temp_db
 

@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
 import asyncio
+import logging
 
 # Initialize database
 from database.database import engine, Base
@@ -10,6 +11,11 @@ Base.metadata.create_all(bind=engine)
 
 from services.scheduler_service import scheduler_service
 from contextlib import asynccontextmanager
+from services.websocket_manager import ws_manager
+from services.altimeter_sync_service import altimeter_sync_service
+
+# Set WebSocket manager in sync service
+altimeter_sync_service.set_ws_manager(ws_manager)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,7 +30,6 @@ async def lifespan(app: FastAPI):
     scheduler_service.start()
 
     # Start Sync Worker
-    from services.altimeter_sync_service import altimeter_sync_service
     sync_worker_task = asyncio.create_task(altimeter_sync_service.start_worker())
 
     yield
@@ -49,6 +54,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.websocket("/ws/sync-status")
+async def websocket_sync_status(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time sync status updates.
+    Frontend connects here to receive sync events.
+    """
+    await ws_manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive, wait for client messages (if any)
+            data = await websocket.receive_text()
+            # We don't expect clients to send data, but this keeps connection open
+    except WebSocketDisconnect:
+        await ws_manager.disconnect(websocket)
+    except Exception as e:
+        logging.getLogger("app").error(f"WebSocket error: {e}")
+        await ws_manager.disconnect(websocket)
 
 @app.get("/")
 async def root():

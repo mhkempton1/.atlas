@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from database.database import SessionLocal
-from database.models import Task, SyncQueue, SyncActivityLog
+from database.models import Task, SyncQueue, SyncActivityLog, SyncConflict
 from services.altimeter_api_service import altimeter_api_service
 
 # Configure logging
@@ -16,7 +16,7 @@ logger.setLevel(logging.INFO)
 class AltimeterSyncService:
     def __init__(self):
         self.is_running = False
-        self._ws_manager = None # To be injected later
+        self._ws_manager = None
 
     def set_ws_manager(self, manager):
         self._ws_manager = manager
@@ -76,7 +76,7 @@ class AltimeterSyncService:
         item.last_attempt = datetime.now(timezone.utc)
         db.commit()
 
-        # Notify UI (Phase 3 placeholder)
+        # Notify UI
         if self._ws_manager:
             await self._ws_manager.broadcast_sync_status(item.entity_type, item.entity_id, "syncing")
 
@@ -87,15 +87,20 @@ class AltimeterSyncService:
                 elif item.direction == 'pull':
                     await self._sync_pull_task(item, db)
 
-            item.status = 'synced'
-            item.error_message = None
-            # Log success
-            self._log_history(db, item, "success")
-            db.commit()
+            # If status wasn't changed to conflict during processing, mark as synced
+            if item.status != 'conflict':
+                item.status = 'synced'
+                item.error_message = None
+                # Log success
+                self._log_history(db, item, "success")
+                db.commit()
 
-            # Notify UI
-            if self._ws_manager:
-                await self._ws_manager.broadcast_sync_status(item.entity_type, item.entity_id, "synced")
+                # Notify UI
+                if self._ws_manager:
+                    await self._ws_manager.broadcast_sync_status(item.entity_type, item.entity_id, "synced")
+            else:
+                 self._log_history(db, item, "conflict")
+                 db.commit()
 
         except Exception as e:
             logger.error(f"Sync failed for item {item.id}: {e}")
@@ -116,13 +121,6 @@ class AltimeterSyncService:
         """Pushes a local task to Altimeter."""
         task = db.query(Task).filter(Task.task_id == item.entity_id).first()
         if not task:
-            # If task deleted locally, we might want to delete remote.
-            # But usually 'push' happens on update/create.
-            # If it was a 'delete' push, we should have marked it in metadata or checked task existence.
-            # Assuming 'delete' is handled separately or by checking 'deleted_at' (if we had soft deletes).
-            # If hard delete, we can't get task details.
-            # So delete should be a different queue item or store payload.
-            # For now, simplistic: if not found, ignore or assume deleted.
             raise ValueError(f"Task {item.entity_id} not found")
 
         task_data = {
@@ -149,30 +147,84 @@ class AltimeterSyncService:
 
         task.last_synced_at = datetime.now(timezone.utc)
         task.sync_status = 'synced'
-        # No db.commit() here, done in caller
 
     async def _sync_pull_task(self, item: SyncQueue, db: Session):
-        """Pulls a remote task from Altimeter."""
+        """Pulls a remote task from Altimeter with conflict detection."""
         task = db.query(Task).filter(Task.task_id == item.entity_id).first()
         if not task:
             return
 
         remote_id = task.remote_id or task.related_altimeter_task_id
         if not remote_id:
-            # Can't pull without remote ID
             return
 
         remote_task = await altimeter_api_service.get_task(remote_id)
         if not remote_task:
             return
 
-        # Simple update for now
-        # Ideally check conflict
+        # CONFLICT DETECTION
+        local_updated = task.updated_at if task.updated_at else task.created_at
+        if local_updated.tzinfo is None:
+            local_updated = local_updated.replace(tzinfo=timezone.utc)
 
+        remote_updated_str = remote_task.get("updated_at")
+        last_sync = task.last_synced_at
+        if last_sync and last_sync.tzinfo is None:
+            last_sync = last_sync.replace(tzinfo=timezone.utc)
+
+        if remote_updated_str:
+            remote_updated = datetime.fromisoformat(remote_updated_str.replace('Z', '+00:00'))
+
+            # Check if both changed since last sync
+            if last_sync and local_updated > last_sync and remote_updated > last_sync:
+                # CONFLICT: Both sides changed
+                time_delta = abs((local_updated - remote_updated).total_seconds())
+
+                if time_delta < 300:  # Within 5 minutes
+                    # Create conflict record
+                    conflict = SyncConflict(
+                        entity_type='task',
+                        entity_id=task.task_id,
+                        local_version={
+                            "title": task.title,
+                            "description": task.description,
+                            "status": task.status,
+                            "priority": task.priority,
+                            "due_date": task.due_date.isoformat() if task.due_date else None,
+                            "updated_at": local_updated.isoformat()
+                        },
+                        remote_version={
+                            "title": remote_task.get("title"),
+                            "description": remote_task.get("description"),
+                            "status": remote_task.get("status"),
+                            "priority": remote_task.get("priority"),
+                            "due_date": remote_task.get("due_date"),
+                            "updated_at": remote_updated.isoformat()
+                        },
+                        status='unresolved'
+                    )
+                    db.add(conflict)
+
+                    # Mark sync item as conflict
+                    item.status = 'conflict'
+                    task.sync_status = 'conflict'
+
+                    logger.warning(f"Conflict detected for task {task.task_id}")
+
+                    # Notify UI
+                    if self._ws_manager:
+                        await self._ws_manager.broadcast_sync_status('task', task.task_id, 'conflict')
+
+                    return  # Don't auto-merge
+
+        # No conflict, safe to merge
         task.title = remote_task.get("title", task.title)
         task.description = remote_task.get("description", task.description)
         task.status = remote_task.get("status", task.status)
-        # Map priority/status if values differ
+        task.priority = remote_task.get("priority", task.priority)
+
+        if remote_task.get("due_date"):
+            task.due_date = datetime.fromisoformat(remote_task["due_date"])
 
         task.last_synced_at = datetime.now(timezone.utc)
         task.sync_status = 'synced'

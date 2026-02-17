@@ -10,26 +10,18 @@ root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_path)
 sys.path.append(os.path.join(root_path, "backend"))
 
-from backend.api.email_routes import scan_emails
-# Import from 'services' directly since 'backend' is in sys.path
-try:
-    from services.google_service import google_service
-    from database.models import Email
-    from database.database import SessionLocal
-except ImportError:
-    # Fallback if specific path setup differs
-    from backend.services.google_service import google_service
-    from backend.database.models import Email
-    from backend.database.database import SessionLocal
+# Use consistent imports
+from database.database import SessionLocal, engine, Base
+from database.models import Email, TaskQueue
+from api.email_routes import scan_emails, run_background_scan
+from services.google_service import google_service
+from services.ai_service import ai_service
+
+# Create tables if they don't exist
+Base.metadata.create_all(bind=engine)
 
 # Mock sync to avoid hitting real Gmail
 google_service.sync_emails = MagicMock(return_value={"synced": 0})
-
-# Mock AI Service to avoid hitting LLM
-try:
-    from services.ai_service import ai_service
-except ImportError:
-    from backend.services.ai_service import ai_service
 
 # Return a valid JSON string that the TaskAgent expects
 ai_service.generate_content = MagicMock(return_value='''
@@ -52,8 +44,12 @@ async def test_integration():
     db = SessionLocal()
     try:
         # 1. Cleanup old test data
-        db.query(Email).filter(Email.subject == "URGENT: Issue with 25-9999-TEST").delete(synchronize_session=False)
-        db.commit()
+        try:
+            db.query(Email).filter(Email.subject == "URGENT: Issue with 25-9999-TEST").delete(synchronize_session=False)
+            db.query(TaskQueue).filter(TaskQueue.type == "analyze_email").delete(synchronize_session=False)
+            db.commit()
+        except:
+            pass # Tables might be fresh
 
         # 2. Seed Test Email
         print("Step 1: Seeding DB with Test Email...")
@@ -72,26 +68,32 @@ async def test_integration():
         db.commit()
         
         # 3. Run Scan
-        # This will query DB for recent emails (including our seeded one) and process them.
         print("Step 2: Running Atlas Email Scan...")
-        # limit=5 to ensure we catch ours.
-        result = await scan_emails(limit=5, db=db)
+        bg_tasks = MagicMock()
+        result = await scan_emails(background_tasks=bg_tasks, limit=5, db=db)
+
+        # Verify API response is empty (async pattern)
+        assert result.emails_found == 0
         
-        print(f"Emails Found in Scan: {result.emails_found}")
-        print(f"Tasks Created: {len(result.tasks_created)}")
+        # Verify background task scheduled
+        args, _ = bg_tasks.add_task.call_args
+        assert args[0] == run_background_scan
         
-        # Validation
-        found_our_email = False
-        if result.tasks_created:
-            for task in result.tasks_created:
-                print(f"  Task: {task.title} | Project: {task.project_id}")
-                if "25-9999" in (task.title or "") or "25-9999" in (task.project_id or ""):
-                    found_our_email = True
+        print("Step 3: Triggering background logic manually...")
+        # Manually run the background task logic to verify queuing
+        run_background_scan(limit=5)
         
-        # We don't strictly assert task creation success because LLM might be flaky or unconfigured in test env,
-        # but we MUST assert that code didn't crash and returned a result.
-        assert result.emails_found >= 1
-        print("SUCCESS: Scan completed without errors.")
+        # 4. Verify TaskQueue has item
+        print("Step 4: Verifying Task Queue...")
+        queue_item = db.query(TaskQueue).filter(
+            TaskQueue.type == "analyze_email"
+        ).order_by(TaskQueue.id.desc()).first()
+
+        assert queue_item is not None
+        assert queue_item.payload['subject'] == "URGENT: Issue with 25-9999-TEST"
+        assert queue_item.status == "pending"
+
+        print("SUCCESS: Scan scheduled and task queued correctly.")
 
     except Exception as e:
         print(f"TEST FAILED: {e}")
@@ -100,8 +102,11 @@ async def test_integration():
         raise e
     finally:
         # Cleanup
-        db.query(Email).filter(Email.subject == "URGENT: Issue with 25-9999-TEST").delete(synchronize_session=False)
-        db.commit()
+        try:
+            db.query(Email).filter(Email.subject == "URGENT: Issue with 25-9999-TEST").delete(synchronize_session=False)
+            db.commit()
+        except:
+            pass
         db.close()
 
 if __name__ == "__main__":

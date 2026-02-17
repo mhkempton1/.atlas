@@ -1,60 +1,16 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from typing import List, Dict, Any, Optional
 import json
 import logging
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 from database.database import get_db
-from database.models import SyncQueue, SyncActivityLog, Task
+from database.models import SyncQueue, SyncActivityLog, Task, SyncConflict
 from services.altimeter_sync_service import altimeter_sync_service
 from services.altimeter_api_service import altimeter_api_service
 
 router = APIRouter()
 logger = logging.getLogger("sync_routes")
-
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-
-    async def broadcast(self, message: Dict[str, Any]):
-        msg_str = json.dumps(message)
-        for connection in self.active_connections:
-            try:
-                await connection.send_text(msg_str)
-            except Exception:
-                pass
-
-    async def broadcast_sync_status(self, entity_type: str, entity_id: int, status: str):
-        message = {
-            "type": "sync_update",
-            "entity_type": entity_type,
-            "entity_id": entity_id,
-            "status": status
-        }
-        await self.broadcast(message)
-
-manager = ConnectionManager()
-
-# Inject manager into sync service
-altimeter_sync_service.set_ws_manager(manager)
-
-@router.websocket("/ws/sync-status")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
-        manager.disconnect(websocket)
 
 @router.get("/status")
 async def get_sync_status(db: Session = Depends(get_db)):
@@ -96,66 +52,58 @@ async def control_worker(action: str):
 
 # Conflict Resolution Endpoints
 
-@router.get("/conflict/task/{task_id}")
-async def get_conflict_details(task_id: int, db: Session = Depends(get_db)):
+@router.get("/conflicts/task/{task_id}")
+async def get_conflict_for_task(task_id: int, db: Session = Depends(get_db)):
     """
-    Get details of a conflict, including local and remote versions.
+    Get unresolved conflict details for a specific task.
     """
-    task = db.query(Task).filter(Task.task_id == task_id).first()
+    conflict = db.query(SyncConflict).filter(
+        SyncConflict.entity_id == task_id,
+        SyncConflict.entity_type == 'task',
+        SyncConflict.status == 'unresolved'
+    ).first()
+
+    if not conflict:
+        raise HTTPException(status_code=404, detail="No unresolved conflict found for this task")
+
+    return conflict
+
+@router.post("/conflicts/{conflict_id}/resolve")
+async def resolve_conflict(
+    conflict_id: int,
+    resolution: Dict[str, str] = Body(...),  # {"choice": "local" or "remote"}
+    db: Session = Depends(get_db)
+):
+    """
+    Resolve a sync conflict by choosing local or remote version.
+    """
+    conflict = db.query(SyncConflict).filter(SyncConflict.id == conflict_id).first()
+    if not conflict:
+        raise HTTPException(status_code=404, detail="Conflict not found")
+
+    task = db.query(Task).filter(Task.task_id == conflict.entity_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    # Local version
-    local_version = {
-        "title": task.title,
-        "description": task.description,
-        "status": task.status,
-        "priority": task.priority,
-        "due_date": task.due_date.isoformat() if task.due_date else None
-    }
+    choice = resolution.get("choice")
 
-    # Remote version (fetch from Altimeter)
-    remote_id = task.remote_id or task.related_altimeter_task_id
-    if not remote_id:
-         raise HTTPException(status_code=400, detail="No remote ID, cannot resolve conflict")
-
-    remote_task = await altimeter_api_service.get_task(remote_id)
-    if not remote_task:
-        raise HTTPException(status_code=404, detail="Remote task not found")
-
-    return {
-        "local": local_version,
-        "remote": remote_task
-    }
-
-from pydantic import BaseModel
-class ResolveConflictRequest(BaseModel):
-    strategy: str # local, remote
-
-@router.post("/resolve/task/{task_id}")
-async def resolve_conflict(task_id: int, request: ResolveConflictRequest, db: Session = Depends(get_db)):
-    """
-    Resolve a conflict.
-    strategy: "local" (push) or "remote" (pull)
-    """
-    strategy = request.strategy
-    if strategy not in ["local", "remote"]:
-        raise HTTPException(status_code=400, detail="Invalid strategy")
-
-    task = db.query(Task).filter(Task.task_id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    if strategy == "local":
-        # Push local to remote
-        task.sync_status = "pending"
-        db.commit()
+    if choice == "local":
+        # Keep local, push to remote
         altimeter_sync_service.enqueue_task(db, task.task_id, "push")
+        conflict.status = "resolved_local"
+    elif choice == "remote":
+        # Accept remote, update local
+        remote_data = conflict.remote_version
+        task.title = remote_data.get("title", task.title)
+        task.description = remote_data.get("description", task.description)
+        task.status = remote_data.get("status", task.status)
+        task.priority = remote_data.get("priority", task.priority)
+        task.sync_status = "synced"
+        conflict.status = "resolved_remote"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid choice")
 
-    elif strategy == "remote":
-        # Pull remote to local
-        task.sync_status = "pending"
-        db.commit()
-        altimeter_sync_service.enqueue_task(db, task.task_id, "pull")
+    conflict.resolved_at = datetime.now(timezone.utc)
+    db.commit()
 
-    return {"status": "resolution_queued"}
+    return {"status": "resolved", "choice": choice}
