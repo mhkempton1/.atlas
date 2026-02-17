@@ -43,7 +43,7 @@ async def test_get_system_health_optimization():
         # Verify it used httpx
         mock_client.get.assert_called_once()
         args, kwargs = mock_client.get.call_args
-        assert "http://127.0.0.1:4203/api/system/health" in args[0]
+        assert "https://api.altimeter.com/v1/api/system/health" in args[0]
         assert kwargs.get('timeout') == 1
 
 if __name__ == "__main__":

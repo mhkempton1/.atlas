@@ -111,6 +111,7 @@ class Task(Base):
     parent_task_id = Column(Integer, nullable=True)
     created_from = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # New fields
@@ -248,3 +249,16 @@ class SyncActivityLog(Base):
     status = Column(String)
     details = Column(Text, nullable=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+class SyncConflict(Base):
+    __tablename__ = "sync_conflicts"
+    __extend_existing__ = True
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    entity_type = Column(String(50), nullable=False)
+    entity_id = Column(Integer, nullable=False)
+    local_version = Column(JSON, nullable=False)
+    remote_version = Column(JSON, nullable=False)
+    status = Column(String(20), default='unresolved')
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

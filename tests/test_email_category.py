@@ -8,8 +8,8 @@ root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_path)
 sys.path.append(os.path.join(root_path, "backend"))
 
-from backend.database.database import SessionLocal
-from backend.database.models import Email
+from database.database import SessionLocal
+from database.models import Email
 from backend.api.email_routes import update_category, CategoryUpdate
 
 async def test_category_update():

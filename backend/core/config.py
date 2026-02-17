@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./data/atlas.db")
     
     # Integrations
-    ALTIMETER_API_URL: str = os.getenv("ALTIMETER_API_URL", "http://127.0.0.1:4203")
+    ALTIMETER_API_URL: str = os.getenv("ALTIMETER_API_URL", "https://api.altimeter.com/v1")
     ALTIMETER_API_KEY: str = os.getenv("ALTIMETER_API_KEY", "")
     ALTIMETER_PATH: str = os.getenv("ALTIMETER_PATH", "./data/altimeter")
     OBSIDIAN_KNOWLEDGE_PATH: str = os.getenv("OBSIDIAN_KNOWLEDGE_PATH", "./data/knowledge")
