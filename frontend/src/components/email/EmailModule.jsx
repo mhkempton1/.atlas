@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { Mail } from 'lucide-react';
 import EmailList from './EmailList';
 import EmailView from './EmailView';
 import QuickCompose from './QuickCompose';

@@ -73,10 +73,10 @@ async def get_activity_logs():
     return activity_service.get_recent_activity()
 
 @router.get("/altimeter/projects", dependencies=[Depends(verify_local_request)])
-async def get_altimeter_projects():
+async def get_altimeter_projects(q: Optional[str] = None):
     """Proxy for Altimeter project list via direct DB access"""
     from services.altimeter_service import altimeter_service
-    return altimeter_service.list_projects()
+    return altimeter_service.list_projects(query=q)
 
 @router.get("/logs", response_model=List[Dict[str, Any]])
 async def get_system_logs():

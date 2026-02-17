@@ -183,8 +183,13 @@ export const SYSTEM_API = {
         return response.data;
     },
 
-    getAltimeterProjects: async () => {
-        const response = await api.get('/system/altimeter/projects');
+    getAltimeterProjects: async (query = '') => {
+        const response = await api.get(`/system/altimeter/projects${query ? `?q=${encodeURIComponent(query)}` : ''}`);
+        return response.data;
+    },
+
+    getProjectContext: async (projectId) => {
+        const response = await api.get(`/projects/${projectId}/context`);
         return response.data;
     },
 

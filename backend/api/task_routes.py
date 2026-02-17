@@ -110,7 +110,10 @@ async def create_task(request: TaskCreate, db: Session = Depends(get_db)):
     )
 
     # Trigger Sync
-    altimeter_sync_service.enqueue_task(db, task.task_id, "push")
+    try:
+        altimeter_sync_service.enqueue_task(db, task.task_id, "push")
+    except Exception as e:
+        print(f"Failed to enqueue sync task: {e}")
 
     return {"task_id": task.task_id, "title": task.title, "status": task.status}
 

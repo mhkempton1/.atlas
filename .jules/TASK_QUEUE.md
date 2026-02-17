@@ -1,4 +1,5 @@
 # Jules Task Queue
+
 **Purpose**: Organized task delegation to Jules with clear priorities and dependencies
 
 ---
@@ -6,12 +7,14 @@
 ## 🔴 **CRITICAL PRIORITY (Do First)**
 
 ### Task 1: Build Real Altimeter Bidirectional Sync
+
 **Status**: 📋 Ready for Jules
 **Estimated Time**: 1 week
 **Dependencies**: None
 **GitHub Branch**: `altimeter-bidirectional-sync`
 
 **Prompt for Jules**:
+
 ```
 I need to build a production-grade bidirectional sync between Atlas and Altimeter for construction project management.
 
@@ -121,6 +124,7 @@ After each phase, commit to branch `altimeter-bidirectional-sync` and I'll revie
 ```
 
 **Validation Checklist** (Claude will verify after Jules pushes):
+
 - [ ] Sync queue service created with proper error handling
 - [ ] Database migration runs without errors
 - [ ] Webhook endpoint returns 200 OK and queues updates
@@ -135,12 +139,14 @@ After each phase, commit to branch `altimeter-bidirectional-sync` and I'll revie
 ## 🟡 **HIGH PRIORITY (After Task 1)**
 
 ### Task 2: Standardize Service Layer Architecture
+
 **Status**: 📋 Ready for Jules
 **Estimated Time**: 5 days
 **Dependencies**: None (can run parallel to Task 1)
 **GitHub Branch**: `service-layer-refactor`
 
 **Prompt for Jules**:
+
 ```
 The Atlas backend has inconsistent service patterns. Some routes use direct DB queries, others try to import non-existent service classes. We need a consistent service layer.
 
@@ -171,18 +177,21 @@ task_service = TaskService
 ```
 
 SERVICES TO CREATE:
+
 1. TaskService (backend/services/task_service.py)
 2. EmailService (backend/services/email_service.py)
 3. CalendarService (backend/services/calendar_service.py)
 4. ProjectService (backend/services/project_service.py)
 
 ROUTES TO REFACTOR:
+
 - backend/api/task_routes.py → use TaskService
 - backend/api/email_routes.py → use EmailService
 - backend/api/calendar_routes.py → use CalendarService
 - backend/api/dashboard_routes.py → use all services
 
 REQUIREMENTS:
+
 - Each service class takes db: Session in constructor
 - All business logic moves from routes to services
 - Routes become thin controllers (validate input → call service → return response)
@@ -191,16 +200,19 @@ REQUIREMENTS:
 - Write docstrings for public methods
 
 DELIVERABLES:
+
 - ✅ 4 new service classes
 - ✅ All routes refactored to use services
 - ✅ No direct db.query() calls in route handlers
 - ✅ Existing tests still pass
 
 Please commit incrementally:
+
 - Commit 1: Create TaskService + refactor task_routes.py
 - Commit 2: Create EmailService + refactor email_routes.py
 - Commit 3: Create CalendarService + refactor calendar_routes.py
 - Commit 4: Create ProjectService + refactor dashboard_routes.py
+
 ```
 
 **Validation Checklist**:
@@ -218,7 +230,39 @@ Please commit incrementally:
 **Dependencies**: Task 2 (EmailService)
 **GitHub Branch**: `email-document-classifier`
 
-**Prompt for Jules**: *(I'll create this when you're ready)*
+**Prompt for Jules**:
+```
+
+I need to implement a specialized Construction Document Classifier for our Email Intelligence system.
+
+GOAL:
+Categorize incoming emails into specific construction document types (RFI, Submittal, Change Order, Drawing, Specification) and store extracted metadata.
+
+TECHNICAL REQUIREMENTS:
+
+1. Create a Document Classifier Service (backend/services/document_classifier_service.py):
+   - Use LLM-based classification via ai_service.py.
+   - Detect: Doc Type, Document Number (if any), Project Number, Urgency, and Key Actions.
+   - Return structured JSON output.
+
+2. Database Schema (backend/migrate_add_ext_docs.py):
+   - Create Table: `extracted_documents` (id, email_id, doc_type, doc_number, project_id, status, metadata_json, created_at).
+
+3. Integrate with TaskAgent (backend/agents/task_agent.py):
+   - When processing an email, first run it through DocumentClassifierService.
+   - Use the classifier's output to seed the task extraction prompt.
+
+4. Update Email Persistence (backend/services/email_persistence_service.py):
+   - Automatically trigger classification for new emails arriving from the IMAP/Gmail sync.
+
+DELIVERABLES:
+
+- ✅ document_classifier_service.py
+- ✅ migrate_add_ext_docs.py
+- ✅ Updated TaskAgent
+- ✅ Integration tests for document classification
+
+```
 
 ---
 

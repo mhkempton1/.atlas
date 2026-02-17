@@ -203,11 +203,22 @@ class AltimeterService:
         except:
             return None
 
-    def list_projects(self) -> List[Dict[str, Any]]:
-        """List all projects directly from Altimeter DB."""
+    def list_projects(self, query: str = None) -> List[Dict[str, Any]]:
+        """List all projects directly from Altimeter DB with optional search."""
         try:
             conn = self._get_db_conn()
-            projects = conn.execute("SELECT * FROM projects WHERE is_active = 1 ORDER BY updated_at DESC").fetchall()
+            if query:
+                search_term = f"%{query}%"
+                sql = """
+                    SELECT * FROM projects 
+                    WHERE is_active = 1 
+                    AND (name LIKE ? OR altimeter_project_id LIKE ? OR description LIKE ?)
+                    ORDER BY updated_at DESC
+                """
+                projects = conn.execute(sql, (search_term, search_term, search_term)).fetchall()
+            else:
+                projects = conn.execute("SELECT * FROM projects WHERE is_active = 1 ORDER BY updated_at DESC").fetchall()
+            
             conn.close()
             return [dict(p) for p in projects]
         except Exception as e:
@@ -477,6 +488,44 @@ class IntelligenceBridge:
         intel_results.sort(key=lambda x: (x['trigger'] == "Weather Alert", x['relevance']), reverse=True)
 
         return intel_results[:5] # Top 5
+
+    def load_project_context(self, project_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Aggregates full project context including details, phases, and recent activity.
+        Used by the Project Dashboard.
+        """
+        project = self.get_project_details(project_id)
+        if not project:
+            return None
+
+        # Get Phases
+        phases = []
+        try:
+            conn = self._get_db_conn()
+            # Assuming project_phases table linked by project id (uuid)
+            p_uuid = project['id']
+            rows = conn.execute("SELECT * FROM project_phases WHERE project_id = ? ORDER BY start_date", (p_uuid,)).fetchall()
+            phases = [dict(r) for r in rows]
+            conn.close()
+        except Exception:
+            pass
+
+        return {
+            "project": project,
+            "phases": phases,
+            "recent_activity": self._get_recent_activity_context(project['altimeter_project_id']),
+            # Mocking financials/materials for now as table structure is unknown, 
+            # but providing structure for UI
+            "financials": {
+                "contract_value": project.get('contract_value', 0),
+                "billed": 0,
+                "paid": 0
+            },
+            "stats": {
+                "efficiency": 1.0,
+                "margin": 0
+            }
+        }
 
 altimeter_service = AltimeterService()
 intelligence_bridge = IntelligenceBridge()

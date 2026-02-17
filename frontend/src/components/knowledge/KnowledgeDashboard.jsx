@@ -16,6 +16,14 @@ const KnowledgeDashboard = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('browse'); // browse, search
 
+    const getIcon = (category) => {
+        const cat = (category || '').toLowerCase();
+        if (cat.includes('sop') || cat.includes('procedure')) return <FileText className="w-3.5 h-3.5 text-emerald-400" />;
+        if (cat.includes('technical') || cat.includes('manual')) return <Book className="w-3.5 h-3.5 text-blue-400" />;
+        if (cat.includes('safety')) return <Zap className="w-3.5 h-3.5 text-amber-400" />;
+        return <Info className="w-3.5 h-3.5 text-slate-400" />;
+    };
+
     // Initial Load
     useEffect(() => {
         loadDocuments();

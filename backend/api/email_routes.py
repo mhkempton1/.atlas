@@ -90,7 +90,7 @@ class EmailResponse(BaseModel):
     subject: Optional[str] = None
     from_address: Optional[str] = None
     from_name: Optional[str] = None
-    to_addresses: Optional[list] = None
+    to_addresses: Optional[object] = None # Relaxed type to handle str or list from legacy JSON
     body_text: Optional[str] = None
     body_html: Optional[str] = None
     date_received: Optional[datetime] = None

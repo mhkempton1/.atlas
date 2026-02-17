@@ -106,7 +106,7 @@ export const Spinner = ({ label }) => (
 // ── Status Badge ────────────────────────────────────────────────
 // Usage: <StatusBadge status="active" /> or <StatusBadge status="completed" />
 export const StatusBadge = ({ status, className = '' }) => {
-    const lowerStatus = status?.toLowerCase() || 'default';
+    const lowerStatus = (typeof status === 'string' ? status : String(status || '')).toLowerCase() || 'default';
     const styles = {
         active: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
         completed: 'bg-slate-500/15 text-slate-400 border-slate-500/30 line-through',
