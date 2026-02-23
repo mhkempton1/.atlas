@@ -56,10 +56,10 @@ async def system_control(action: str):
     try:
         if script_path.endswith('.vbs'):
             # Run VBScript via wscript (detached)
-            subprocess.Popen(['wscript.exe', script_path], shell=True)
+            subprocess.Popen(['wscript.exe', script_path])
         else:
             # Run Batch file (detached)
-            subprocess.Popen(['cmd.exe', '/c', script_path], shell=True)
+            subprocess.Popen(['cmd.exe', '/c', script_path])
             
         return {"success": True, "message": f"Action {action} triggered"}
     except Exception as e:
