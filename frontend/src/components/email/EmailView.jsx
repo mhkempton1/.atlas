@@ -4,6 +4,7 @@ import { Menu } from '@headlessui/react';
 import { SYSTEM_API } from '../../services/api';
 import { useToast } from '../../hooks/useToast';
 import { PageHeader, Section, Spinner, EmptyState, StatusBadge } from '../shared/UIComponents';
+import { sanitize } from '../../utils/sanitizer';
 
 const EmailView = ({ email, onBack, onEmailAction }) => {
     const { toast, toastElement } = useToast();
@@ -226,7 +227,7 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
             <div className="content flex-1 overflow-auto p-6 bg-transparent">
                 <div className="prose prose-invert max-w-none">
                     {email.body_html ? (
-                        <div dangerouslySetInnerHTML={{ __html: email.body_html }} />
+                        <div dangerouslySetInnerHTML={{ __html: sanitize(email.body_html) }} />
                     ) : (
                         <div className="whitespace-pre-wrap font-sans text-text-bright">{email.body_text}</div>
                     )}
