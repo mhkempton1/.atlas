@@ -4,6 +4,24 @@ from database.models import Email, EmailAttachment
 from datetime import datetime, timezone
 import json
 from services.contact_persistence_service import update_contact_from_email
+import bleach
+
+ALLOWED_TAGS = list(bleach.sanitizer.ALLOWED_TAGS) + [
+    'p', 'br', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'td', 'th',
+    'img', 'a', 'blockquote', 'pre', 'code', 'em', 'strong', 'u', 's', 'strike'
+]
+
+ALLOWED_ATTRIBUTES = {
+    '*': ['class', 'style', 'id'],
+    'a': ['href', 'title', 'target'],
+    'img': ['src', 'alt', 'title', 'width', 'height'],
+}
+
+def clean_html(html_content):
+    if not html_content:
+        return html_content
+    return bleach.clean(html_content, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES, strip=True)
 
 def persist_email_to_database(email_data, db: Session):
     """
@@ -92,7 +110,7 @@ def persist_email_to_database(email_data, db: Session):
 
         new_email.date_received = _get_field(email_data, 'date_received') or datetime.now(timezone.utc)
         new_email.body_text = _get_field(email_data, 'body_text')
-        new_email.body_html = _get_field(email_data, 'body_html')
+        new_email.body_html = clean_html(_get_field(email_data, 'body_html'))
         new_email.labels = _get_field(email_data, 'labels')
 
         is_unread = _get_field(email_data, 'is_unread')

@@ -17,3 +17,4 @@ pytest
 pytest-asyncio
 sentence-transformers
 aiohttp
+bleach
