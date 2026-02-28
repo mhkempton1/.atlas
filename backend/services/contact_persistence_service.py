@@ -50,13 +50,14 @@ def persist_contact_to_database(contact_data: dict, db: Session):
             db.rollback()
             raise e
 
-def update_contact_from_email(email_input: str, db: Session):
+def update_contact_from_email(email_input: str, db: Session, project_id: str = None):
     """
     Update or create a contact based on an email address string (e.g., "Name <email>").
 
     Args:
         email_input: Email string (e.g. "John Doe <john@example.com>" or just "john@example.com")
         db: Database session
+        project_id: Optional Altimeter project ID to associate with this contact
     """
     if not email_input:
         return None
@@ -85,6 +86,15 @@ def update_contact_from_email(email_input: str, db: Session):
         if not existing_contact.name and name:
             existing_contact.name = name
 
+        # Associate Project ID if provided
+        if project_id:
+            tag_str = f"Project: {project_id}"
+            current_tags = existing_contact.tags or []
+            if tag_str not in current_tags:
+                current_tags.append(tag_str)
+                # Re-assign to trigger SQLAlchemy JSON detection
+                existing_contact.tags = list(current_tags)
+
         try:
             db.commit()
             db.refresh(existing_contact)
@@ -94,13 +104,18 @@ def update_contact_from_email(email_input: str, db: Session):
             print(f"Error updating contact {email_address}: {e}")
             return None
     else:
+        tags = []
+        if project_id:
+            tags.append(f"Project: {project_id}")
+            
         # Create new contact
         new_contact = Contact(
             email_address=email_address,
             name=name,
             first_contact_date=datetime.now(timezone.utc),
             last_contact_date=datetime.now(timezone.utc),
-            email_count=1
+            email_count=1,
+            tags=tags
         )
         try:
             db.add(new_contact)

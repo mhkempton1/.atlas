@@ -63,6 +63,17 @@ def persist_email_to_database(email_data, db: Session):
             existing_email.is_unread = is_unread
             existing_email.is_read = not is_unread
 
+        # Associate project if missing
+        if not existing_email.project_id:
+            from services.altimeter_service import altimeter_service
+            context = altimeter_service.get_context_for_email(
+                sender=existing_email.sender or existing_email.from_address or "",
+                subject=existing_email.subject or "",
+                body=existing_email.body_text or ""
+            )
+            if context.get("project"):
+                existing_email.project_id = context["project"].get("number")
+
         is_starred = _get_field(email_data, 'is_starred')
         if is_starred is not None:
             existing_email.is_starred = is_starred
@@ -112,6 +123,16 @@ def persist_email_to_database(email_data, db: Session):
         new_email.body_text = _get_field(email_data, 'body_text')
         new_email.body_html = clean_html(_get_field(email_data, 'body_html'))
         new_email.labels = _get_field(email_data, 'labels')
+        
+        # Determine Project Context
+        from services.altimeter_service import altimeter_service
+        context = altimeter_service.get_context_for_email(
+            sender=sender or "",
+            subject=new_email.subject or "",
+            body=new_email.body_text or ""
+        )
+        if context.get("project"):
+            new_email.project_id = context["project"].get("number")
 
         is_unread = _get_field(email_data, 'is_unread')
         if is_unread is None:
@@ -152,14 +173,14 @@ def persist_email_to_database(email_data, db: Session):
 
             # Update contacts for new email
             try:
-                update_contact_from_email(new_email.sender, db)
+                update_contact_from_email(new_email.sender, db, project_id=new_email.project_id)
                 recipients = new_email.recipients or new_email.to_addresses
                 if recipients:
                     if isinstance(recipients, list):
                         for recipient in recipients:
-                            update_contact_from_email(recipient, db)
+                            update_contact_from_email(recipient, db, project_id=new_email.project_id)
                     elif isinstance(recipients, str):
-                         update_contact_from_email(recipients, db)
+                         update_contact_from_email(recipients, db, project_id=new_email.project_id)
             except Exception as e:
                 print(f"Error updating contacts for email {new_email.email_id}: {e}")
                 # Don't fail the email persistence if contact update fails

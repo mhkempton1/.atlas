@@ -159,10 +159,100 @@ def watchtower_job():
     except Exception:
         pass
 
+def morning_briefing_job():
+    """
+    Collects yesterday's Daily Logs and alerts from Altimeter,
+    summarizes them via AI, and emails the management team.
+    """
+    from services.altimeter_service import altimeter_service
+    from services.ai_service import ai_service
+    from services.communication_service import comm_service
+    from datetime import datetime, timedelta
+    
+    try:
+        # 1. Fetch yesterday's logs
+        yesterday_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        
+        # Read-only query to Altimeter
+        query = f"""
+            SELECT p.altimeter_project_id, p.name, dl.log_date, dl.description, dl.created_by
+            FROM daily_logs dl
+            JOIN projects p ON dl.project_id = p.id
+            WHERE date(dl.log_date) = '{yesterday_date}'
+        """
+        logs = altimeter_service.execute_read_only_query(query)
+        
+        if not logs or (isinstance(logs, list) and len(logs) > 0 and 'error' in logs[0]):
+             # No logs or error
+             print("Morning Briefing: No logs found or error fetching logs.")
+             return
+
+        # 2. Format Data
+        log_text = "Yesterday's Daily Logs:\\n\\n"
+        for log in logs:
+            log_text += f"Project: {log.get('altimeter_project_id')} - {log.get('name')}\\n"
+            log_text += f"Author: {log.get('created_by')}\\n"
+            log_text += f"Details: {log.get('description')}\\n"
+            log_text += "-" * 20 + "\\n"
+        
+        # 3. AI Summarization
+        prompt = f'''
+        You are an executive construction manager. 
+        Review the following daily logs from yesterday and provide a concise, 
+        bulleted "Morning Briefing" summary for the management team. 
+        Highlight any potential delays, issues, or key accomplishments.
+
+        Raw Logs:
+        {log_text}
+        '''
+        
+        # Need an event loop to run async generate completion here if not already in one
+        try:
+             loop = asyncio.get_event_loop()
+             if loop.is_running():
+                 # Handle if already running in an event loop constraint
+                 summary_html = loop.create_task(ai_service.generate_content(prompt))
+                 # This won't work perfectly if we need the result sync.
+                 # Since backend background tasks should probably not block the main loop, 
+                 # we'll do our best. APScheduler usually runs in a thread pool.
+                 summary_html = asyncio.run_coroutine_threadsafe(ai_service.generate_content(prompt), loop).result()
+             else:
+                 summary_html = loop.run_until_complete(ai_service.generate_content(prompt))
+        except RuntimeError:
+             summary_html = asyncio.run(ai_service.generate_content(prompt))
+        
+        
+        # Format HTML email loosely
+        html_body = f"""
+        <h2>Morning Briefing - {yesterday_date}</h2>
+        <div>{summary_html}</div>
+        <p><small>Generated directly from Altimeter Daily Logs by Atlas DaVinci Agent</small></p>
+        """
+        
+        # 4. Email Delivery
+        # Convert markdown to html if it is markdown format
+        import markdown
+        html_content = markdown.markdown(summary_html)
+        final_body = html_body.replace("<div></div>", f"<div>{html_content}</div>")
+
+        success = comm_service.send_email(
+            recipient="michael@daviselectric.biz",
+            subject=f"Daily Morning Briefing - {yesterday_date}",
+            body=final_body
+        )
+        if success:
+            print("Morning Briefing generated and sent successfully.")
+        else:
+            print("Failed to send Morning Briefing email.")
+
+    except Exception as e:
+        print(f"Error generating Morning Briefing: {e}")
+
 # Schedule jobs
 scheduler.add_job(sync_emails_job, 'interval', minutes=5, id='email_sync', replace_existing=True)
 scheduler.add_job(sync_calendar_job, 'interval', minutes=15, id='calendar_sync', replace_existing=True)
 scheduler.add_job(watchtower_job, 'interval', minutes=60, id='watchtower', replace_existing=True)
+scheduler.add_job(morning_briefing_job, 'cron', hour=6, minute=0, id='morning_briefing', replace_existing=True)
 
 class SchedulerService:
     """
