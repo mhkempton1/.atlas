@@ -12,6 +12,7 @@ from services.altimeter_sync_service import altimeter_sync_service
 
 router = APIRouter()
 
+@router.get("/list", response_model=List[dict])
 @router.get("/", response_model=List[dict])
 async def get_tasks(
     status: Optional[str] = None,

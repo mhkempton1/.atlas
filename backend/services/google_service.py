@@ -427,6 +427,29 @@ class GoogleService:
         raw = {'raw': base64.urlsafe_b64encode(msg.as_bytes()).decode('utf-8')}
         return self.gmail_service.users().messages().send(userId='me', body=raw).execute()
 
+    def create_draft(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None, extra_headers: Optional[dict] = None) -> dict:
+        """Create an email draft in Gmail"""
+        if not self.gmail_service: self.authenticate()
+        msg = MIMEText(body)
+        msg['To'] = recipient
+        msg['From'] = 'me'
+        msg['Subject'] = subject
+        if cc:
+            msg['Cc'] = ', '.join(cc)
+        if bcc:
+            msg['Bcc'] = ', '.join(bcc)
+
+        if extra_headers:
+            for k, v in extra_headers.items():
+                msg[k] = v
+
+        raw = {'message': {'raw': base64.urlsafe_b64encode(msg.as_bytes()).decode('utf-8')}}
+        try:
+            draft = self.gmail_service.users().drafts().create(userId='me', body=raw).execute()
+            return {'success': True, 'draft_id': draft.get('id')}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
     # --- Calendar Methods ---
     def sync_calendar(self):
         """Sync future events from primary calendar"""

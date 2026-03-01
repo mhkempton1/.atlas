@@ -71,6 +71,11 @@ const EmailItem = ({ email, onClick, expanded, onAction }) => {
                                 {email.category}
                             </span>
                         )}
+                        {email.project_id && (
+                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase mr-2 border bg-blue-500/10 text-blue-400 border-blue-500/20" title="Altimeter Project Match">
+                                🔗 {email.project_id}
+                            </span>
+                        )}
                         {email.subject}
                     </h4>
 

@@ -156,8 +156,8 @@ def watchtower_job():
                 # Log to Activity Feed (User Notification Stub)
                 activity_service.log_activity("system", "Risk Detected", msg)
 
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error generating Morning Briefing: {e}")
 
 def morning_briefing_job():
     """
@@ -167,6 +167,7 @@ def morning_briefing_job():
     from services.altimeter_service import altimeter_service
     from services.ai_service import ai_service
     from services.communication_service import comm_service
+    from services.weather_service import weather_service
     from datetime import datetime, timedelta
     
     try:
@@ -194,6 +195,29 @@ def morning_briefing_job():
             log_text += f"Author: {log.get('created_by')}\\n"
             log_text += f"Details: {log.get('description')}\\n"
             log_text += "-" * 20 + "\\n"
+            
+        # 2.5 Fetch Weather
+        weather_data_html = ""
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                weather_res = asyncio.run_coroutine_threadsafe(weather_service.get_weather(), loop).result()
+            else:
+                weather_res = loop.run_until_complete(weather_service.get_weather())
+            
+            forecasts = weather_res.get("forecast", [])
+            if forecasts:
+                weather_data_html = "<h3>5-Day Weather Forecast</h3><ul>"
+                for day in forecasts[:5]:
+                    date_str = day.get('display_date', day.get('date'))
+                    cond = day.get('condition', 'Unknown')
+                    high = day.get('high', '--')
+                    low = day.get('low', '--')
+                    rain = day.get('rain_chance', '0')
+                    weather_data_html += f"<li><strong>{date_str}</strong>: {cond} - High {high}&deg;F / Low {low}&deg;F (Rain: {rain}%)</li>"
+                weather_data_html += "</ul>"
+        except Exception as e:
+            print(f"Failed to fetch weather for Morning Briefing: {e}")
         
         # 3. AI Summarization
         prompt = f'''
@@ -210,11 +234,6 @@ def morning_briefing_job():
         try:
              loop = asyncio.get_event_loop()
              if loop.is_running():
-                 # Handle if already running in an event loop constraint
-                 summary_html = loop.create_task(ai_service.generate_content(prompt))
-                 # This won't work perfectly if we need the result sync.
-                 # Since backend background tasks should probably not block the main loop, 
-                 # we'll do our best. APScheduler usually runs in a thread pool.
                  summary_html = asyncio.run_coroutine_threadsafe(ai_service.generate_content(prompt), loop).result()
              else:
                  summary_html = loop.run_until_complete(ai_service.generate_content(prompt))
@@ -226,6 +245,7 @@ def morning_briefing_job():
         html_body = f"""
         <h2>Morning Briefing - {yesterday_date}</h2>
         <div>{summary_html}</div>
+        {weather_data_html}
         <p><small>Generated directly from Altimeter Daily Logs by Atlas DaVinci Agent</small></p>
         """
         
@@ -233,7 +253,7 @@ def morning_briefing_job():
         # Convert markdown to html if it is markdown format
         import markdown
         html_content = markdown.markdown(summary_html)
-        final_body = html_body.replace("<div></div>", f"<div>{html_content}</div>")
+        final_body = html_body.replace(f"<div>{summary_html}</div>", f"<div>{html_content}</div>")
 
         success = comm_service.send_email(
             recipient="michael@daviselectric.biz",

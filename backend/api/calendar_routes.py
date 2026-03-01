@@ -83,7 +83,7 @@ async def create_event(
         # We keep the local copy even if remote fail, but log it
         print(f"Remote sync failed: {e}")
         
-    return {"status": "success", "event_id": new_event.id}
+    return {"status": "success", "event_id": new_event.event_id}
 
 @router.get("/today")
 async def get_today_events(db: Session = Depends(get_db)):

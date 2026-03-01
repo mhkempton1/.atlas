@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import asyncio
 
 from agents.base import BaseAgent
-from services.altimeter_service import altimeter_service
+from services.altimeter_service import altimeter_service, intelligence_bridge
 from services.search_service import search_service
 from services.ai_service import ai_service
 from database.database import SessionLocal
@@ -39,7 +39,7 @@ class ProjectAgent(BaseAgent):
             return {"status": "error", "message": "project_id is required."}
 
         # 1. Gather Project Context
-        project_ctx = altimeter_service.load_project_context(project_id)
+        project_ctx = intelligence_bridge.load_project_context(project_id)
         if not project_ctx:
             return {"status": "error", "message": f"Could not load project context for {project_id}."}
 
@@ -105,9 +105,24 @@ class ProjectAgent(BaseAgent):
             db.commit()
             db.refresh(task)
             
+            # --- Phase 3: Create an Email Draft directly ---
+            from services.communication_service import comm_service
+            draft_result = comm_service.create_draft(
+                recipient="",  # Empty recipient for a draft log
+                subject=title,
+                body=draft_content
+            )
+            
+            response_msg = "Draft created in Safe Mode and added to tasks."
+            if draft_result and draft_result.get("success"):
+                response_msg += " Saved directly to Email Drafts."
+            else:
+                err = draft_result.get("error", "Unknown error") if draft_result else "Service unavailable"
+                response_msg += f" (Note: Could not save to Email Drafts: {err})"
+
             return {
                 "status": "success", 
-                "message": "Draft created in Safe Mode and added to tasks.", 
+                "message": response_msg,
                 "task_id": task.task_id
             }
             

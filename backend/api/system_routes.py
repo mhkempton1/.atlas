@@ -65,6 +65,26 @@ async def system_control(action: str):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+@router.post("/morning-briefing/trigger")
+async def trigger_morning_briefing():
+    """
+    Manually dispatch the Morning Briefing email.
+    """
+    from services.scheduler_service import morning_briefing_job
+    import asyncio
+    
+    # Run the job synchronously in a background thread or just call it directly since it handles its own async loop setup internally if needed
+    try:
+        # morning_briefing_job has blocking/synchronous components inside it, calling directly is fine for this manual trigger.
+        # Alternatively, offload to a thread to avoid blocking the API response if it takes a long time.
+        loop = asyncio.get_running_loop()
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+             await loop.run_in_executor(pool, morning_briefing_job)
+        return {"status": "success", "message": "Morning briefing generation and dispatch triggered."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/activity", response_model=List[Dict[str, Any]], dependencies=[Depends(verify_local_request)])
 async def get_activity_logs():
     """

@@ -29,10 +29,10 @@ class SearchService:
         try:
             self._client = chromadb.PersistentClient(path=self.persist_path)
             try:
-                # Try to load SentenceTransformerEmbeddingFunction only if sentence_transformers is installed
-                import sentence_transformers
-                self._embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-                    model_name="all-MiniLM-L6-v2"
+                # Try to load Ollama local embeddings to avoid HF rate limits
+                self._embedding_fn = embedding_functions.OllamaEmbeddingFunction(
+                    url="http://localhost:11434/api/embeddings",
+                    model_name="mxbai-embed-large"
                 )
             except (ImportError, Exception) as e:
                 class DummyEmbedding:

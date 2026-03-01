@@ -205,7 +205,16 @@ const EmailView = ({ email, onBack, onEmailAction }) => {
                     </div>
                 </div>
 
-                <h2 className="text-xl font-bold text-text-bright mb-2">{email.subject}</h2>
+                <div className="flex flex-col gap-1 mb-4">
+                    {email.project_id && (
+                        <div>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold uppercase border bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-sm" title="Altimeter Project Match">
+                                🔗 {email.project_id}
+                            </span>
+                        </div>
+                    )}
+                    <h2 className="text-2xl font-bold text-white">{email.subject}</h2>
+                </div>
 
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">

@@ -97,23 +97,24 @@ class GeminiService:
 
     def get_embedding(self, text: str) -> Optional[List[float]]:
         """
-        Generate vector embedding for text using Gemini API.
+        Generate vector embedding for text using Local Ollama.
         """
-        if not self.client:
-            return None
-
+        import requests
         try:
-            # Using standard embedding model
-            response = self.client.models.embed_content(
-                model="text-embedding-004",
-                contents=text
+            response = requests.post(
+                "http://localhost:11434/api/embeddings",
+                json={
+                    "model": "mxbai-embed-large",
+                    "prompt": text
+                },
+                timeout=30.0
             )
-            # Response structure depends on SDK version, but usually has 'embeddings' list
-            if hasattr(response, 'embeddings') and response.embeddings:
-                return response.embeddings[0].values
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("embedding")
             return None
         except Exception as e:
-            print(f"Error generating embedding: {e}")
+            print(f"Error generating embedding via Ollama: {e}")
             return None
 
     async def generate_content(
@@ -122,10 +123,11 @@ class GeminiService:
         max_retries: int = 3,
         include_context: bool = False,
         user_strata: int = 1,
-        json_mode: bool = False
+        json_mode: bool = False,
+        use_local_model: bool = True
     ) -> Optional[str]:
         """
-        Generate content using Gemini AI.
+        Generate content using Gemini AI or local Ollama.
 
         Args:
             prompt: The prompt to send to the AI.
@@ -133,18 +135,52 @@ class GeminiService:
             include_context: Whether to include system context in the prompt.
             user_strata: The user's strata level for context customization.
             json_mode: Whether to enforce JSON output structure.
+            use_local_model: If True, attempts to route the request to a local Ollama instance before falling back to Gemini.
 
         Returns:
             The generated content as a string, or an error message.
         """
-        if not self.client:
-            return "AI Service Unavailable: Missing API Key"
-
         final_prompt = prompt
         
         # Inject Context
         if include_context:
             final_prompt += self._build_context(user_strata)
+
+        if use_local_model:
+            import httpx
+            try:
+                start_time = time.time()
+                async with httpx.AsyncClient() as client:
+                    ollama_payload = {
+                        "model": "llama3", # Defaulting to llama3, could be configured in settings
+                        "prompt": final_prompt,
+                        "stream": False
+                    }
+                    if json_mode:
+                        ollama_payload["format"] = "json"
+                        
+                    response = await client.post(
+                        "http://localhost:11434/api/generate",
+                        json=ollama_payload,
+                        timeout=60.0 # Local models might take a while
+                    )
+                    response.raise_for_status()
+                    result = response.json().get("response", "")
+                    
+                    self._log_audit(
+                        prompt=final_prompt,
+                        response=result,
+                        model="ollama-local",
+                        tokens_used=None,
+                        latency_ms=(time.time() - start_time) * 1000,
+                        status="success"
+                    )
+                    return result
+            except Exception as e:
+                print(f"Local Ollama model failed: {e}. Falling back to Gemini.")
+
+        if not self.client:
+            return "AI Service Unavailable: Missing API Key"
 
         config = {}
         if json_mode:

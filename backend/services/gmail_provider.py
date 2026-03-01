@@ -43,3 +43,8 @@ class GmailProvider(CommunicationProvider):
 
     def create_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
         return self.service.create_event(event_data)
+
+    def create_draft(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None, extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+        if hasattr(self.service, 'create_draft'):
+            return self.service.create_draft(recipient, subject, body, cc=cc, bcc=bcc, extra_headers=extra_headers)
+        return {"error": "Underlying service lacks create_draft"}

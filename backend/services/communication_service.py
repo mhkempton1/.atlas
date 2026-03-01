@@ -58,5 +58,11 @@ class CommunicationService:
     def sync_calendar(self) -> Dict[str, Any]:
         return self.active_provider.sync_calendar()
 
+    def create_draft(self, recipient: str, subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None, extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+        """Create an email draft using the active provider."""
+        if not hasattr(self.active_provider, 'create_draft'):
+            return {"error": f"Provider {self.active_provider_name} does not support draft creation"}
+        return self.active_provider.create_draft(recipient, subject, body, cc=cc, bcc=bcc, extra_headers=extra_headers)
+
 # Singleton
 comm_service = CommunicationService()

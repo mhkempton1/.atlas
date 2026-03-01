@@ -494,14 +494,14 @@ class IntelligenceBridge:
         Aggregates full project context including details, phases, and recent activity.
         Used by the Project Dashboard.
         """
-        project = self.get_project_details(project_id)
+        project = altimeter_service.get_project_details(project_id)
         if not project:
             return None
 
         # Get Phases
         phases = []
         try:
-            conn = self._get_db_conn()
+            conn = altimeter_service._get_db_conn()
             # Assuming project_phases table linked by project id (uuid)
             p_uuid = project['id']
             rows = conn.execute("SELECT * FROM project_phases WHERE project_id = ? ORDER BY start_date", (p_uuid,)).fetchall()
@@ -513,7 +513,7 @@ class IntelligenceBridge:
         return {
             "project": project,
             "phases": phases,
-            "recent_activity": self._get_recent_activity_context(project['altimeter_project_id']),
+            "recent_activity": altimeter_service._get_recent_activity_context(project['altimeter_project_id']),
             # Mocking financials/materials for now as table structure is unknown, 
             # but providing structure for UI
             "financials": {

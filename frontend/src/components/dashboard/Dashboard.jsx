@@ -304,7 +304,7 @@ const Dashboard = ({ onNavigate, globalHealth }) => {
                             <p className="text-lg font-mono text-white/80">99.98%</p>
                         </div>
                         <div className="flex items-center gap-4">
-                            <button className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all">
+                            <button onClick={() => onNavigate('config')} className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all">
                                 <Settings className="w-6 h-6 text-white/40" />
                             </button>
                         </div>

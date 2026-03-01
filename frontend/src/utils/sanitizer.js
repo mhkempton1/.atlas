@@ -1,4 +1,4 @@
-import DOMPurify from './dompurify.js';
+import DOMPurify from 'dompurify';
 
 export const sanitize = (content) => {
     // Attempt to get the purifier instance either from import or window

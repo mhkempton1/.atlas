@@ -96,6 +96,77 @@ const ConflictModal = ({ isOpen, onClose, conflictData, onResolve }) => {
     );
 };
 
+const DaVinciDraftModal = ({ isOpen, onClose, projects, onGenerate, isGenerating }) => {
+    const [selectedProject, setSelectedProject] = useState('');
+    const [prompt, setPrompt] = useState('');
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-slate-950 border border-purple-500/30 rounded-xl max-w-lg w-full shadow-[0_0_50px_rgba(168,85,247,0.15)] overflow-hidden">
+                <div className="p-4 bg-gradient-to-r from-slate-900 to-slate-950 border-b border-white/10 flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400 flex items-center gap-2">
+                        ✨ DaVinci Agent
+                    </h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white">
+                        <X />
+                    </button>
+                </div>
+
+                <div className="p-6 space-y-4">
+                    <p className="text-sm text-gray-400">
+                        Describe what happened today, and the DaVinci Agent will securely query Altimeter's vector database, draft a professional daily log, and prepare it for Procore submission.
+                    </p>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Target Project</label>
+                        <select
+                            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-purple-500/50"
+                            value={selectedProject}
+                            onChange={(e) => setSelectedProject(e.target.value)}
+                        >
+                            <option value="">Select an active project...</option>
+                            {projects.map(p => (
+                                <option key={p.id} value={p.altimeter_project_id}>{p.altimeter_project_id} - {p.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Event Summary / Prompt</label>
+                        <textarea
+                            placeholder="e.g., Poured concrete on level 2. Framing started on level 3. No accidents. Rain delay of 2 hours..."
+                            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500/50 h-32 resize-none"
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="pt-2">
+                        <button
+                            onClick={() => onGenerate(selectedProject, prompt)}
+                            disabled={!selectedProject || !prompt || isGenerating}
+                            className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {isGenerating ? (
+                                <>
+                                    <Spinner size="xs" /> Processing via DaVinci...
+                                </>
+                            ) : (
+                                <>
+                                    <Zap className="w-4 h-4 text-purple-200" />
+                                    Generate Daily Log Draft
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const TaskList = () => {
     const [tasks, setTasks] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -108,6 +179,10 @@ const TaskList = () => {
     const [conflictModalOpen, setConflictModalOpen] = useState(false);
     const [currentConflict, setCurrentConflict] = useState(null);
     const [resolvingId, setResolvingId] = useState(null);
+
+    // DaVinci Modal
+    const [daVinciModalOpen, setDaVinciModalOpen] = useState(false);
+    const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
 
     // Form State
     const [newTask, setNewTask] = useState({
@@ -161,9 +236,9 @@ const TaskList = () => {
                 if (msg.status === 'synced' || msg.status === 'conflict') {
                     // Small delay to ensure DB commit visible
                     setTimeout(() => {
-                         // Ideally we optimistically update, but reloading is safer for full consistency
-                         // We can also just trigger a background reload without spinner
-                         SYSTEM_API.getTasks().then(setTasks).catch(console.error);
+                        // Ideally we optimistically update, but reloading is safer for full consistency
+                        // We can also just trigger a background reload without spinner
+                        SYSTEM_API.getTasks().then(setTasks).catch(console.error);
                     }, 500);
                 }
             }
@@ -192,6 +267,21 @@ const TaskList = () => {
             addToast("Task deleted", "success");
         } catch (error) {
             addToast("Failed to delete task", "error");
+        }
+    };
+
+    const handleDaVinciGenerate = async (projectId, prompt) => {
+        setIsGeneratingDraft(true);
+        try {
+            await SYSTEM_API.draftDailyLogAgent(projectId, prompt);
+            addToast("DaVinci drafted log successfully", "success");
+            setDaVinciModalOpen(false);
+            loadTasks();
+        } catch (error) {
+            console.error(error);
+            addToast(error.response?.data?.detail || "Draft generation failed", "error");
+        } finally {
+            setIsGeneratingDraft(false);
         }
     };
 
@@ -288,16 +378,33 @@ const TaskList = () => {
                 onResolve={handleResolve}
             />
 
+            <DaVinciDraftModal
+                isOpen={daVinciModalOpen}
+                onClose={() => setDaVinciModalOpen(false)}
+                projects={projects}
+                onGenerate={handleDaVinciGenerate}
+                isGenerating={isGeneratingDraft}
+            />
+
             <PageHeader
                 title="Mission Tasks"
                 subtitle="Tactical Objectives & Directives"
                 action={
-                    <button
-                        onClick={() => setShowCreateForm(!showCreateForm)}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-lg transition-all"
-                    >
-                        <Plus className={`w-5 h-5 transition-transform ${showCreateForm ? 'rotate-45' : ''}`} />
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setDaVinciModalOpen(true)}
+                            className="bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 border border-purple-500/30 font-medium px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 text-sm backdrop-blur-md"
+                            title="DaVinci AI Drafter"
+                        >
+                            <Zap className="w-4 h-4 text-amber-400" /> DaVinci Draft
+                        </button>
+                        <button
+                            onClick={() => setShowCreateForm(!showCreateForm)}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-lg transition-all"
+                        >
+                            <Plus className={`w-5 h-5 transition-transform ${showCreateForm ? 'rotate-45' : ''}`} />
+                        </button>
+                    </div>
                 }
             />
 

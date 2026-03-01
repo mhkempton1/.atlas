@@ -173,6 +173,11 @@ export const SYSTEM_API = {
         return response.data;
     },
 
+    triggerMorningBriefing: async () => {
+        const response = await api.post('/system/morning-briefing/trigger');
+        return response.data;
+    },
+
     getSystemLogs: async () => {
         const response = await api.get('/system/logs');
         return response.data;
@@ -190,6 +195,11 @@ export const SYSTEM_API = {
 
     getProjectContext: async (projectId) => {
         const response = await api.get(`/projects/${projectId}/context`);
+        return response.data;
+    },
+
+    draftDailyLogAgent: async (projectId, prompt) => {
+        const response = await api.post(`/projects/${projectId}/draft-daily-log`, { prompt });
         return response.data;
     },
 
