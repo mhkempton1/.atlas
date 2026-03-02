@@ -4,13 +4,18 @@ from database.models import Email, EmailAttachment
 from datetime import datetime, timezone
 import json
 from services.contact_persistence_service import update_contact_from_email
-import bleach
 
-ALLOWED_TAGS = list(bleach.sanitizer.ALLOWED_TAGS) + [
-    'p', 'br', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'td', 'th',
-    'img', 'a', 'blockquote', 'pre', 'code', 'em', 'strong', 'u', 's', 'strike'
-]
+try:
+    import bleach
+    BLEACH_AVAILABLE = True
+    ALLOWED_TAGS = set(bleach.sanitizer.ALLOWED_TAGS).union({
+        'p', 'br', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'td', 'th',
+        'img', 'a', 'blockquote', 'pre', 'code', 'em', 'strong', 'u', 's', 'strike'
+    })
+except ImportError:
+    BLEACH_AVAILABLE = False
+    ALLOWED_TAGS = set()
 
 ALLOWED_ATTRIBUTES = {
     '*': ['class', 'style', 'id'],
@@ -19,9 +24,19 @@ ALLOWED_ATTRIBUTES = {
 }
 
 def clean_html(html_content):
+    """
+    Sanitize HTML content using bleach if available.
+    Returns empty string if content is None or empty.
+    If bleach is unavailable, returns empty string to prevent XSS risk.
+    """
     if not html_content:
-        return html_content
-    return bleach.clean(html_content, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES, strip=True)
+        return ""
+
+    if not BLEACH_AVAILABLE:
+        # Security: If bleach is not installed, do not return raw HTML
+        return ""
+
+    return bleach.clean(html_content, tags=list(ALLOWED_TAGS), attributes=ALLOWED_ATTRIBUTES, strip=True)
 
 def persist_email_to_database(email_data, db: Session):
     """
