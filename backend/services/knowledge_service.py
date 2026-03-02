@@ -10,6 +10,9 @@ from services.search_service import search_service
 from integrations.onedrive_service import onedrive_service
 
 class KnowledgeService:
+    def get_all_documents(self):
+        return self.list_documents()
+
     """
     Service to index, search, and retrieve knowledge documents 
     from Obsidian and OneDrive.

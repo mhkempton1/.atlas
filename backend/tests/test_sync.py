@@ -22,6 +22,7 @@ def sync_service(mock_api):
     with patch('services.altimeter_sync_service.altimeter_api_service', mock_api):
         yield service
 
+import pytest
 @pytest.mark.asyncio
 async def test_enqueue_task(sync_service, mock_db):
     # Setup
@@ -37,6 +38,7 @@ async def test_enqueue_task(sync_service, mock_db):
     mock_db.add.assert_called_once()
     mock_db.commit.assert_called_once()
 
+import pytest
 @pytest.mark.asyncio
 async def test_process_item_push_new(sync_service, mock_db, mock_api):
     # Setup
@@ -56,6 +58,7 @@ async def test_process_item_push_new(sync_service, mock_db, mock_api):
     mock_api.create_task.assert_called_once()
     mock_db.commit.assert_called()
 
+import pytest
 @pytest.mark.asyncio
 async def test_process_item_push_update(sync_service, mock_db, mock_api):
     # Setup
@@ -72,6 +75,7 @@ async def test_process_item_push_update(sync_service, mock_db, mock_api):
     assert item.status == 'synced'
     mock_api.update_task.assert_called_once()
 
+import pytest
 @pytest.mark.asyncio
 async def test_process_item_failed_retry(sync_service, mock_db, mock_api):
     # Setup
@@ -90,6 +94,7 @@ async def test_process_item_failed_retry(sync_service, mock_db, mock_api):
     assert item.error_message == "API Error"
     mock_db.commit.assert_called()
 
+import pytest
 @pytest.mark.asyncio
 async def test_process_item_failed_max_retries(sync_service, mock_db, mock_api):
     # Setup

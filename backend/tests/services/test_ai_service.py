@@ -7,7 +7,7 @@ from core.config import settings
 def ai_service_instance(monkeypatch):
     # Mock settings to have an API key
     monkeypatch.setattr(settings, "GEMINI_API_KEY", "fake_key")
-    with patch("google.genai.Client") as mock_client:
+    with patch("httpx.AsyncClient.post") as mock_post:
         service = GeminiService()
         return service, mock_client
 
