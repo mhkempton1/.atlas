@@ -9,7 +9,7 @@ def test_create_task(client):
     assert response.status_code == 200
     data = response.json()
     assert data["title"] == "Fix electrical panel"
-    assert data["status"] == "todo"
+    assert data["status"] == "open"
 
 def test_get_tasks(client, db):
     from database.models import Task

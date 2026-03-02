@@ -131,7 +131,7 @@ class Task(Base):
 class CalendarEvent(Base):
     __tablename__ = "calendar_events"
 
-    event_id = Column(Integer, primary_key=True, index=True)
+    id = Column('event_id', Integer, primary_key=True, index=True)
     google_calendar_id = Column(String, unique=True, index=True, nullable=True)
     calendar_id = Column(String, nullable=True)
     title = Column(String)

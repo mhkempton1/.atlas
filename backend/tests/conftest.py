@@ -103,7 +103,7 @@ def temp_onedrive(tmp_path, monkeypatch):
     (mock_path / "GUIDELINES" / "ARCHIVE").mkdir()
     
     # Update settings
-    monkeypatch.setattr(settings, "ONEDRIVE_PATH", str(mock_path))
+    monkeypatch.setattr(settings, "ONEDRIVE_ROOT_PATH", str(mock_path))
     
     # Update the service singletons
     from services.document_control_service import document_control_service
