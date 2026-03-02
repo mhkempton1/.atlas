@@ -13,6 +13,7 @@ import { motion as _motion, AnimatePresence } from 'framer-motion';
 import MissionIntelWidget from './MissionIntelWidget';
 import MissionBriefing from './MissionBriefing';
 import usePersistentState from '../../hooks/usePersistentState';
+import { sanitize } from '../../utils/sanitizer';
 
 const TelemetryBar = React.memo(({ healthDetails, weather, coordinates }) => {
     const lat = coordinates?.lat ?? 37.04;
@@ -219,7 +220,7 @@ const ChatBot = React.memo(({ onNavigate }) => {
                             {messages.map((m, i) => (
                                 <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`max-w-[85%] p-4 rounded-2xl text-sm ${m.role === 'user' ? 'bg-cyan-600 text-white' : 'bg-white/5 text-gray-300'}`}>
-                                        <div dangerouslySetInnerHTML={{ __html: m.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                                        <div dangerouslySetInnerHTML={{ __html: sanitize(m.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')) }} />
                                     </div>
                                 </div>
                             ))}
