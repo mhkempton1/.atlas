@@ -214,33 +214,33 @@ class GoogleService:
         }
 
     def _extract_body(self, payload):
-        # ... (Same helper)
+        """Recursively extract body text and HTML from Gmail message payload."""
         body_text, body_html = "", ""
+
+        # 1. Extract data from current level if present
         if 'body' in payload and payload['body'].get('data'):
-             data = payload['body']['data']
-             try:
-                 decoded = base64.urlsafe_b64decode(data).decode('utf-8')
-                 if payload.get('mimeType') == 'text/html': body_html = decoded
-                 else: body_text = decoded
-             except: pass
+            data = payload['body']['data']
+            try:
+                # Add padding if needed for base64 decoding
+                missing_padding = len(data) % 4
+                if missing_padding:
+                    data += '=' * (4 - missing_padding)
+
+                decoded = base64.urlsafe_b64decode(data).decode('utf-8', errors='replace')
+                if payload.get('mimeType') == 'text/html':
+                    body_html = decoded
+                elif payload.get('mimeType') == 'text/plain':
+                    body_text = decoded
+            except Exception:
+                pass
         
+        # 2. Recursively process nested parts
         if 'parts' in payload:
             for part in payload['parts']:
-                if part.get('body', {}).get('data'):
-                    sub_text, sub_html = self._extract_body(part) # Recursive call works if method handles dict
-                    # Actually _extract_body expects payload (dict).
-                    # Fix: self call logic.
-                    # Simplified here:
-                    if part['mimeType'] == 'text/plain':
-                        try: body_text += base64.urlsafe_b64decode(part['body']['data']).decode('utf-8')
-                        except: pass
-                    elif part['mimeType'] == 'text/html':
-                        try: body_html += base64.urlsafe_b64decode(part['body']['data']).decode('utf-8')
-                        except: pass
-                if part.get('parts'):
-                     t, h = self._extract_body(part)
-                     body_text += t
-                     body_html += h
+                t, h = self._extract_body(part)
+                body_text += t
+                body_html += h
+
         return body_text, body_html
 
     def _download_attachment(self, part, remote_id):
