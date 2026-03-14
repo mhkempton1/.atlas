@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import {
   LayoutDashboard,
   Mail,
@@ -47,18 +48,12 @@ const MODULES = [
   { id: 'config', label: 'System Config', icon: Settings, minStrata: 4 },
 ];
 
-function App() {
+function AppContent() {
+  const { currentUser } = useAuth();
   const [currentModule, setCurrentModule] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCommandBarOpen, setIsCommandBarOpen] = useState(false);
 
-  // Permissions Logic
-  // In a real app, this comes from the backend/auth context
-  const currentUser = {
-    name: "Michael Kempton",
-    role: "Administrator",
-    strata: 5 // 4+ = Admin/System Access
-  };
 
   // Global keyboard shortcut for Command Bar (Alt+K or Cmd+K)
   useEffect(() => {
@@ -370,6 +365,14 @@ function App() {
         modules={accessibleModules}
       />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

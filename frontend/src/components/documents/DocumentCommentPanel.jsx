@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { SYSTEM_API } from '../../services/api';
 import {
     MessageSquare,
@@ -16,8 +17,9 @@ const DocumentCommentPanel = ({ documentPath, onClose }) => {
     const [comments, setComments] = useState([]);
     const [summary, setSummary] = useState(null);
     const [newComment, setNewComment] = useState('');
+    const { currentUser } = useAuth();
     const [commentType, setCommentType] = useState('general');
-    const [author] = useState('Admin'); // TODO: Get from auth context
+    const [author] = useState(currentUser?.name || 'Admin');
     const [isLoading, setIsLoading] = useState(false);
 
     const loadComments = useCallback(async () => {
