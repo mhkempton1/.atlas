@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     ONEDRIVE_GUIDELINES_PATH: str = os.getenv("ONEDRIVE_GUIDELINES_PATH", "GUIDELINES")
     ONEDRIVE_TEMPLATES_PATH: str = os.getenv("ONEDRIVE_TEMPLATES_PATH", "TEMPLATES")
     
+    # System Scripts
+    SYSTEM_BOOT_SILENT_SCRIPT: str = os.getenv("SYSTEM_BOOT_SILENT_SCRIPT", r"C:\Users\mhkem\Desktop\START_SYSTEM_SILENT.vbs")
+    SYSTEM_BOOT_ALL_SCRIPT: str = os.getenv("SYSTEM_BOOT_ALL_SCRIPT", r"C:\Users\mhkem\Desktop\START_SYSTEM_ALL.bat")
+    SYSTEM_SHUTDOWN_SCRIPT: str = os.getenv("SYSTEM_SHUTDOWN_SCRIPT", r"C:\Users\mhkem\Desktop\KILL_PROJECT_PORTS.bat")
+
     # Communication Protocols
     COMMUNICATION_PROVIDER: str = "google" # "google", "imap"
     IMAP_HOST: str = ""

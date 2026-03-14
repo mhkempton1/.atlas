@@ -19,8 +19,12 @@ async def system_health():
     from services.status_service import get_health_status
     return await get_health_status()
 
+
 from pydantic import BaseModel
 from typing import Optional
+from core.config import settings
+import os
+
 
 class ConfigUpdate(BaseModel):
     # Only allow safe updates for now
@@ -43,9 +47,9 @@ async def system_control(action: str):
     Actions: boot-silent, boot-all, shutdown
     """
     script_map = {
-        "boot-silent": r"C:\Users\mhkem\Desktop\START_SYSTEM_SILENT.vbs",
-        "boot-all": r"C:\Users\mhkem\Desktop\START_SYSTEM_ALL.bat",
-        "shutdown": r"C:\Users\mhkem\Desktop\KILL_PROJECT_PORTS.bat"
+        "boot-silent": settings.SYSTEM_BOOT_SILENT_SCRIPT,
+        "boot-all": settings.SYSTEM_BOOT_ALL_SCRIPT,
+        "shutdown": settings.SYSTEM_SHUTDOWN_SCRIPT
     }
     
     if action not in script_map:
@@ -53,13 +57,21 @@ async def system_control(action: str):
     
     script_path = script_map[action]
     
+    # Security: Verify the file exists and is actually a file to prevent command injection
+    if not os.path.isfile(script_path):
+        return {"success": False, "error": "Configured script file not found"}
+
     try:
         if script_path.endswith('.vbs'):
             # Run VBScript via wscript (detached)
-            subprocess.Popen(['wscript.exe', script_path])
+            subprocess.Popen(['wscript.exe', script_path], shell=False)
+        elif script_path.endswith('.bat'):
+            # Safely pass the verified file path as a single argument to cmd.exe
+            # shell=False ensures we don't evaluate anything beyond cmd.exe launching the script
+            subprocess.Popen(['cmd.exe', '/c', script_path], shell=False)
         else:
-            # Run Batch file (detached)
-            subprocess.Popen(['cmd.exe', '/c', script_path])
+            # Allow .sh or execution directly for cross-platform support
+            subprocess.Popen([script_path], shell=False)
             
         return {"success": True, "message": f"Action {action} triggered"}
     except Exception as e:
