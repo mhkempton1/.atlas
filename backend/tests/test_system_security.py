@@ -72,7 +72,7 @@ def test_control_allowed_locally(client):
     /system/control/... should be allowed for local requests.
     """
     # Mock subprocess to avoid actual execution
-    with patch("subprocess.Popen") as mock_popen:
+    with patch("subprocess.Popen") as mock_popen, patch("os.path.isfile", return_value=True):
         response = client.post("/system/control/boot-silent")
         assert response.status_code == 200
         assert response.json()["success"] is True
