@@ -150,14 +150,10 @@ def test_search_failure(search_service, mock_chroma_setup):
     assert results == []
 
 def test_dummy_embedding_fallback(search_service, mock_chroma_setup):
-    """Test that DummyEmbedding is used if sentence_transformers is missing."""
-    # We need to mock import failure specifically inside _ensure_initialized
-    # But since that method does a local import, patching 'builtins.__import__' is tricky/risky.
-    # Instead, we can inspect the _embedding_fn after initialization if we can force the ImportError path.
-    # However, since we installed requirements, the import will succeed.
-    # We can try to patch sys.modules to hide sentence_transformers.
+    """Test that DummyEmbedding is used if OllamaEmbeddingFunction fails."""
+    with patch("services.search_service.embedding_functions.OllamaEmbeddingFunction") as mock_ollama:
+        mock_ollama.side_effect = Exception("Failed to load Ollama")
 
-    with patch.dict('sys.modules', {'sentence_transformers': None}):
         # Reset init state
         search_service._initialized = False
         search_service._client = None
